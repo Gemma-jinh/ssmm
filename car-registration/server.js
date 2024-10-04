@@ -4,7 +4,7 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 
 //환경 변수 설정
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5500;
 const MONGO_URI = "mongodb://localhost:27017/car_registration"; // 로컬 MongoDB 사용
 
 const app = express();
