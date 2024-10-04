@@ -53,25 +53,30 @@
           <div class="content-container">
             <div class="content-title">차량 번호</div>
             <div class="content-list">
-              <input type="text" class="form-control" />
+              <input
+                type="text"
+                class="form-control"
+                name="licensePlate"
+                placeholder="12가3456"
+              />
             </div>
           </div>
           <div class="content-container">
             <div class="content-title">위치</div>
             <div class="content-list">
-              <select class="form-select">
+              <select class="form-select" name="region">
                 <option selected>지역 선택</option>
                 <option value="1">One</option>
                 <option value="2">Two</option>
                 <option value="3">Three</option>
               </select>
-              <select class="form-select">
+              <select class="form-select" name="place">
                 <option selected>장소 선택</option>
                 <option value="1">One</option>
                 <option value="2">Two</option>
                 <option value="3">Three</option>
               </select>
-              <select class="form-select">
+              <select class="form-select" name="parkingSpot">
                 <option selected>주차 위치 선택</option>
                 <option value="1">One</option>
                 <option value="2">Two</option>
@@ -82,7 +87,7 @@
           <div class="content-container">
             <div class="content-title">고객사</div>
             <div class="content-list">
-              <select class="form-select">
+              <select class="form-select" name="customer">
                 <option selected>선택</option>
                 <option value="1">One</option>
                 <option value="3">Three</option>
@@ -92,7 +97,7 @@
           <div class="content-container">
             <div class="content-title">서비스 종류</div>
             <div class="content-list">
-              <select class="form-select">
+              <select class="form-select" name="serviceType">
                 <option selected>선택</option>
                 <option value="1">One</option>
               </select>
@@ -101,11 +106,16 @@
           <div class="content-container mb-5">
             <div class="content-title">서비스 금액</div>
             <div class="content-list">
-              <select class="form-select">
+              <select class="form-select" name="serviceAmountType">
                 <option selected>선택</option>
                 <option value="1">One</option>
               </select>
-              <input type="text" class="form-control" />
+              <input
+                type="number"
+                class="form-control"
+                name="serviceAmount"
+                placeholder="금액 입력"
+              />
             </div>
           </div>
         </div>
