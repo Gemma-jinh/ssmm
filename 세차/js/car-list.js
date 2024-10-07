@@ -39,7 +39,7 @@ $(document).ready(function () {
   loadCarList(); // 페이지 로드 시 차량 목록 로드
 
   // 추가: 차량 삭제 기능 구현 (선택된 차량 삭제)
-  $(".btn-outline-primary").on("click", function () {
+  $("#delete-button").on("click", function () {
     const selectedCars = $(".select-check-1:checked")
       .map(function () {
         return $(this).val();

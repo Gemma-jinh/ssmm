@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bodyParser = require("body-parser");
+const path = require("path"); //경로 관련 모듈 추가
 
 //환경 변수 설정
 const PORT = process.env.PORT || 5500;
@@ -12,6 +13,9 @@ const app = express();
 // 미들웨어 설정
 app.use(cors());
 app.use(bodyParser.json());
+
+//정적 파일 서빙 설정
+app.use(express.static(path.join(__dirname, "세차")));
 
 // 데이터 스키마 정의
 const CarTypeSchema = new mongoose.Schema({
@@ -177,6 +181,25 @@ app.get("/api/car-registrations", async (req, res) => {
   }
 });
 
+// 6-1. 특정 차량 정보 조회
+app.get("/api/car-registrations/:id", async (req, res) => {
+  try {
+    const carRegistration = await CarRegistration.findById(req.params.id)
+      .populate("type") // CarType 정보 포함
+      .populate("model") // CarModel 정보 포함
+      .exec();
+
+    if (!carRegistration) {
+      return res.status(404).json({ error: "차량을 찾을 수 없습니다." });
+    }
+
+    res.json(carRegistration);
+  } catch (err) {
+    console.error("차량 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
 // 7. 차량 삭제
 app.delete("/api/car-registrations", async (req, res) => {
   try {
@@ -191,6 +214,51 @@ app.delete("/api/car-registrations", async (req, res) => {
   } catch (err) {
     console.error("차량 삭제 오류:", err);
     res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 8. 특정 차량 정보 수정
+app.put("/api/car-registrations/:id", async (req, res) => {
+  try {
+    const {
+      typeId,
+      modelId,
+      licensePlate,
+      location,
+      customer,
+      serviceType,
+      serviceAmount,
+      notes,
+    } = req.body;
+
+    const updatedData = {
+      type: typeId,
+      model: modelId,
+      licensePlate,
+      location,
+      customer,
+      serviceType,
+      serviceAmount,
+      notes,
+    };
+
+    const updatedCar = await CarRegistration.findByIdAndUpdate(
+      req.params.id,
+      updatedData,
+      { new: true, runValidators: true }
+    )
+      .populate("type")
+      .populate("model")
+      .exec();
+
+    if (!updatedCar) {
+      return res.status(404).json({ error: "차량을 찾을 수 없습니다." });
+    }
+
+    res.json(updatedCar);
+  } catch (err) {
+    console.error("차량 수정 오류:", err);
+    res.status(400).json({ error: "차량 수정에 실패했습니다." });
   }
 });
 
