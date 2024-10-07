@@ -12,7 +12,7 @@ const app = express();
 
 // 미들웨어 설정
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
 
 //정적 파일 서빙 설정
 app.use(express.static(path.join(__dirname, "세차")));
@@ -261,6 +261,56 @@ app.put("/api/car-registrations/:id", async (req, res) => {
     res.status(400).json({ error: "차량 수정에 실패했습니다." });
   }
 });
+
+// 9. 검색 API 엔드포인트
+// app.get("/api/car-registrations", (req, res) => {
+//   let filteredCars = cars;
+
+//   const {
+//     carType,
+//     carModel,
+//     carNumber,
+//     region,
+//     location,
+//     parkingLocation,
+//     customer,
+//     manager,
+//   } = req.query;
+
+//   if (carType) {
+//     filteredCars = filteredCars.filter((car) => car.carType === carType);
+//   }
+//   if (carModel) {
+//     filteredCars = filteredCars.filter((car) => car.model.name === carModel);
+//   }
+//   if (carNumber) {
+//     filteredCars = filteredCars.filter((car) =>
+//       car.licensePlate.includes(carNumber)
+//     );
+//   }
+//   if (region) {
+//     filteredCars = filteredCars.filter((car) => car.location.region === region);
+//   }
+//   if (location) {
+//     filteredCars = filteredCars.filter(
+//       (car) => car.location.place === location
+//     );
+//   }
+//   if (parkingLocation) {
+//     filteredCars = filteredCars.filter(
+//       (car) => car.parkingLocation === parkingLocation
+//     );
+//   }
+// 주차 위치와 같은 다른 필드도 추가 가능
+//   if (customer) {
+//     filteredCars = filteredCars.filter((car) => car.customer === customer);
+//   }
+//   if (manager) {
+//     filteredCars = filteredCars.filter((car) => car.manager.includes(manager));
+//   }
+
+//   res.json(filteredCars);
+// });
 
 // 서버 시작
 app.listen(PORT, () => {

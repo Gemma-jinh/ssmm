@@ -18,7 +18,17 @@
       <div class="main-content-box">
         <h2 class="heading d-flex justify-content-between align-items-center">
           <p>차량 등록</p>
-          <button class="btn btn-outline-primary">엑셀 파일 업로드</button>
+          <div>
+            <button class="btn btn-outline-primary" id="upload-excel-btn">
+              엑셀 파일 업로드
+            </button>
+            <input
+              type="file"
+              id="excel-file-input"
+              accept=".xlsx, .xls"
+              style="display: none"
+            />
+          </div>
         </h2>
         <div class="sub-section">
           <div class="content-container">
