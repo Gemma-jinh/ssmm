@@ -177,6 +177,23 @@ app.get("/api/car-registrations", async (req, res) => {
   }
 });
 
+// 7. 차량 삭제
+app.delete("/api/car-registrations", async (req, res) => {
+  try {
+    const { ids } = req.body; // 배열 형태로 전달된 차량 ID들
+
+    if (!ids || !Array.isArray(ids)) {
+      return res.status(400).json({ error: "유효하지 않은 요청 데이터" });
+    }
+
+    await CarRegistration.deleteMany({ _id: { $in: ids } }); //deleteMany: filter와 일치하는 문서를 모두 제거
+    res.json({ message: "차량이 성공적으로 삭제되었습니다." });
+  } catch (err) {
+    console.error("차량 삭제 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
 // 서버 시작
 app.listen(PORT, () => {
   console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
