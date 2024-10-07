@@ -13,30 +13,6 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// DB 연결
-mongoose
-  .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => {
-    console.log("MongoDB 연결 성공");
-
-    const defaultCarTypes = ["경형", "소형", "중형", "대형", "승합", "기타"];
-
-    // CarType 모델이 정의된 후에 실행되어야 합니다.
-    CarType.find()
-      .then((existingTypes) => {
-        if (existingTypes.length === 0) {
-          return CarType.insertMany(defaultCarTypes.map((name) => ({ name })));
-        }
-      })
-      .then(() => {
-        console.log("기본 차종이 추가되었습니다.");
-      })
-      .catch((err) => {
-        console.error("기본 차종 추가 오류:", err);
-      });
-  })
-  .catch((err) => console.error("MongoDB 연결 실패:", err));
-
 // 데이터 스키마 정의
 const CarTypeSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
@@ -82,6 +58,30 @@ const CarRegistration = mongoose.model(
   "CarRegistration",
   CarRegistrationSchema
 );
+
+// DB 연결
+mongoose
+  .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => {
+    console.log("MongoDB 연결 성공");
+
+    const defaultCarTypes = ["경형", "소형", "중형", "대형", "승합", "기타"];
+
+    // CarType 모델이 정의된 후에 실행되어야 합니다.
+    CarType.find()
+      .then((existingTypes) => {
+        if (existingTypes.length === 0) {
+          return CarType.insertMany(defaultCarTypes.map((name) => ({ name })));
+        }
+      })
+      .then(() => {
+        console.log("기본 차종이 추가되었습니다.");
+      })
+      .catch((err) => {
+        console.error("기본 차종 추가 오류:", err);
+      });
+  })
+  .catch((err) => console.error("MongoDB 연결 실패:", err));
 
 // API 엔드포인트
 
