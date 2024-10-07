@@ -163,6 +163,20 @@ app.post("/api/car-registrations", async (req, res) => {
   }
 });
 
+// 6. 차량 목록 조회
+app.get("/api/car-registrations", async (req, res) => {
+  try {
+    const carRegistrations = await CarRegistration.find()
+      .populate("type") // CarType 정보 포함
+      .populate("model") // CarModel 정보 포함
+      .exec();
+    res.json(carRegistrations);
+  } catch (err) {
+    console.error("차량 목록 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
 // 서버 시작
 app.listen(PORT, () => {
   console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
