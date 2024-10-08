@@ -138,7 +138,11 @@ const CarRegistrationSchema = new mongoose.Schema({
     place: String,
     parkingSpot: String,
   },
-  customer: String,
+  customer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Customer",
+    required: true,
+  },
   serviceType: String,
   serviceAmount: Number,
   notes: String,
@@ -152,6 +156,16 @@ const CarRegistration = mongoose.model(
   "CarRegistration",
   CarRegistrationSchema
 );
+
+//고객사 스키마 정의
+const CustomerSchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true }, // 고객사명
+  display: { type: Boolean, default: true }, // 고객사 표기 여부
+  createdAt: { type: Date, default: Date.now },
+});
+
+// 고객사 모델 생성
+const Customer = mongoose.model("Customer", CustomerSchema);
 
 // DB 연결
 mongoose
@@ -352,6 +366,69 @@ app.put("/api/car-registrations/:id", async (req, res) => {
   }
 });
 
+// 10. 고객사 목록 조회
+app.get("/api/customers", async (req, res) => {
+  try {
+    console.log("Received GET request for /api/customers");
+    const customers = await Customer.find().sort({ createdAt: -1 });
+    res.json(customers);
+  } catch (err) {
+    console.error("고객사 목록 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 11. 새로운 고객사 추가
+app.post("/api/customers", async (req, res) => {
+  try {
+    const { name, display } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: "고객사명이 필요합니다." });
+    }
+
+    const existingCustomer = await Customer.findOne({ name });
+    if (existingCustomer) {
+      return res.status(400).json({ error: "이미 존재하는 고객사명입니다." });
+    }
+
+    const newCustomer = new Customer({
+      name,
+      display: display !== undefined ? display : true,
+    });
+    await newCustomer.save();
+    res.status(201).json(newCustomer);
+  } catch (err) {
+    console.error("고객사 등록 오류:", err);
+    res.status(500).json({ error: "고객사 추가 실패" });
+  }
+});
+
+// 12. 특정 고객사 정보 수정
+app.put("/api/customers/:id", async (req, res) => {
+  try {
+    const updatedData = {};
+    const { name, display } = req.body;
+
+    if (name !== undefined) updatedData.name = name;
+    if (display !== undefined) updatedData.display = display;
+
+    const updatedCustomer = await Customer.findByIdAndUpdate(
+      req.params.id,
+      updatedData,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedCustomer) {
+      return res.status(404).json({ error: "고객사를 찾을 수 없습니다." });
+    }
+
+    res.json(updatedCustomer);
+  } catch (err) {
+    console.error("고객사 수정 오류:", err);
+    res.status(400).json({ error: "고객사 수정 실패" });
+  }
+});
+
 // 9. 검색 API 엔드포인트
 // app.get("/api/car-registrations", (req, res) => {
 //   let filteredCars = cars;
@@ -464,13 +541,13 @@ app.post(
           !carType ||
           !carModel ||
           !licensePlate ||
-          !region ||
-          !place ||
+          // !region ||
+          // !place ||
           !customer
         ) {
           return res
             .status(400)
-            .json({ error: "필수 필드가 누락되었습니다.", row });
+            .json({ error: "필수 정보가 누락되었습니다.", row });
         }
 
         // 차종 조회 또는 생성
@@ -488,6 +565,13 @@ app.post(
         if (!carModelDoc) {
           carModelDoc = new CarModel({ name: carModel, type: carTypeDoc._id });
           await carModelDoc.save();
+        }
+
+        // 고객사 조회 또는 생성
+        let customerDoc = await Customer.findOne({ name: customer });
+        if (!customerDoc) {
+          customerDoc = new Customer({ name });
+          await customerDoc.save();
         }
 
         // 차량 번호 중복 확인
