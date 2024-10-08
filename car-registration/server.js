@@ -3,6 +3,18 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const path = require("path"); //경로 관련 모듈 추가
+const multer = require("multer");
+const XLSX = require("xlsx");
+const util = require("util");
+const fs = require("fs");
+
+// Promisify fs functions
+const mkdir = util.promisify(fs.mkdir);
+const stat = util.promisify(fs.stat);
+const access = util.promisify(fs.access);
+const unlink = util.promisify(fs.unlink);
+
+console.log("Current working directory:", process.cwd());
 
 //환경 변수 설정
 const PORT = process.env.PORT || 5500;
@@ -15,7 +27,85 @@ app.use(cors());
 app.use(express.json());
 
 //정적 파일 서빙 설정
-app.use(express.static(path.join(__dirname, "세차")));
+// app.use(express.static(path.join(__dirname, "세차")));
+
+// 파일 저장 경로 설정 및 폴더 생성
+const uploadDir = path.resolve(__dirname, "uploads");
+console.log("Upload directory:", uploadDir);
+
+// 디렉토리 생성 함수
+async function ensureDir(dirpath) {
+  try {
+    await fs.promises.mkdir(dirpath, { recursive: true });
+    console.log(`Directory created or already exists: ${dirpath}`);
+    // 디렉토리 권한 확인
+    const stats = await fs.promises.stat(dirpath);
+    console.log(`Directory permissions: ${stats.mode}`);
+  } catch (err) {
+    console.error(`Error creating/checking directory ${dirpath}:`, err);
+    throw err;
+  }
+}
+
+// 서버 시작 시 업로드 디렉토리 생성 확인
+ensureDir(uploadDir).catch((err) => {
+  console.error("Failed to create upload directory:", err);
+  process.exit(1);
+});
+
+// 파일 저장 경로 설정
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    console.log(
+      "Multer destination function called. Upload directory:",
+      uploadDir
+    );
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    // 파일 이름에서 특수 문자 제거
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "");
+    const fileName = uniqueSuffix + "-" + safeName;
+    console.log("Generated filename:", fileName);
+    cb(null, fileName);
+  },
+});
+
+// 파일 필터링 (엑셀 파일만 허용)
+const fileFilter = (req, file, cb) => {
+  console.log(
+    "Filtering file:",
+    file.originalname,
+    "MIME type:",
+    file.mimetype
+  );
+  const allowedMimes = [
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+    "application/octet-stream", // 일부 브라우저에서 이 MIME 타입을 사용할 수 있음
+    "application/haansoftxlsx", // 한글 오피스 엑셀 파일 MIME 타입
+  ];
+
+  const allowedExtensions = /xlsx|xls$/i;
+
+  if (
+    allowedMimes.includes(file.mimetype) ||
+    allowedExtensions.test(path.extname(file.originalname))
+  ) {
+    cb(null, true);
+  } else {
+    cb(new Error("엑셀 파일(.xlsx, .xls)만 업로드 가능합니다."), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+});
 
 // 데이터 스키마 정의
 const CarTypeSchema = new mongoose.Schema({
@@ -311,6 +401,160 @@ app.put("/api/car-registrations/:id", async (req, res) => {
 
 //   res.json(filteredCars);
 // });
+
+// 엑셀 업로드 (차량 대량 등록)
+app.post(
+  "/api/car-registrations/bulk-upload",
+  (req, res, next) => {
+    console.log("Received upload request");
+    upload.single("file")(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        console.error("Multer error:", err);
+        return res.status(400).json({ error: err.message });
+      } else if (err) {
+        console.error("Upload error:", err);
+        return res.status(400).json({ error: err.message });
+      }
+      console.log("File upload successful");
+      next();
+    });
+  },
+  async (req, res) => {
+    if (!req.file) {
+      console.log("No file uploaded");
+      return res.status(400).json({ error: "엑셀 파일을 업로드해주세요." });
+    }
+
+    console.log("Uploaded file:", req.file);
+    console.log("File path:", req.file.path);
+    console.log("File MIME type:", req.file.mimetype);
+
+    // 파일 존재 확인
+    try {
+      await access(req.file.path, fs.constants.R_OK);
+      console.log("File exists and is accessible");
+
+      //엑셀 파일 읽기
+      const workbook = XLSX.readFile(req.file.path);
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json(sheet);
+
+      console.log("Processed data count:", data.length);
+      // 데이터 유효성 검사 및 변환
+      const registrations = [];
+      // 데이터베이스에 저장
+      for (let row of data) {
+        // 엑셀의 컬럼명에 맞게 필드 매핑
+        const {
+          carType, // 차종 이름
+          carModel, // 차량 모델 이름
+          licensePlate, // 차량 번호
+          region, // 지역
+          place, // 장소
+          parkingSpot, // 주차 위치
+          customer, // 고객사
+          serviceType, // 서비스 종류
+          serviceAmount, // 서비스 금액
+          notes, // 기타 메모
+        } = row;
+
+        // 필수 필드 확인
+        if (
+          !carType ||
+          !carModel ||
+          !licensePlate ||
+          !region ||
+          !place ||
+          !customer
+        ) {
+          return res
+            .status(400)
+            .json({ error: "필수 필드가 누락되었습니다.", row });
+        }
+
+        // 차종 조회 또는 생성
+        let carTypeDoc = await CarType.findOne({ name: carType });
+        if (!carTypeDoc) {
+          carTypeDoc = new CarType({ name: carType });
+          await carTypeDoc.save();
+        }
+
+        // 차량 모델 조회 또는 생성
+        let carModelDoc = await CarModel.findOne({
+          name: carModel,
+          type: carTypeDoc._id,
+        });
+        if (!carModelDoc) {
+          carModelDoc = new CarModel({ name: carModel, type: carTypeDoc._id });
+          await carModelDoc.save();
+        }
+
+        // 차량 번호 중복 확인
+        const existingCar = await CarRegistration.findOne({
+          licensePlate: licensePlate,
+        });
+        if (existingCar) {
+          return res
+            .status(400)
+            .json({ error: `차량 번호 중복: ${licensePlate}`, row });
+        }
+
+        // 차량 등록 객체 생성
+        const registration = {
+          type: carTypeDoc._id,
+          model: carModelDoc._id,
+          licensePlate,
+          location: {
+            region,
+            place,
+            parkingSpot,
+          },
+          customer,
+          serviceType: serviceType || "",
+          serviceAmount: serviceAmount || 0,
+          notes: notes || "",
+        };
+
+        registrations.push(registration);
+      }
+
+      // 엑셀 업로드 차량 등록
+      await CarRegistration.insertMany(registrations);
+
+      // 파일 삭제
+      await unlink(req.file.path);
+      console.log("File deleted:", req.file.path);
+
+      // 파일 삭제
+      await unlink(req.file.path);
+      console.log("File deleted:", req.file.path);
+
+      res.json({
+        message: `${registrations.length}개의 차량이 성공적으로 등록되었습니다.`,
+      });
+    } catch (error) {
+      console.error("차량 대량 등록 오류:", error);
+      res.status(500).json({
+        error: "엑셀 파일 처리 중 오류가 발생했습니다.",
+        details: error.message,
+      });
+    }
+  }
+);
+
+//정적 파일 서빙 설정
+app.use(express.static(path.join(__dirname, "세차")));
+
+// 에러 핸들링 미들웨어 (라우트 정의 후에 추가)
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  if (err instanceof multer.MulterError) {
+    res.status(400).json({ error: err.message });
+  } else {
+    res.status(500).json({ error: "서버 내부 오류" });
+  }
+});
 
 // 서버 시작
 app.listen(PORT, () => {
