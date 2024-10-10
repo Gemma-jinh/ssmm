@@ -166,6 +166,7 @@ const CustomerSchema = new mongoose.Schema({
 
 // 고객사 모델 생성
 const Customer = mongoose.model("Customer", CustomerSchema);
+// const Customer = require("./models/Customer");
 
 // DB 연결
 mongoose
@@ -404,30 +405,42 @@ app.post("/api/customers", async (req, res) => {
     res.status(500).json({ error: "고객사 추가 실패" });
   }
 });
+// 특정 고객사 조회
+app.get("/api/customers/:id", async (req, res) => {
+  try {
+    const customer = await Customer.findById(req.params.id);
+    if (!customer) {
+      return res.status(404).json({ error: "고객사를 찾을 수 없습니다." });
+    }
+    res.json(customer);
+  } catch (err) {
+    console.error("고객사 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
 
 // 12. 특정 고객사 정보 수정
 app.put("/api/customers/:id", async (req, res) => {
   try {
     const { name, display } = req.body;
-    const updatedData = {};
+    if (!name) {
+      return res.status(400).json({ error: "고객사명을 입력해주세요." });
+    }
 
-    if (name !== undefined) updatedData.name = name;
-    if (display !== undefined) updatedData.display = display;
-
-    const updatedCustomer = await Customer.findByIdAndUpdate(
-      req.params.id,
-      updatedData,
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedCustomer) {
+    const customer = await Customer.findById(req.params.id);
+    if (!customer) {
       return res.status(404).json({ error: "고객사를 찾을 수 없습니다." });
     }
 
-    res.json(updatedCustomer);
+    customer.name = name;
+    customer.display = display;
+
+    await customer.save();
+
+    res.json(customer);
   } catch (err) {
     console.error("고객사 수정 오류:", err);
-    res.status(400).json({ error: "고객사 수정 실패" });
+    res.status(500).json({ error: "서버 오류" });
   }
 });
 

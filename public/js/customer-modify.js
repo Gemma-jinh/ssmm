@@ -14,10 +14,9 @@ $(document).ready(function () {
 
   function fetchCustomer(id) {
     $.ajax({
-      url: `/api/customers`,
+      url: `/api/customers/${id}`,
       type: "GET",
-      success: function (response) {
-        const customer = response.find((cust) => cust._id === id);
+      success: function (customer) {
         if (!customer) {
           alert("해당 고객사를 찾을 수 없습니다.");
           window.location.href = "./customer-manage.html";
@@ -34,7 +33,7 @@ $(document).ready(function () {
 
   function populateForm(customer) {
     $("#customer-name").val(customer.name);
-    if (customer.isDisplayed) {
+    if (customer.display) {
       $("#flexRadioDefault2").prop("checked", true);
     } else {
       $("#flexRadioDefault1").prop("checked", true);
@@ -44,8 +43,8 @@ $(document).ready(function () {
   // 수정하기 버튼 클릭 이벤트
   $("#update-customer-btn").on("click", function () {
     const name = $("#customer-name").val().trim();
-    const isDisplayed =
-      $("input[name='flexRadioDefault']:checked").val() === "flexRadioDefault2";
+    const display =
+      $("input[name='flexRadioDefault']:checked").val() === "true";
 
     if (!name) {
       alert("고객사명을 입력해주세요.");
@@ -56,7 +55,7 @@ $(document).ready(function () {
       url: `/api/customers/${customerId}`,
       type: "PUT",
       contentType: "application/json",
-      data: JSON.stringify({ name, isDisplayed }),
+      data: JSON.stringify({ name, display }),
       success: function (response) {
         alert("고객사가 성공적으로 수정되었습니다.");
         // 수정 후 고객사 관리 페이지로 이동
