@@ -6,6 +6,7 @@ $(document).ready(function () {
       url: "/api/customers",
       type: "GET",
       success: function (response) {
+        console.log("Received customers:", response); // 디버깅용 로그 추가
         populateCustomerTable(response);
       },
       error: function (xhr, status, error) {
@@ -16,7 +17,7 @@ $(document).ready(function () {
   }
 
   function populateCustomerTable(customers) {
-    const tbody = $("#customers-table tbody");
+    const tbody = $("#customer-table tbody");
     tbody.empty(); // 기존 내용 삭제
 
     if (customers.length === 0) {
@@ -27,11 +28,11 @@ $(document).ready(function () {
     }
 
     customers.forEach((customer) => {
-      const isDisplayedText = customer.isDisplayed ? "표기" : "표기 안함";
+      const displayText = customer.display ? "표기" : "표기 안함";
       const row = `
           <tr>
             <td>${customer.name}</td>
-            <td>${isDisplayedText}</td>
+            <td>${displayText}</td>
             <td>
               <a href="./customer-modify.html?id=${customer._id}">
                 <button type="button" class="btn btn-light btn-sm">수정</button>

@@ -10,7 +10,7 @@ $(document).ready(function () {
     }
 
     $.ajax({
-      url: "/api/customers",
+      url: "http://localhost:3000/api/customers",
       type: "POST",
       contentType: "application/json",
       data: JSON.stringify({ name, display }),

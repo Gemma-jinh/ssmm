@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:5500/api"; // 백엔드 서버 URL
+const API_BASE_URL = "/api"; // 백엔드 서버 URL
 //초기 차량 목록 로딩
 $(document).ready(function () {
   loadCarTypes();
@@ -69,9 +69,9 @@ function loadCarList(searchParams = {}) {
                 <td>${car.location.place}</td>
                 <td>${car.model.name}</td>
                 <td>${car.licensePlate}</td>
-                <td>${car.customer}</td>
+                <td>${car.customer.name}</td>
                 <td>
-                  <a href="./car-info-modify.html?id=${car._id}">
+                  <a href="../pages/car-info-modify.html?id=${car._id}">
                     <button type="button" class="btn btn-light btn-sm">수정</button>
                   </a>
                 </td>
@@ -95,7 +95,7 @@ function performSearch() {
   const carNumber = $('input[type="text"]').eq(0).val(); // 차량 번호
   const region = $("select").eq(2).val(); // 지역 선택
   const location = $("select").eq(3).val(); // 장소 선택
-  const parkingLocation = $("select").eq(4).val(); // 주차 위치 선택
+  const parkingSpot = $("select").eq(4).val(); // 주차 위치 선택
   const customer = $("select").eq(5).val(); // 고객사 선택
   const manager = $('input[type="text"]').eq(1).val(); // 담당자
 
@@ -106,8 +106,7 @@ function performSearch() {
     carNumber: carNumber.trim(),
     "location.region": region !== "지역 선택" ? region : "",
     "location.place": location !== "장소 선택" ? location : "",
-    "location.parkingLocation:":
-      parkingLocation !== "주차 위치 선택" ? parkingLocation : "",
+    "location.parkingSpot": parkingSpot !== "주차 위치 선택" ? parkingSpot : "",
     customer: customer !== "선택" ? customer : "",
     manager: manager.trim(),
   };

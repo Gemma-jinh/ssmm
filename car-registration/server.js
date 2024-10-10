@@ -17,7 +17,7 @@ const unlink = util.promisify(fs.unlink);
 console.log("Current working directory:", process.cwd());
 
 //환경 변수 설정
-const PORT = process.env.PORT || 5500;
+// const PORT = process.env.PORT || 3000;
 const MONGO_URI = "mongodb://localhost:27017/car_registration"; // 로컬 MongoDB 사용
 
 const app = express();
@@ -27,7 +27,7 @@ app.use(cors());
 app.use(express.json());
 
 //정적 파일 서빙 설정
-// app.use(express.static(path.join(__dirname, "세차")));
+app.use(express.static(path.join(__dirname, "../public")));
 
 // 파일 저장 경로 설정 및 폴더 생성
 const uploadDir = path.resolve(__dirname, "uploads");
@@ -277,6 +277,7 @@ app.get("/api/car-registrations", async (req, res) => {
     const carRegistrations = await CarRegistration.find()
       .populate("type") // CarType 정보 포함
       .populate("model") // CarModel 정보 포함
+      .populate("customer") // Customer 정보 포함
       .exec();
     res.json(carRegistrations);
   } catch (err) {
@@ -368,8 +369,8 @@ app.put("/api/car-registrations/:id", async (req, res) => {
 
 // 10. 고객사 목록 조회
 app.get("/api/customers", async (req, res) => {
+  console.log("Received GET request for /api/customers");
   try {
-    console.log("Received GET request for /api/customers");
     const customers = await Customer.find().sort({ createdAt: -1 });
     res.json(customers);
   } catch (err) {
@@ -395,6 +396,7 @@ app.post("/api/customers", async (req, res) => {
       name,
       display: display !== undefined ? display : true,
     });
+
     await newCustomer.save();
     res.status(201).json(newCustomer);
   } catch (err) {
@@ -406,8 +408,8 @@ app.post("/api/customers", async (req, res) => {
 // 12. 특정 고객사 정보 수정
 app.put("/api/customers/:id", async (req, res) => {
   try {
-    const updatedData = {};
     const { name, display } = req.body;
+    const updatedData = {};
 
     if (name !== undefined) updatedData.name = name;
     if (display !== undefined) updatedData.display = display;
@@ -594,7 +596,7 @@ app.post(
             place,
             parkingSpot,
           },
-          customer,
+          customer: customerDoc._id,
           serviceType: serviceType || "",
           serviceAmount: serviceAmount || 0,
           notes: notes || "",
@@ -605,10 +607,6 @@ app.post(
 
       // 엑셀 업로드 차량 등록
       await CarRegistration.insertMany(registrations);
-
-      // 파일 삭제
-      await unlink(req.file.path);
-      console.log("File deleted:", req.file.path);
 
       // 파일 삭제
       await unlink(req.file.path);
@@ -628,7 +626,12 @@ app.post(
 );
 
 //정적 파일 서빙 설정
-app.use(express.static(path.join(__dirname, "세차")));
+// app.use(express.static(path.join(__dirname, "../public")));
+
+// 모든 다른 라우트에 대해 index.html 반환 (SPA의 경우 필요)
+// app.get("*", (req, res) => {
+//   res.sendFile(path.join(__dirname, "public", "index.html"));
+// });
 
 // 에러 핸들링 미들웨어 (라우트 정의 후에 추가)
 app.use((err, req, res, next) => {
@@ -641,6 +644,7 @@ app.use((err, req, res, next) => {
 });
 
 // 서버 시작
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
 });
