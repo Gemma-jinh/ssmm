@@ -2,7 +2,7 @@ const API_BASE_URL = "/api"; // 백엔드 서버 URL
 //초기 차량 목록 로딩
 $(document).ready(function () {
   loadCarTypes();
-
+  loadCustomers();
   loadCarList();
 
   // 검색 버튼 클릭 이벤트 핸들러
@@ -44,6 +44,35 @@ function loadCarTypes() {
   });
 }
 
+// 고객사 목록 로드 함수
+function loadCustomers() {
+  $.ajax({
+    url: `${API_BASE_URL}/customers`,
+    method: "GET",
+    success: function (data) {
+      console.log("고객사 목록:", data); // 고객사 목록 출력
+
+      const customerSelect = $("#customer-select");
+      // 기존 옵션 삭제 (선택 제외)
+      customerSelect.find('option:not([value=""])').remove();
+
+      // 새로운 고객사 옵션 추가
+      data.forEach((customer) => {
+        if (typeof customer === "object" && customer.name) {
+          const option = `<option value="${customer._id}">${customer.name}</option>`;
+          customerSelect.append(option);
+        } else {
+          console.warn("Unexpected customer format:", customer);
+        }
+      });
+    },
+    error: function (err) {
+      console.error("고객사 목록 로드 실패:", err);
+      alert("고객사 목록을 불러오는 데 실패했습니다.");
+    },
+  });
+}
+
 // 차량 목록 로드 함수
 function loadCarList(searchParams = {}) {
   $.ajax({
@@ -62,6 +91,17 @@ function loadCarList(searchParams = {}) {
       }
 
       data.forEach((car) => {
+        const customerName = car.customer ? car.customer.name : "N/A";
+        const modelName = car.model ? car.model.name : "N/A";
+
+        // 디버깅: 문제 되는 차량 객체 로그 출력
+        if (!car.customer) {
+          console.warn(`차량 ID ${car._id}에 고객사 정보가 없습니다.`);
+        }
+        if (!car.model) {
+          console.warn(`차량 ID ${car._id}에 차량 모델 정보가 없습니다.`);
+        }
+
         const row = `
               <tr>
                 <th><input class="form-check-input select-check-1" type="checkbox" value="${car._id}" /></th>

@@ -72,6 +72,37 @@ $(document).ready(function () {
     });
   }
 
+  // 고객사 목록 로드 함수
+  function loadCustomers() {
+    $.ajax({
+      url: `${API_BASE_URL}/customers`,
+      method: "GET",
+      success: function (data) {
+        console.log("고객사 목록:", data); // 고객사 목록 출력
+
+        const customerSelect = $("#customer-select");
+        // 기존 옵션 삭제 (선택 제외)
+        customerSelect.find('option:not([value=""])').remove();
+
+        // 새로운 고객사 옵션 추가
+        data.forEach((customer) => {
+          if (typeof customer === "object" && customer.name) {
+            const option = `<option value="${customer._id}">${customer.name}</option>`;
+            customerSelect.append(option);
+          } else {
+            console.warn("Unexpected customer format:", customer);
+          }
+        });
+      },
+      error: function (err) {
+        console.error("고객사 목록 로드 실패:", err);
+        alert("고객사 목록을 불러오는 데 실패했습니다.");
+      },
+    });
+  }
+
+  loadCustomers(); // 페이지 로드 시 고객사 목록 로드
+
   // 등록하기 버튼 클릭 시
   $(".btn-primary").on("click", function () {
     const selectedTypeId = $("#car-type").val();
@@ -100,6 +131,12 @@ $(document).ready(function () {
       alert("차량 번호를 입력해주세요.");
       return;
     }
+
+    if (!customer) {
+      alert("고객사를 입력해주세요.");
+      return;
+    }
+
     //차량 모델 ID 결정
     let finalModelIdPromise;
     if (customModelName) {
@@ -150,6 +187,13 @@ $(document).ready(function () {
           .empty()
           .append('<option value="" selected>차량 모델 선택</option>');
         $("#custom-car-model").prop("disabled", true).val("");
+        $("#customer-select").val("");
+        $('input[name="licensePlate"]').val("");
+        $('select[name="region"]').val("");
+        $('select[name="place"]').val("");
+        $('select[name="parkingSpot"]').val("");
+        $('select[name="serviceType"]').val("");
+        $('input[name="serviceAmount"]').val("");
         $("#car-wash-note").val("");
       })
       .catch((err) => {

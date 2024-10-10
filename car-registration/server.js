@@ -371,7 +371,7 @@ app.put("/api/car-registrations/:id", async (req, res) => {
 app.get("/api/customers", async (req, res) => {
   console.log("Received GET request for /api/customers");
   try {
-    const customers = await Customer.find().sort({ createdAt: -1 });
+    const customers = await Customer.find().sort({ name: 1 }); //이름순 정렬
     res.json(customers);
   } catch (err) {
     console.error("고객사 목록 조회 오류:", err);
