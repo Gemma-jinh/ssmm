@@ -21,33 +21,38 @@
           <div class="option-container">
             <p class="option-title">권한 그룹</p>
             <div class="option-list">
-              <select class="form-select">
-                <option selected>선택</option>
-                <option value="1">One</option>
-                <option value="2">Two</option>
-                <option value="3">Three</option>
+              <select id="search-authority-group" class="form-select">
+                <option value="" selected>선택</option>
+                <option value="작업자">작업자</option>
+                <option value="관리자">관리자</option>
               </select>
             </div>
           </div>
           <div class="option-container">
             <p class="option-title">관리자 ID</p>
-            <div>
-              <input type="text" class="form-control" />
+            <div class="content-list">
+              <input type="text" id="search-admin-id" class="form-control" />
             </div>
           </div>
           <div class="option-container">
             <p class="option-title">관리자명</p>
-            <div>
-              <input type="text" class="form-control" />
+            <div class="content-list">
+              <input type="text" id="search-admin-name" class="form-control" />
             </div>
           </div>
           <div class="option-container">
             <p class="option-title">고객사명</p>
-            <div>
-              <input type="text" class="form-control" />
+            <div class="content-list">
+              <input
+                type="text"
+                id="search-customer-name"
+                class="form-control"
+              />
             </div>
           </div>
-          <button type="button" class="btn btn-primary btn-lg">검색</button>
+          <button type="button" id="search-btn" class="btn btn-primary btn-lg">
+            검색
+          </button>
         </div>
         <div>
           <div class="d-flex justify-content-end mb-3">
@@ -69,8 +74,8 @@
                   <th scope="col">상세보기</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
+              <tbody id="account-list">
+                <!-- <tr>
                   <td>소속</td>
                   <td>권한권한</td>
                   <td>관리자ID</td>
@@ -111,7 +116,7 @@
                       </button>
                     </a>
                   </td>
-                </tr>
+                </tr> -->
               </tbody>
             </table>
           </div>
@@ -139,5 +144,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="../js/layout.js"></script>
+    <script src="../js/account-manage.js"></script>
   </body>
 </html>

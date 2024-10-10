@@ -7,6 +7,7 @@ const multer = require("multer");
 const XLSX = require("xlsx");
 const util = require("util");
 const fs = require("fs");
+const bcrypt = require("bcrypt");
 
 // Promisify fs functions
 const mkdir = util.promisify(fs.mkdir);
@@ -149,6 +150,20 @@ const CarRegistrationSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// Account 모델 정의
+const accountSchema = new mongoose.Schema({
+  adminId: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  customer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Customer",
+    required: true,
+  },
+  authorityGroup: { type: String, required: true },
+});
+
+const Account = mongoose.model("Account", accountSchema);
+
 // 모델 생성
 const CarType = mongoose.model("CarType", CarTypeSchema);
 const CarModel = mongoose.model("CarModel", CarModelSchema);
@@ -193,6 +208,95 @@ mongoose
   .catch((err) => console.error("MongoDB 연결 실패:", err));
 
 // API 엔드포인트
+
+// 1. 관리자 ID 중복 확인 엔드포인트
+app.get("/api/accounts/check-duplicate", async (req, res) => {
+  const { adminId } = req.query;
+  if (!adminId) {
+    return res.status(400).json({ error: "관리자 ID가 필요합니다." });
+  }
+  try {
+    const existingAccount = await Account.findOne({ adminId });
+    if (existingAccount) {
+      return res.json({ isDuplicate: true });
+    } else {
+      return res.json({ isDuplicate: false });
+    }
+  } catch (err) {
+    console.error("관리자 ID 중복 확인 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 2. 계정 등록 엔드포인트
+app.post("/api/accounts", async (req, res) => {
+  const { adminId, password, customer, authorityGroup } = req.body;
+
+  // 필수 필드 검증
+  if (!adminId || !password || !customer || !authorityGroup) {
+    return res.status(400).json({ error: "모든 필드를 입력해주세요." });
+  }
+
+  try {
+    // 관리자 ID 중복 확인
+    const existingAccount = await Account.findOne({ adminId });
+    if (existingAccount) {
+      return res.status(400).json({ error: "이미 사용 중인 관리자 ID입니다." });
+    }
+
+    // 비밀번호 해싱 (보안 강화)
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 계정 생성
+    const newAccount = new Account({
+      adminId,
+      password: hashedPassword,
+      customer,
+      authorityGroup,
+    });
+
+    await newAccount.save();
+
+    res.status(201).json(newAccount);
+  } catch (err) {
+    console.error("계정 생성 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 3. 계정 목록 조회 엔드포인트
+app.get("/api/accounts", async (req, res) => {
+  const { authorityGroup, adminId, adminName, customerName } = req.query;
+  let filter = {};
+
+  if (authorityGroup) filter.authorityGroup = authorityGroup;
+  if (adminId) filter.adminId = adminId;
+  if (adminName) filter.adminName = { $regex: adminName, $options: "i" };
+  if (customerName) {
+    // 고객사명으로 필터링하려면 Customer 모델과 조인 필요
+    const customers = await Customer.find({
+      name: { $regex: customerName, $options: "i" },
+    });
+    const customerIds = customers.map((c) => c._id);
+    filter.customer = { $in: customerIds };
+  }
+
+  try {
+    const accounts = await Account.find(filter).populate("customer").exec();
+    const formattedAccounts = accounts.map((account) => ({
+      _id: account._id,
+      affiliation: "소속", // 소속구분에 대한 추가 정보가 필요함
+      authorityGroup: account.authorityGroup,
+      adminId: account.adminId,
+      adminName: "관리자명", // 관리자명에 대한 필드가 필요함
+      customerName: account.customer ? account.customer.name : "N/A",
+    }));
+    res.json(formattedAccounts);
+  } catch (err) {
+    console.error("계정 목록 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
 
 // 1. 차종 목록 조회
 app.get("/api/car-types", async (req, res) => {
