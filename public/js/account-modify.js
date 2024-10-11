@@ -1,8 +1,20 @@
 $(document).ready(function () {
-  const API_BASE_URL = "/api"; // 백엔드 서버 URL
-  let isAdminIdAvailable = false; // 관리자 ID 중복 여부 상태 변수
+  const API_BASE_URL = "/api";
 
-  // 1. 고객사 목록 로드 함수
+  // 1. URL에서 계정 ID 추출
+  function getAccountIdFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("id");
+  }
+
+  const accountId = getAccountIdFromURL();
+
+  if (!accountId) {
+    alert("유효한 계정 ID가 제공되지 않았습니다.");
+    window.location.href = "./account-manage.html"; // 계정 관리 페이지로 이동
+  }
+
+  // 2. 고객사 목록 로드 함수
   function loadCustomers() {
     $.ajax({
       url: `${API_BASE_URL}/customers`,
@@ -29,43 +41,34 @@ $(document).ready(function () {
 
   loadCustomers(); // 페이지 로드 시 고객사 목록 로드
 
-  // 2. 관리자 ID 중복확인 버튼 클릭 이벤트
-  $("#check-duplicate-btn").on("click", function () {
-    const adminId = $("#admin-id").val().trim();
-
-    if (!adminId) {
-      $("#admin-id-feedback").text("관리자 ID를 입력해주세요.");
-      return;
-    }
-
-    // 관리자 ID 중복 확인 AJAX 요청
+  // 3. 계정 상세 정보 로드 함수
+  function loadAccountDetails(id) {
     $.ajax({
-      url: `${API_BASE_URL}/accounts/check-duplicate`,
+      url: `${API_BASE_URL}/accounts/${id}`,
       method: "GET",
-      data: { adminId },
-      success: function (response) {
-        if (response.isDuplicate) {
-          $("#admin-id-feedback").text("이미 사용 중인 관리자 ID입니다.");
-          $("#admin-id-feedback")
-            .removeClass("text-success")
-            .addClass("text-danger");
-          isAdminIdAvailable = false;
-        } else {
-          $("#admin-id-feedback").text("사용 가능한 관리자 ID입니다.");
-          $("#admin-id-feedback")
-            .removeClass("text-danger")
-            .addClass("text-success");
-          isAdminIdAvailable = true;
-        }
+      success: function (data) {
+        $("#admin-id").val(data.adminId);
+        $("#admin-name").val(data.adminName);
+        $("#authority-group-select").val(data.authorityGroup);
+        $("#customer-select").val(data.customer);
+        // 비밀번호는 보안을 위해 표시하지 않습니다.
       },
-      error: function (err) {
-        console.error("ID 중복 확인 실패:", err);
-        alert("관리자 ID 중복 확인에 실패했습니다.");
+      error: function (xhr, status, error) {
+        if (xhr.responseJSON && xhr.responseJSON.error) {
+          alert(`오류: ${xhr.responseJSON.error}`);
+        } else {
+          alert("계정 상세 정보를 불러오는 데 실패했습니다.");
+        }
+        console.error("Error details:", xhr.responseText);
+        window.location.href = "./account-manage.html"; // 계정 관리 페이지로 이동
       },
     });
-  });
+  }
 
-  // 3. 입력 폼 유효성 검사 함수
+  // 4. 계정 상세 정보 로드
+  loadAccountDetails(accountId);
+
+  // 5. 입력 폼 유효성 검사 함수
   function validateForm() {
     let isValid = true;
 
@@ -80,9 +83,6 @@ $(document).ready(function () {
     if (!adminId) {
       $("#admin-id-feedback").text("관리자 ID를 입력해주세요.");
       isValid = false;
-    } else if (!isAdminIdAvailable) {
-      $("#admin-id-feedback").text("관리자 ID 중복 확인을 해주세요.");
-      isValid = false;
     } else {
       $("#admin-id-feedback").text("");
     }
@@ -95,25 +95,29 @@ $(document).ready(function () {
       $("#admin-name-feedback").text("");
     }
 
-    // 비밀번호 검증
-    if (!password) {
-      $("#password-feedback").text("비밀번호를 입력해주세요.");
-      isValid = false;
-    } else if (password.length < 2) {
-      $("#password-feedback").text("비밀번호는 최소 2자 이상이어야 합니다.");
-      isValid = false;
-    } else {
-      $("#password-feedback").text("");
-    }
+    // 비밀번호 검증 (비밀번호 변경 시)
+    if (password) {
+      if (password.length < 2) {
+        // 비밀번호 길이 조정 가능
+        $("#password-feedback").text("비밀번호는 최소 2자 이상이어야 합니다.");
+        isValid = false;
+      } else {
+        $("#password-feedback").text("");
+      }
 
-    // 비밀번호 확인 검증
-    if (!confirmPassword) {
-      $("#confirm-password-feedback").text("비밀번호 확인을 입력해주세요.");
-      isValid = false;
-    } else if (password !== confirmPassword) {
-      $("#confirm-password-feedback").text("비밀번호가 일치하지 않습니다.");
-      isValid = false;
+      // 비밀번호 확인 검증
+      if (!confirmPassword) {
+        $("#confirm-password-feedback").text("비밀번호 확인을 입력해주세요.");
+        isValid = false;
+      } else if (password !== confirmPassword) {
+        $("#confirm-password-feedback").text("비밀번호가 일치하지 않습니다.");
+        isValid = false;
+      } else {
+        $("#confirm-password-feedback").text("");
+      }
     } else {
+      // 비밀번호를 변경하지 않을 경우 비밀번호 확인도 비워둡니다.
+      $("#password-feedback").text("");
       $("#confirm-password-feedback").text("");
     }
 
@@ -136,8 +140,8 @@ $(document).ready(function () {
     return isValid;
   }
 
-  // 4. 계정 등록 버튼 클릭 이벤트
-  $("#register-btn").on("click", function () {
+  // 6. 계정 수정 버튼 클릭 이벤트
+  $("#update-btn").on("click", function () {
     if (!validateForm()) {
       return;
     }
@@ -151,26 +155,30 @@ $(document).ready(function () {
     const accountData = {
       adminId,
       adminName,
-      password,
       customer,
       authorityGroup,
     };
 
-    // 계정 등록 AJAX 요청
+    // 비밀번호가 변경되었을 경우 포함
+    if (password) {
+      accountData.password = password;
+    }
+
+    // 계정 수정 AJAX 요청
     $.ajax({
-      url: `${API_BASE_URL}/accounts`,
-      method: "POST",
+      url: `${API_BASE_URL}/accounts/${accountId}`,
+      method: "PUT",
       contentType: "application/json",
       data: JSON.stringify(accountData),
       success: function (response) {
-        alert("계정이 성공적으로 등록되었습니다.");
-        window.location.href = "./account-manage.html"; // 계정 관리 페이지로 이동
+        alert("계정이 성공적으로 수정되었습니다.");
+        window.location.href = "./account-detail.html?id=" + accountId; // 계정 상세 페이지로 이동
       },
       error: function (xhr, status, error) {
         if (xhr.responseJSON && xhr.responseJSON.error) {
-          alert(`오류: ${xhr.responseJSON.error}`);
+          $("#error-message").text(`오류: ${xhr.responseJSON.error}`).show();
         } else {
-          alert("계정 등록 중 오류가 발생했습니다.");
+          $("#error-message").text("계정 수정 중 오류가 발생했습니다.").show();
         }
         console.error("Error details:", xhr.responseText);
       },

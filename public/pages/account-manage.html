@@ -66,7 +66,7 @@
             <table class="table table-hover">
               <thead>
                 <tr>
-                  <th scope="col">소속구분</th>
+                  <!-- <th scope="col">소속구분</th> -->
                   <th scope="col">권한 그룹</th>
                   <th scope="col">관리자ID</th>
                   <th scope="col">관리자명</th>
@@ -75,48 +75,22 @@
                 </tr>
               </thead>
               <tbody id="account-list">
-                <!-- <tr>
-                  <td>소속</td>
-                  <td>권한권한</td>
-                  <td>관리자ID</td>
-                  <td>관리자명</td>
-                  <td>고객사명</td>
+                <!-- <% accounts.forEach(account => { %>
+                <tr>
+                  <td><%= account.affiliation %></td>
+                  <td><%= account.authorityGroup %></td>
+                  <td><%= account.adminId %></td>
+                  <td><%= account.adminName %></td>
+                  <td><%= account.customerName %></td>
                   <td>
-                    <a href="./account-detail.html">
+                    <a href="/pages/account-detail.html?id=<%= account._id %>">
                       <button type="button" class="btn btn-light btn-sm">
                         상세보기
                       </button>
                     </a>
                   </td>
                 </tr>
-                <tr>
-                  <td>소속</td>
-                  <td>권한권한</td>
-                  <td>관리자ID</td>
-                  <td>관리자명</td>
-                  <td>고객사명</td>
-                  <td>
-                    <a href="./account-detail.html">
-                      <button type="button" class="btn btn-light btn-sm">
-                        상세보기
-                      </button>
-                    </a>
-                  </td>
-                </tr>
-                <tr>
-                  <td>소속</td>
-                  <td>권한권한</td>
-                  <td>관리자ID</td>
-                  <td>관리자명</td>
-                  <td>고객사명</td>
-                  <td>
-                    <a href="./account-detail.html">
-                      <button type="button" class="btn btn-light btn-sm">
-                        상세보기
-                      </button>
-                    </a>
-                  </td>
-                </tr> -->
+                <% }); %> -->
               </tbody>
             </table>
           </div>

@@ -22,7 +22,6 @@ $(document).ready(function () {
           // 소속구분 및 관리자명은 실제 데이터에 맞게 수정 필요
           const row = `
               <tr>
-                <td>소속구분</td>
                 <td>${account.authorityGroup}</td>
                 <td>${account.adminId}</td>
                 <td>${account.adminName || "관리자명"}</td>

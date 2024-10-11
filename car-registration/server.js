@@ -153,6 +153,7 @@ const CarRegistrationSchema = new mongoose.Schema({
 // Account 모델 정의
 const accountSchema = new mongoose.Schema({
   adminId: { type: String, required: true, unique: true },
+  adminName: { type: String, required: true },
   password: { type: String, required: true },
   customer: {
     type: mongoose.Schema.Types.ObjectId,
@@ -230,10 +231,10 @@ app.get("/api/accounts/check-duplicate", async (req, res) => {
 
 // 2. 계정 등록 엔드포인트
 app.post("/api/accounts", async (req, res) => {
-  const { adminId, password, customer, authorityGroup } = req.body;
+  const { adminId, adminName, password, customer, authorityGroup } = req.body;
 
   // 필수 필드 검증
-  if (!adminId || !password || !customer || !authorityGroup) {
+  if (!adminId || !adminName || !password || !customer || !authorityGroup) {
     return res.status(400).json({ error: "모든 필드를 입력해주세요." });
   }
 
@@ -250,6 +251,7 @@ app.post("/api/accounts", async (req, res) => {
     // 계정 생성
     const newAccount = new Account({
       adminId,
+      adminName,
       password: hashedPassword,
       customer,
       authorityGroup,
@@ -288,12 +290,129 @@ app.get("/api/accounts", async (req, res) => {
       affiliation: "소속", // 소속구분에 대한 추가 정보가 필요함
       authorityGroup: account.authorityGroup,
       adminId: account.adminId,
-      adminName: "관리자명", // 관리자명에 대한 필드가 필요함
+      adminName: account.adminName, // 관리자명에 대한 필드가 필요함
       customerName: account.customer ? account.customer.name : "N/A",
     }));
     res.json(formattedAccounts);
   } catch (err) {
     console.error("계정 목록 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 4. 계정 상세 정보 조회 엔드포인트
+app.get("/api/accounts/:id", async (req, res) => {
+  const { id } = req.params;
+
+  // 유효한 MongoDB ObjectId인지 확인
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "유효하지 않은 계정 ID입니다." });
+  }
+
+  try {
+    const account = await Account.findById(id).populate("customer").exec();
+
+    if (!account) {
+      return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
+    }
+
+    // 필요한 필드만 선택하여 응답
+    const accountDetails = {
+      _id: account._id,
+      adminId: account.adminId,
+      adminName: account.adminName,
+      authorityGroup: account.authorityGroup,
+      customerName: account.customer ? account.customer.name : "N/A",
+      // 추가적인 필드가 있다면 여기에 추가
+    };
+
+    res.json(accountDetails);
+  } catch (err) {
+    console.error("계정 상세 정보 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 5. 계정 삭제 엔드포인트
+app.delete("/api/accounts/:id", async (req, res) => {
+  const { id } = req.params;
+
+  // 유효한 MongoDB ObjectId인지 확인
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "유효하지 않은 계정 ID입니다." });
+  }
+
+  try {
+    const deletedAccount = await Account.findByIdAndDelete(id);
+
+    if (!deletedAccount) {
+      return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
+    }
+
+    res.json({ message: "계정이 성공적으로 삭제되었습니다." });
+  } catch (err) {
+    console.error("계정 삭제 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 계정 수정 엔드포인트
+app.put("/api/accounts/:id", async (req, res) => {
+  const { id } = req.params;
+  const { adminId, adminName, password, customer, authorityGroup } = req.body;
+
+  // 유효한 MongoDB ObjectId인지 확인
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "유효하지 않은 계정 ID입니다." });
+  }
+
+  // 필수 필드 검증
+  if (!adminId || !adminName || !customer || !authorityGroup) {
+    return res.status(400).json({ error: "필수 필드를 모두 입력해주세요." });
+  }
+
+  try {
+    // 기존 계정 찾기
+    const account = await Account.findById(id);
+    if (!account) {
+      return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
+    }
+
+    // 관리자 ID가 변경되었고, 중복된 ID가 있는지 확인
+    if (adminId !== account.adminId) {
+      const existingAccount = await Account.findOne({ adminId });
+      if (existingAccount) {
+        return res
+          .status(400)
+          .json({ error: "이미 사용 중인 관리자 ID입니다." });
+      }
+      account.adminId = adminId;
+    }
+
+    // 관리자명 업데이트
+    account.adminName = adminName;
+
+    // 비밀번호가 변경되었는지 확인하고 해싱
+    if (password) {
+      if (password.length < 2) {
+        return res
+          .status(400)
+          .json({ error: "비밀번호는 최소 2자 이상이어야 합니다." });
+      }
+      const hashedPassword = await bcrypt.hash(password, 10);
+      account.password = hashedPassword;
+    }
+
+    // 고객사 및 권한 그룹 업데이트
+    account.customer = customer;
+    account.authorityGroup = authorityGroup;
+
+    // 계정 저장
+    await account.save();
+
+    res.json({ message: "계정이 성공적으로 수정되었습니다.", account });
+  } catch (err) {
+    console.error("계정 수정 오류:", err);
     res.status(500).json({ error: "서버 오류" });
   }
 });
