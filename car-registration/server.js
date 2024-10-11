@@ -184,6 +184,15 @@ const CustomerSchema = new mongoose.Schema({
 const Customer = mongoose.model("Customer", CustomerSchema);
 // const Customer = require("./models/Customer");
 
+//지역 스키마 정의
+const carLocationSchema = new mongoose.Schema({
+  name: { type: String, required: true }, //장소명
+  address: { type: String, required: true }, //주소
+  order: { type: Number, required: true },
+});
+
+const CarLocation = mongoose.model("CarLocation", carLocationSchema);
+
 // DB 연결
 mongoose
   .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -209,6 +218,124 @@ mongoose
   .catch((err) => console.error("MongoDB 연결 실패:", err));
 
 // API 엔드포인트
+
+//모든 지역 조회
+app.get("/api/car-locations", async (req, res) => {
+  try {
+    const locations = await CarLocation.find().sort({ order: 1 });
+    res.json(locations);
+  } catch (err) {
+    console.error("지역 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 특정 지역 조회
+app.get("/api/car-locations/:id", async (req, res) => {
+  const { id } = req.params;
+  // 유효한 MongoDB ObjectId인지 확인
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
+  }
+  try {
+    const location = await CarLocation.findById(id);
+    if (!location) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+    res.json(location);
+  } catch (err) {
+    console.error("지역 상세 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 지역 등록
+app.post("/api/car-locations", async (req, res) => {
+  const { name, address } = req.body;
+
+  // 필수 필드 검증
+  if (!name || !address) {
+    return res
+      .status(400)
+      .json({ error: "장소명과 주소를 모두 입력해주세요." });
+  }
+
+  try {
+    // 현재 가장 높은 order 값을 가져와서 +1
+    const lastLocation = await CarLocation.findOne().sort({ order: -1 });
+    const newOrder = lastLocation ? lastLocation.order + 1 : 1;
+
+    const newLocation = new CarLocation({
+      name,
+      address,
+      order: newOrder,
+    });
+
+    await newLocation.save();
+    res.status(201).json({
+      message: "지역이 성공적으로 등록되었습니다.",
+      location: newLocation,
+    });
+  } catch (err) {
+    console.error("지역 등록 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+//지역 리스트 저장
+app.post("/api/car-locations", async (req, res) => {
+  const { locations } = req.body; // [{ name: '지역1', order: 1 }, ...]
+
+  if (!Array.isArray(locations)) {
+    return res.status(400).json({ error: "지역 리스트가 유효하지 않습니다." });
+  }
+
+  try {
+    // 기존 지역 삭제
+    await CarLocation.deleteMany({});
+
+    // 새로운 지역 저장
+    const savedLocations = await CarLocation.insertMany(locations);
+
+    res.status(201).json({
+      message: "지역이 성공적으로 저장되었습니다.",
+      locations: savedLocations,
+    });
+  } catch (err) {
+    console.error("지역 저장 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 선택 사항: PUT /api/car-locations/:id - 특정 지역 수정
+app.put("/api/car-locations/:id", async (req, res) => {
+  const { id } = req.params;
+  const { name, order } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
+  }
+
+  try {
+    const updatedLocation = await CarLocation.findByIdAndUpdate(
+      id,
+      { name, order },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedLocation) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    res.json({
+      message: "지역이 성공적으로 수정되었습니다.",
+      location: updatedLocation,
+    });
+  } catch (err) {
+    console.error("지역 수정 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
 
 // 1. 관리자 ID 중복 확인 엔드포인트
 app.get("/api/accounts/check-duplicate", async (req, res) => {
@@ -860,14 +987,6 @@ app.post(
     }
   }
 );
-
-//정적 파일 서빙 설정
-// app.use(express.static(path.join(__dirname, "../public")));
-
-// 모든 다른 라우트에 대해 index.html 반환 (SPA의 경우 필요)
-// app.get("*", (req, res) => {
-//   res.sendFile(path.join(__dirname, "public", "index.html"));
-// });
 
 // 에러 핸들링 미들웨어 (라우트 정의 후에 추가)
 app.use((err, req, res, next) => {
