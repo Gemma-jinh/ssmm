@@ -2,23 +2,26 @@ $(document).ready(function () {
   const API_BASE_URL = "/api";
 
   // 1. URL에서 지역 ID 추출
-  function getLocationIdFromURL() {
+  function getRegionFromURL() {
     const params = new URLSearchParams(window.location.search);
-    return params.get("id");
+    return params.get("region") || "차량 위치 관리";
   }
 
-  const locationId = getLocationIdFromURL();
+  const region = getRegionFromURL();
 
-  if (!locationId) {
-    alert("유효한 지역 ID가 제공되지 않았습니다.");
-    window.location.href = "./car-location.html"; // 차량 위치 관리 페이지로 이동
+  // 예시: 지역명을 페이지에 표시
+  $("#region-name").text(region);
+
+  if (region !== "차량 위치 관리") {
+    $("#page-heading").text(`${region} 차량 위치 관리`);
   }
 
   // 1. 지역 상세 정보 로드 함수
-  function loadLocations(id) {
+  function loadLocations(region) {
     $.ajax({
-      url: `${API_BASE_URL}/car-locations/${id}`,
+      url: `${API_BASE_URL}/car-locations`,
       method: "GET",
+      data: { region },
       success: function (data) {
         const locationList = $("#location-list");
         locationList.empty(); // 기존 데이터 비우기
@@ -34,24 +37,19 @@ $(document).ready(function () {
           const row = `
               <tr>
                 <td>${location.name}</td>
-                <td style="text-align: center;">
-                  <a href="./car-location-detail.html?id=${location._id}">
-                    <button type="button" class="btn btn-outline-primary btn-sm">상세보기</button>
-                  </a>
-                </td>
               </tr>
             `;
           locationList.append(row);
         });
       },
       error: function (err) {
-        console.error("지역 목록 로드 실패:", err);
+        console.error("장소 목록 로드 실패:", err);
         $("#error-message")
-          .text("지역 목록을 불러오는 데 실패했습니다.")
+          .text("장소 목록을 불러오는 데 실패했습니다.")
           .show();
       },
     });
   }
 
-  loadLocations(); // 페이지 로드 시 지역 목록 로드
+  loadLocations(); // 페이지 로드 시 장소 목록 로드
 });
