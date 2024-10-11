@@ -16,11 +16,13 @@
     <div id="sideNav"></div>
     <div id="content">
       <div class="main-content-box">
-        <h2 class="heading" id="page-heading">차량 위치 관리</h2>
+        <h2 class="heading" id="detail-heading">차량 위치 관리</h2>
 
         <div class="d-flex">
-          <a href="./car-location-create.html">
-            <button class="btn btn-outline-primary btn-sm">
+          <a
+            href="./car-location-create.html?region=<%= encodeURIComponent(region) %>"
+          >
+            <button type="button" class="btn btn-outline-primary btn-sm">
               장소 신규 등록
             </button>
           </a>
@@ -36,7 +38,7 @@
                   </th> -->
                 </tr>
               </thead>
-              <tbody id="location-list"></tbody>
+              <tbody id="place-detail-list"></tbody>
             </table>
           </div>
         </div>

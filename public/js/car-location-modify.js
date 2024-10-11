@@ -2,22 +2,22 @@ $(document).ready(function () {
   const API_BASE_URL = "/api";
 
   // 1. 지역 목록 로드 함수
-  function loadLocations() {
+  function loadRegions() {
     $.ajax({
-      url: `${API_BASE_URL}/car-locations`,
+      url: `${API_BASE_URL}/regions`,
       method: "GET",
       success: function (data) {
         const tableBody = $("#location-table-body");
         tableBody.empty(); // 기존 데이터 비우기
 
-        data.forEach((location) => {
+        data.forEach((region) => {
           const row = `
-              <tr data-id="${location._id}">
+              <tr data-id="${region._id}">
                 <td>
                   <input class="form-check-input select-checkbox" type="checkbox" />
                 </td>
                 <td>
-                  <input type="text" class="form-control region-input" value="${location.name}" />
+                  <input type="text" class="form-control region-input" value="${region.name}" />
                 </td>
               </tr>
             `;
@@ -33,7 +33,7 @@ $(document).ready(function () {
     });
   }
 
-  loadLocations(); // 페이지 로드 시 지역 목록 로드
+  loadRegions(); // 페이지 로드 시 지역 목록 로드
 
   // 2. 행 추가 버튼 클릭 이벤트
   $("#add-btn").on("click", function () {
@@ -87,12 +87,13 @@ $(document).ready(function () {
 
   // 5. 저장하기 버튼 클릭 이벤트
   $("#save-btn").on("click", function () {
-    const locations = [];
+    const regions = [];
     let isValid = true;
 
     $("#location-table-body tr").each(function (index) {
       const regionInput = $(this).find(".region-input");
       const regionName = regionInput.val().trim();
+      const order = index + 1;
 
       if (regionName === "") {
         regionInput.addClass("is-invalid");
@@ -103,7 +104,7 @@ $(document).ready(function () {
 
       locations.push({
         name: regionName,
-        order: index + 1, // 순서 값 설정
+        order: order, // 순서 값 설정
       });
     });
 
@@ -116,20 +117,24 @@ $(document).ready(function () {
 
     // AJAX 요청으로 지역 리스트 저장
     $.ajax({
-      url: `${API_BASE_URL}/car-locations`,
+      url: `${API_BASE_URL}/regions`,
       method: "POST",
       contentType: "application/json",
-      data: JSON.stringify({ locations }),
+      data: JSON.stringify({ regions }),
       success: function (response) {
         $("#success-message").text("지역이 성공적으로 저장되었습니다.").show();
         // 다시 지역 목록 로드
-        loadLocations();
+        loadRegions();
         // 체크박스 초기화
         $(".select-checkbox").prop("checked", false);
       },
       error: function (xhr, status, error) {
         console.error("지역 저장 실패:", xhr.responseText);
-        $("#error-message").text("지역 저장에 실패했습니다.").show();
+        const errorMsg =
+          xhr.responseJSON && xhr.responseJSON.error
+            ? xhr.responseJSON.error
+            : "지역 저장에 실패했습니다.";
+        $("#error-message").text(errorMsg).show();
       },
     });
   });

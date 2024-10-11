@@ -10,10 +10,15 @@ $(document).ready(function () {
   // 2. URL에서 region 추출
   function getRegionFromURL() {
     const params = new URLSearchParams(window.location.search);
-    return params.get("region") || "장소 등록"; // 기본값 설정
+    return params.get("region") || "";
   }
 
   const region = getRegionFromURL();
+
+  if (!region) {
+    $("#error-message").text("지역 정보가 제공되지 않았습니다.").show();
+    return;
+  }
 
   // 2. 지역명 설정
   $("#region-name").val(region);
@@ -94,6 +99,10 @@ $(document).ready(function () {
         // 폼 초기화
         $("#create-location-form")[0].reset();
         $("#region-name").val(region); // 지역명 다시 설정
+        // 장소 리스트 페이지로 리디렉션
+        window.location.href = `./car-location-detail.html?region=${encodeURIComponent(
+          region
+        )}`;
       },
       error: function (xhr, status, error) {
         console.error("장소 등록 실패:", xhr.responseText);

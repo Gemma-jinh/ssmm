@@ -2,33 +2,35 @@ $(document).ready(function () {
   const API_BASE_URL = "/api";
 
   // 1. 지역 목록 로드 함수
-  function loadLocations() {
+  function loadRegions() {
     $.ajax({
-      url: `${API_BASE_URL}/car-locations`,
+      url: `${API_BASE_URL}/regions`,
       method: "GET",
       success: function (data) {
-        const locationList = $("#location-list");
-        locationList.empty(); // 기존 데이터 비우기
+        const regionList = $("#region-list");
+        regionList.empty(); // 기존 데이터 비우기
 
         if (data.length === 0) {
-          locationList.append(
+          regionList.append(
             '<tr><td colspan="2" class="text-center">등록된 지역이 없습니다.</td></tr>'
           );
           return;
         }
 
-        data.forEach((location) => {
+        data.forEach((region) => {
           const row = `
               <tr>
-                <td>${location.name}</td>
+                <td>${region}</td>
                 <td style="text-align: center;">
-                  <a href="./car-location-detail.html?id=${location._id}">
+                  <a href="./car-location-detail.html?region=${encodeURIComponent(
+                    region
+                  )}">
                     <button type="button" class="btn btn-outline-primary btn-sm">상세보기</button>
                   </a>
                 </td>
               </tr>
             `;
-          locationList.append(row);
+          regionList.append(row);
         });
       },
       error: function (err) {
@@ -40,5 +42,5 @@ $(document).ready(function () {
     });
   }
 
-  loadLocations(); // 페이지 로드 시 지역 목록 로드
+  loadRegions(); // 페이지 로드 시 지역 목록 로드
 });
