@@ -8,8 +8,8 @@ const XLSX = require("xlsx");
 const util = require("util");
 const fs = require("fs");
 const bcrypt = require("bcrypt");
-const Region = require("./car-registration/Region");
-const Place = require("./car-registration/Place");
+const Region = require("./models/Region");
+const Place = require("./models/Place");
 
 // Promisify fs functions
 const mkdir = util.promisify(fs.mkdir);
