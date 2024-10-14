@@ -20,16 +20,23 @@ $(document).ready(function () {
   console.log("region 타입:", typeof region);
 
   if (!region) {
+    if ($("#error-message").length === 0) {
+      $("body").prepend(
+        '<div id="error-message" class="alert alert-danger" style="display: none;"></div>'
+      );
+    }
     $("#error-message").text("지역 정보가 제공되지 않았습니다.").show();
     return;
   }
 
   // 2. 지역명 설정
   $("#region-name").val(region);
+
   // 3. 주소검색 버튼 클릭 시 모달 열기
   $("#search-address-btn").on("click", function () {
     addressModal.show();
   });
+
   // 4. 모달이 열리고 난 후 Postcode API 임베드
   $("#addressModal").on("shown.bs.modal", function () {
     console.log("모달이 열림, Postcode API 임베드 시작");
@@ -85,6 +92,11 @@ $(document).ready(function () {
     }
 
     if (!isValid) {
+      if ($("#error-message").length === 0) {
+        $("body").prepend(
+          '<div id="error-message" class="alert alert-danger" style="display: none;"></div>'
+        );
+      }
       $("#error-message").text("모든 필드를 올바르게 입력해주세요.").show();
       return;
     } else {
@@ -100,6 +112,11 @@ $(document).ready(function () {
       contentType: "application/json",
       data: JSON.stringify(dataToSend),
       success: function (response) {
+        if ($("#success-message").length === 0) {
+          $("body").prepend(
+            '<div id="success-message" class="alert alert-success" style="display: none;"></div>'
+          );
+        }
         $("#success-message").text("장소가 성공적으로 등록되었습니다.").show();
         // 폼 초기화
         $("#create-location-form")[0].reset();

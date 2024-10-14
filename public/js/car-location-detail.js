@@ -35,26 +35,22 @@ $(document).ready(function () {
 
         if (data.length === 0) {
           placeDetailList.append(
-            '<tr><td colspan="2" class="text-center">등록된 장소가 없습니다.</td></tr>'
+            '<tr><td colspan="3" class="text-center">등록된 장소가 없습니다.</td></tr>'
           );
           return;
         }
 
-        data.forEach((region) => {
+        data.forEach((place) => {
           const row = `
               <tr>
-                <td>${region.name}</td>
+                <td>${place.name}</td>
+                <td>${place.address}</td>
                 <td style="text-align: center;">
-                <a href="./car-location-detail.html?region=${encodeURIComponent(
-                  region.name
-                )}">
-                <button type="button" class="btn btn-outline-danger btn-sm delete-btn" data-id="${
-                  place._id
-                }">삭제</button>
+                <button type="button" class="btn btn-outline-primary btn-sm delete-btn" data-id="${place._id}">삭제</button>
                 </td>
               </tr>
             `;
-          regionList.append(row);
+          placeDetailList.append(row);
         });
       },
       error: function (err) {
@@ -84,7 +80,7 @@ $(document).ready(function () {
   $("#register-location-btn").on("click", function () {
     // 실제 지역명을 URL에 포함시켜 이동
     window.location.href = `./car-location-create.html?region=${encodeURIComponent(
-      region.name
+      region
     )}`;
   });
 

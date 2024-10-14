@@ -95,47 +95,50 @@ $(document).ready(function () {
       const regionName = regionInput.val().trim();
       const order = index + 1;
 
-      if (regionName === "") {
-        regionInput.addClass("is-invalid");
-        isValid = false;
-      } else {
-        regionInput.removeClass("is-invalid");
+      // if (regionName === "") {
+      //   regionInput.addClass("is-invalid");
+      //   isValid = false;
+      // } else {
+      //   regionInput.removeClass("is-invalid");
+      // }
+      if (regionName) {
+        regions.push({ name: regionName, order: order });
       }
-
-      regions.push({
-        name: regionName,
-        order: order, // 순서 값 설정
-      });
     });
 
-    if (!isValid) {
-      $("#error-message").text("모든 지역 이름을 입력해주세요.").show();
-      return;
-    } else {
-      $("#error-message").hide();
-    }
-
-    // AJAX 요청으로 지역 리스트 저장
-    $.ajax({
-      url: `${API_BASE_URL}/regions`,
-      method: "POST",
-      contentType: "application/json",
-      data: JSON.stringify({ regions }),
-      success: function (response) {
-        $("#success-message").text("지역이 성공적으로 저장되었습니다.").show();
-        // 다시 지역 목록 로드
-        loadRegions();
-        // 체크박스 초기화
-        $(".select-checkbox").prop("checked", false);
-      },
-      error: function (xhr, status, error) {
-        console.error("지역 저장 실패:", xhr.responseText);
-        const errorMsg =
-          xhr.responseJSON && xhr.responseJSON.error
-            ? xhr.responseJSON.error
-            : "지역 저장에 실패했습니다.";
-        $("#error-message").text(errorMsg).show();
-      },
+    regions.push({
+      name: regionName,
+      order: order, // 순서 값 설정
     });
+  });
+
+  if (!isValid) {
+    $("#error-message").text("모든 지역 이름을 입력해주세요.").show();
+    return;
+  } else {
+    $("#error-message").hide();
+  }
+
+  // AJAX 요청으로 지역 리스트 저장
+  $.ajax({
+    url: `${API_BASE_URL}/regions`,
+    method: "POST",
+    contentType: "application/json",
+    data: JSON.stringify({ regions: uniqueRegions }),
+    success: function (response) {
+      $("#success-message").text("지역이 성공적으로 저장되었습니다.").show();
+      // 다시 지역 목록 로드
+      loadRegions();
+      // 체크박스 초기화
+      $(".select-checkbox").prop("checked", false);
+    },
+    error: function (xhr, status, error) {
+      console.error("지역 저장 실패:", xhr.responseText);
+      const errorMsg =
+        xhr.responseJSON && xhr.responseJSON.error
+          ? xhr.responseJSON.error
+          : "지역 저장에 실패했습니다.";
+      $("#error-message").text(errorMsg).show();
+    },
   });
 });
