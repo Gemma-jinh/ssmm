@@ -878,18 +878,23 @@ app.post("/api/car-registrations", async (req, res) => {
       modelId,
       licensePlate,
       location,
-      customer,
+      customerId,
       serviceType,
       serviceAmount,
       notes,
     } = req.body;
+
+    // 필수 필드 검증
+    if (!typeId || !modelId || !licensePlate || !customerId) {
+      return res.status(400).json({ error: "필수 정보를 모두 입력해주세요." });
+    }
 
     const newCarRegistration = new CarRegistration({
       type: typeId,
       model: modelId,
       licensePlate,
       location,
-      customer,
+      customer: customerId,
       serviceType,
       serviceAmount,
       notes,

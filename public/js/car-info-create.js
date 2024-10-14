@@ -72,6 +72,67 @@ $(document).ready(function () {
     });
   }
 
+  // 지역 목록 로드 함수
+  function loadRegions() {
+    $.ajax({
+      url: `${API_BASE_URL}/regions`,
+      method: "GET",
+      success: function (data) {
+        const regionSelect = $("#region-select");
+        regionSelect.empty();
+        regionSelect.append('<option value="" selected>지역 선택</option>');
+        data.forEach((region) => {
+          regionSelect.append(
+            `<option value="${region.name}">${region.name}</option>`
+          );
+        });
+      },
+      error: function (err) {
+        console.error("지역 목록 로드 실패:", err);
+        alert("지역 목록을 불러오는 데 실패했습니다.");
+      },
+    });
+  }
+
+  loadRegions(); // 페이지 로드 시 지역 목록 로드
+
+  // 지역 선택 변경 시 장소 목록 로드
+  $("#region-select").on("change", function () {
+    const selectedRegion = $(this).val();
+    if (selectedRegion) {
+      $("#place-select").prop("disabled", false);
+      $.ajax({
+        url: `${API_BASE_URL}/regions/${encodeURIComponent(
+          selectedRegion
+        )}/places`,
+        method: "GET",
+        success: function (data) {
+          const placeSelect = $("#place-select");
+          placeSelect.empty();
+          placeSelect.append('<option value="" selected>장소 선택</option>');
+          data.forEach((place) => {
+            placeSelect.append(
+              `<option value="${place.name}">${place.name}</option>`
+            );
+          });
+        },
+        error: function (err) {
+          console.error("장소 목록 로드 실패:", err);
+          alert("장소 목록을 불러오는 데 실패했습니다.");
+        },
+      });
+    } else {
+      $("#place-select")
+        .prop("disabled", true)
+        .empty()
+        .append('<option value="" selected>장소 선택</option>');
+      $("#parking-spot-select")
+        .prop("disabled", true)
+        .empty()
+        .append('<option value="" selected>주차 위치 선택</option>');
+    }
+  });
+
   // 고객사 목록 로드 함수
   function loadCustomers() {
     $.ajax({
@@ -103,18 +164,69 @@ $(document).ready(function () {
 
   loadCustomers(); // 페이지 로드 시 고객사 목록 로드
 
+  // 서비스 종류 목록 로드 함수
+  function loadServiceTypes() {
+    $.ajax({
+      url: `${API_BASE_URL}/service-types`,
+      method: "GET",
+      success: function (data) {
+        const serviceTypeSelect = $("#service-type-select");
+        serviceTypeSelect.empty();
+        serviceTypeSelect.append('<option value="" selected>선택</option>');
+        data.forEach((serviceType) => {
+          serviceTypeSelect.append(
+            `<option value="${serviceType.name}">${serviceType.name}</option>`
+          );
+        });
+      },
+      error: function (err) {
+        console.error("서비스 종류 목록 로드 실패:", err);
+        alert("서비스 종류 목록을 불러오는 데 실패했습니다.");
+      },
+    });
+  }
+
+  loadServiceTypes(); // 페이지 로드 시 서비스 종류 목록 로드
+
+  // 서비스 금액 타입 목록 로드 함수
+  function loadServiceAmountTypes() {
+    $.ajax({
+      url: `${API_BASE_URL}/service-amount-types`,
+      method: "GET",
+      success: function (data) {
+        const serviceAmountTypeSelect = $("#service-amount-type-select");
+        serviceAmountTypeSelect.empty();
+        serviceAmountTypeSelect.append(
+          '<option value="" selected>선택</option>'
+        );
+        data.forEach((amountType) => {
+          serviceAmountTypeSelect.append(
+            `<option value="${amountType.name}">${amountType.name}</option>`
+          );
+        });
+      },
+      error: function (err) {
+        console.error("서비스 금액 타입 목록 로드 실패:", err);
+        alert("서비스 금액 타입 목록을 불러오는 데 실패했습니다.");
+      },
+    });
+  }
+
+  loadServiceAmountTypes(); // 페이지 로드 시 서비스 금액 타입 목록 로드
+
   // 등록하기 버튼 클릭 시
-  $(".btn-primary").on("click", function () {
+  $("#register-button").on("click", function () {
     const selectedTypeId = $("#car-type").val();
     const selectedModelId = $("#car-model").val();
     const customModelName = $("#custom-car-model").val().trim();
     const licensePlate = $('input[name="licensePlate"]').val().trim(); // 차량 번호 입력 필드의 name 속성 필요
-    const region = $('select[name="region"]').val();
-    const place = $('select[name="place"]').val();
-    const parkingSpot = $('select[name="parkingSpot"]').val();
-    const customer = $('select[name="customer"]').val();
-    const serviceType = $('select[name="serviceType"]').val();
-    const serviceAmount = parseFloat($('input[name="serviceAmount"]').val());
+    const region = $("#region-select").val();
+    const place = $("#place-select").val();
+    const parkingSpot = $("#parking-spot-select").val();
+    const customer = $("#customer-select").val();
+    const serviceType = $("#service-type-select").val();
+    const serviceAmountType = $("#service-amount-type-select").val();
+    const serviceAmount = parseFloat($("#service-amount-input").val());
     const notes = $("#car-wash-note").val().trim();
 
     if (!selectedTypeId) {
@@ -132,7 +244,7 @@ $(document).ready(function () {
       return;
     }
 
-    if (!customer) {
+    if (!customerId) {
       alert("고객사를 입력해주세요.");
       return;
     }
@@ -164,9 +276,10 @@ $(document).ready(function () {
             place,
             parkingSpot,
           },
-          customer,
+          customerId,
           serviceType,
           serviceAmount,
+          serviceAmountType,
           notes,
         };
 
