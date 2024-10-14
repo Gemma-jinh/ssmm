@@ -23,7 +23,7 @@ $(document).ready(function () {
                 <td>${region.name}</td>
                 <td style="text-align: center;">
                   <a href="./car-location-detail.html?region=${encodeURIComponent(
-                    region
+                    region.name
                   )}">
                     <button type="button" class="btn btn-outline-primary btn-sm">상세보기</button>
                   </a>

@@ -237,9 +237,10 @@ app.post("/api/car-locations", async (req, res) => {
     const newCarLocation = new CarLocation({ region, name, address });
     await newCarLocation.save();
 
-    res
-      .status(201)
-      .json({ message: "장소가 성공적으로 등록되었습니다.", place: newPlace });
+    res.status(201).json({
+      message: "장소가 성공적으로 등록되었습니다.",
+      place: newCarLocation,
+    });
   } catch (err) {
     console.error("장소 등록 오류:", err);
     res

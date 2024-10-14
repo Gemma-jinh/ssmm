@@ -15,6 +15,10 @@ $(document).ready(function () {
 
   const region = getRegionFromURL();
 
+  // 디버깅용 로그 추가
+  console.log("추출된 region:", region);
+  console.log("region 타입:", typeof region);
+
   if (!region) {
     $("#error-message").text("지역 정보가 제공되지 않았습니다.").show();
     return;
@@ -87,12 +91,14 @@ $(document).ready(function () {
       $("#error-message").hide();
     }
 
+    const dataToSend = { region, name, address };
+    console.log("전송 데이터:", dataToSend);
     // AJAX 요청으로 장소 등록
     $.ajax({
       url: `${API_BASE_URL}/car-locations`,
       method: "POST",
       contentType: "application/json",
-      data: JSON.stringify({ region, name, address }),
+      data: JSON.stringify(dataToSend),
       success: function (response) {
         $("#success-message").text("장소가 성공적으로 등록되었습니다.").show();
         // 폼 초기화

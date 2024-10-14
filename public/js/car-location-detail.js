@@ -4,13 +4,16 @@ $(document).ready(function () {
   // 1. URL에서 region 추출
   function getRegionFromURL() {
     const params = new URLSearchParams(window.location.search);
-    return params.get("region");
+    const encodedRegion = params.get("region");
+    return encodedRegion ? decodeURIComponent(encodedRegion) : null;
+    // return params.get("region");
   }
 
   const region = getRegionFromURL();
 
   // 디버깅용 로그 추가
   console.log("추출된 region:", region);
+  console.log("region 타입:", typeof region);
 
   if (!region) {
     $("#error-message").text("지역 정보가 제공되지 않았습니다.").show();
@@ -37,17 +40,21 @@ $(document).ready(function () {
           return;
         }
 
-        data.forEach((place) => {
+        data.forEach((region) => {
           const row = `
               <tr>
-                <td>${place.name}</td>
-                <td>${place.address}</td>
+                <td>${region.name}</td>
                 <td style="text-align: center;">
-                <button type="button" class="btn btn-outline-danger btn-sm delete-btn" data-id="${place._id}">삭제</button>
+                <a href="./car-location-detail.html?region=${encodeURIComponent(
+                  region.name
+                )}">
+                <button type="button" class="btn btn-outline-danger btn-sm delete-btn" data-id="${
+                  place._id
+                }">삭제</button>
                 </td>
               </tr>
             `;
-          placeDetailList.append(row);
+          regionList.append(row);
         });
       },
       error: function (err) {
@@ -71,13 +78,13 @@ $(document).ready(function () {
     </div>
   `;
   // "장소 관리" 헤딩 아래에 버튼 추가
-  $(".main-content-box").prepend(registerButtonHTML);
+  $("#detail-heading").after(registerButtonHTML);
 
   // 5. "장소 등록" 버튼 클릭 이벤트
   $("#register-location-btn").on("click", function () {
     // 실제 지역명을 URL에 포함시켜 이동
     window.location.href = `./car-location-create.html?region=${encodeURIComponent(
-      region
+      region.name
     )}`;
   });
 

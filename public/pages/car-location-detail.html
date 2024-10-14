@@ -17,16 +17,6 @@
     <div id="content">
       <div class="main-content-box">
         <h2 class="heading" id="detail-heading">차량 위치 관리</h2>
-
-        <!-- <div class="d-flex">
-          <a
-            href="./car-location-create.html?region=<%= encodeURIComponent(region) %>"
-          >
-            <button type="button" class="btn btn-outline-primary btn-sm">
-              장소 신규 등록
-            </button>
-          </a>
-        </div> -->
         <div>
           <div class="table-box">
             <table class="table table-hover car-location-table">
@@ -36,6 +26,8 @@
                   <!-- <th scope="col" style="width: 100px; text-align: center">
                     상세보기
                   </th> -->
+                  <th scope="col">주소</th>
+                  <th scope="col">삭제</th>
                 </tr>
               </thead>
               <tbody id="place-detail-list"></tbody>
