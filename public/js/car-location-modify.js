@@ -35,6 +35,17 @@ $(document).ready(function () {
 
   loadRegions(); // 페이지 로드 시 지역 목록 로드
 
+  // 중복된 지역 이름을 제거하는 함수
+  function getUniqueRegions(regions) {
+    const unique = {};
+    regions.forEach((region) => {
+      if (!unique[region.name]) {
+        unique[region.name] = region;
+      }
+    });
+    return Object.values(unique);
+  }
+
   // 2. 행 추가 버튼 클릭 이벤트
   $("#add-btn").on("click", function () {
     const tableBody = $("#location-table-body");
@@ -88,11 +99,10 @@ $(document).ready(function () {
   // 5. 저장하기 버튼 클릭 이벤트
   $("#save-btn").on("click", function () {
     const regions = [];
-    let isValid = true;
 
     $("#location-table-body tr").each(function (index) {
-      const regionInput = $(this).find(".region-input");
-      const regionName = regionInput.val().trim();
+      // const regionInput = $(this).find(".region-input");
+      const regionName = $(this).find(".region-input").val().trim();
       const order = index + 1;
 
       // if (regionName === "") {
@@ -106,39 +116,58 @@ $(document).ready(function () {
       }
     });
 
-    regions.push({
-      name: regionName,
-      order: order, // 순서 값 설정
+    // 중복 제거
+    const uniqueRegions = getUniqueRegions(regions);
+
+    // 유효성 검사
+    let isValid = true;
+    uniqueRegions.forEach((region) => {
+      if (!region.name || typeof region.order !== "number") {
+        isValid = false;
+      }
     });
-  });
 
-  if (!isValid) {
-    $("#error-message").text("모든 지역 이름을 입력해주세요.").show();
-    return;
-  } else {
-    $("#error-message").hide();
-  }
+    if (!isValid) {
+      $("#error-message")
+        .text("모든 지역 이름을 올바르게 입력해주세요.")
+        .show();
+      return;
+    }
 
-  // AJAX 요청으로 지역 리스트 저장
-  $.ajax({
-    url: `${API_BASE_URL}/regions`,
-    method: "POST",
-    contentType: "application/json",
-    data: JSON.stringify({ regions: uniqueRegions }),
-    success: function (response) {
-      $("#success-message").text("지역이 성공적으로 저장되었습니다.").show();
-      // 다시 지역 목록 로드
-      loadRegions();
-      // 체크박스 초기화
-      $(".select-checkbox").prop("checked", false);
-    },
-    error: function (xhr, status, error) {
-      console.error("지역 저장 실패:", xhr.responseText);
-      const errorMsg =
-        xhr.responseJSON && xhr.responseJSON.error
-          ? xhr.responseJSON.error
-          : "지역 저장에 실패했습니다.";
-      $("#error-message").text(errorMsg).show();
-    },
+    //   regions.push({
+    //     name: regionName,
+    //     order: order,
+    //   });
+    // });
+
+    // if (!isValid) {
+    //   $("#error-message").text("모든 지역 이름을 입력해주세요.").show();
+    //   return;
+    // } else {
+    //   $("#error-message").hide();
+    // }
+
+    // AJAX 요청으로 지역 리스트 저장
+    $.ajax({
+      url: `${API_BASE_URL}/regions`,
+      method: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({ regions: uniqueRegions }),
+      success: function (response) {
+        $("#success-message").text("지역이 성공적으로 저장되었습니다.").show();
+        // 다시 지역 목록 로드
+        loadRegions();
+        // 체크박스 초기화
+        $(".select-checkbox").prop("checked", false);
+      },
+      error: function (xhr, status, error) {
+        console.error("지역 저장 실패:", xhr.responseText);
+        const errorMsg =
+          xhr.responseJSON && xhr.responseJSON.error
+            ? xhr.responseJSON.error
+            : "지역 저장에 실패했습니다.";
+        $("#error-message").text(errorMsg).show();
+      },
+    });
   });
 });

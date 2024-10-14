@@ -305,33 +305,58 @@ app.post("/api/regions", async (req, res) => {
   if (!regions || !Array.isArray(regions)) {
     return res.status(400).json({ error: "유효하지 않은 지역 데이터입니다." });
   }
-
   try {
-    // 각 지역 데이터 저장
-    const savedRegions = await Region.insertMany(regions);
+    // 기존 지역 모두 삭제
+    await Region.deleteMany({});
+
+    // 중복된 지역 이름 검사 (서버 측에서도 방지)
+    const uniqueRegionsMap = {};
+    for (let region of regions) {
+      if (!region.name || typeof region.order !== "number") {
+        return res
+          .status(400)
+          .json({ error: "모든 지역은 이름과 순서를 가져야 합니다." });
+      }
+      if (uniqueRegionsMap[region.name]) {
+        return res
+          .status(400)
+          .json({ error: `중복된 지역 이름: ${region.name}` });
+      }
+      uniqueRegionsMap[region.name] = region;
+    }
+
+    const uniqueRegions = Object.values(uniqueRegionsMap);
+
+    // 지역 데이터 삽입
+    const savedRegions = await Region.insertMany(uniqueRegions);
+
     res.status(201).json({
       message: "지역이 성공적으로 저장되었습니다.",
       regions: savedRegions,
     });
   } catch (err) {
     console.error("지역 저장 오류:", err);
+    if (err.code === 11000) {
+      // MongoDB 중복 키 오류 코드
+      return res.status(400).json({ error: "이미 존재하는 지역 이름입니다." });
+    }
     res.status(500).json({ error: "서버 오류" });
   }
 });
-//   try {
-//     const existingRegion = await Region.findOne({ name });
-//     if (existingRegion) {
-//       return res.status(400).json({ error: "이미 존재하는 지역명입니다." });
-//     }
 
-//     const newRegion = new Region({ name, order });
-//     await newRegion.save();
+//   try {
+
+//     const savedRegions = await Region.insertMany(uniqueRegions);
 //     res.status(201).json({
-//       message: "지역이 성공적으로 등록되었습니다.",
-//       region: newRegion,
+//       message: "지역이 성공적으로 저장되었습니다.",
+//       regions: savedRegions,
 //     });
 //   } catch (err) {
-//     console.error("지역 등록 오류:", err);
+//     console.error("지역 저장 오류:", err);
+//     if (err.code === 11000) {
+
+//       return res.status(400).json({ error: "이미 존재하는 지역 이름입니다." });
+//     }
 //     res.status(500).json({ error: "서버 오류" });
 //   }
 // });
