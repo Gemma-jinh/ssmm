@@ -9,6 +9,9 @@ $(document).ready(function () {
 
   const region = getRegionFromURL();
 
+  // 디버깅용 로그 추가
+  console.log("추출된 region:", region);
+
   if (!region) {
     $("#error-message").text("지역 정보가 제공되지 않았습니다.").show();
     return;
@@ -40,12 +43,7 @@ $(document).ready(function () {
                 <td>${place.name}</td>
                 <td>${place.address}</td>
                 <td style="text-align: center;">
-                 <a href="./car-location-edit.html?id=${
-                   place._id
-                 }&region=${encodeURIComponent(region)}">
-                <button type="button" class="btn btn-outline-danger btn-sm delete-btn" data-id="${
-                  place._id
-                }">삭제</button>
+                <button type="button" class="btn btn-outline-danger btn-sm delete-btn" data-id="${place._id}">삭제</button>
                 </td>
               </tr>
             `;
@@ -63,7 +61,27 @@ $(document).ready(function () {
 
   loadPlaces(region); // 페이지 로드 시 해당 지역의 장소 리스트 로드
 
-  // 4. 삭제 버튼 클릭 이벤트
+  // 4. "장소 등록" 버튼 추가
+  // "장소 등록" 버튼을 페이지에 동적으로 추가
+  const registerButtonHTML = `
+     <div class="d-flex mb-3">
+      <button id="register-location-btn" class="btn btn-outline-primary btn-sm">
+        장소 신규 등록
+      </button>
+    </div>
+  `;
+  // "장소 관리" 헤딩 아래에 버튼 추가
+  $(".main-content-box").prepend(registerButtonHTML);
+
+  // 5. "장소 등록" 버튼 클릭 이벤트
+  $("#register-location-btn").on("click", function () {
+    // 실제 지역명을 URL에 포함시켜 이동
+    window.location.href = `./car-location-create.html?region=${encodeURIComponent(
+      region
+    )}`;
+  });
+
+  // 6. 삭제 버튼 클릭 이벤트
   $(document).on("click", ".delete-btn", function () {
     const id = $(this).data("id");
     if (confirm("해당 장소를 삭제하시겠습니까?")) {

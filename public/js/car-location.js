@@ -20,7 +20,7 @@ $(document).ready(function () {
         data.forEach((region) => {
           const row = `
               <tr>
-                <td>${region}</td>
+                <td>${region.name}</td>
                 <td style="text-align: center;">
                   <a href="./car-location-detail.html?region=${encodeURIComponent(
                     region

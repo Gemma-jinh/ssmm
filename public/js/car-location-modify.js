@@ -102,7 +102,7 @@ $(document).ready(function () {
         regionInput.removeClass("is-invalid");
       }
 
-      locations.push({
+      regions.push({
         name: regionName,
         order: order, // 순서 값 설정
       });

@@ -22,7 +22,6 @@ $(document).ready(function () {
 
   // 2. 지역명 설정
   $("#region-name").val(region);
-
   // 3. 주소검색 버튼 클릭 시 모달 열기
   $("#search-address-btn").on("click", function () {
     addressModal.show();
@@ -60,7 +59,7 @@ $(document).ready(function () {
   $("#create-location-form").on("submit", function (e) {
     e.preventDefault();
 
-    const region = $("#region-name").val().trim();
+    // const region = $("#region-name").val().trim();
     const name = $("#location-name").val().trim();
     const address = $("#location-address").val().trim();
 
