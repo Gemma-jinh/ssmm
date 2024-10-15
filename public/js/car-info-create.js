@@ -143,8 +143,9 @@ $(document).ready(function () {
 
         const customerSelect = $("#customer-select");
         // 기존 옵션 삭제 (선택 제외)
-        customerSelect.find('option:not([value=""])').remove();
-
+        // customerSelect.find('option:not([value=""])').remove();
+        customerSelect.empty();
+        customerSelect.append('<option value="" selected>선택</option>');
         // 새로운 고객사 옵션 추가
         data.forEach((customer) => {
           if (typeof customer === "object" && customer.name) {
@@ -223,7 +224,7 @@ $(document).ready(function () {
     const region = $("#region-select").val();
     const place = $("#place-select").val();
     const parkingSpot = $("#parking-spot-select").val();
-    const customer = $("#customer-select").val();
+    const customerId = $("#customer-select").val();
     const serviceType = $("#service-type-select").val();
     const serviceAmountType = $("#service-amount-type-select").val();
     const serviceAmount = parseFloat($("#service-amount-input").val());

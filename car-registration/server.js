@@ -9,7 +9,7 @@ const util = require("util");
 const fs = require("fs");
 const bcrypt = require("bcrypt");
 const Region = require("./models/Region");
-const Place = require("./models/Place");
+// const Place = require("./models/Place");
 
 // Promisify fs functions
 const mkdir = util.promisify(fs.mkdir);
@@ -186,6 +186,18 @@ const CustomerSchema = new mongoose.Schema({
 const Customer = mongoose.model("Customer", CustomerSchema);
 // const Customer = require("./models/Customer");
 
+const PlaceSchema = new mongoose.Schema({
+  region: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Region",
+    required: true,
+  },
+  name: { type: String, required: true },
+  address: { type: String, required: true },
+});
+
+const Place = mongoose.model("Place", PlaceSchema);
+
 //장소 스키마 정의
 const CarLocationSchema = new mongoose.Schema({
   region: { type: String, required: true },
@@ -194,6 +206,56 @@ const CarLocationSchema = new mongoose.Schema({
 });
 
 const CarLocation = mongoose.model("CarLocation", CarLocationSchema);
+
+// 서비스 종류 모델 (models/ServiceType.js)
+
+const ServiceTypeSchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true },
+});
+
+const ServiceType = mongoose.model("ServiceType", ServiceTypeSchema);
+
+// 서비스 금액 타입 모델 (models/ServiceAmountType.js)
+
+const ServiceAmountTypeSchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true },
+});
+
+const ServiceAmountType = mongoose.model(
+  "ServiceAmountType",
+  ServiceAmountTypeSchema
+);
+
+//초기 데이터 삽입
+async function insertInitialData() {
+  try {
+    // 서비스 종류 초기 데이터
+    const serviceTypes = ["주1회", "주2회", "주3회", "주4회", "주5회"];
+    for (const name of serviceTypes) {
+      const existing = await ServiceType.findOne({ name });
+      if (!existing) {
+        const serviceType = new ServiceType({ name });
+        await serviceType.save();
+      }
+    }
+    console.log("서비스 종류 초기 데이터 삽입 완료");
+
+    // 서비스 금액 타입 초기 데이터
+    const amountTypes = ["일할", "단가"];
+    for (const name of amountTypes) {
+      const existing = await ServiceAmountType.findOne({ name });
+      if (!existing) {
+        const amountType = new ServiceAmountType({ name });
+        await amountType.save();
+      }
+    }
+    console.log("서비스 금액 타입 초기 데이터 삽입 완료");
+
+    console.log("모든 초기 데이터 삽입 완료");
+  } catch (err) {
+    console.error("초기 데이터 삽입 중 오류 발생:", err);
+  }
+}
 
 // DB 연결
 mongoose
@@ -340,6 +402,102 @@ app.post("/api/regions", async (req, res) => {
       // MongoDB 중복 키 오류 코드
       return res.status(400).json({ error: "이미 존재하는 지역 이름입니다." });
     }
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 서비스 종류 목록 조회
+app.get("/api/service-types", async (req, res) => {
+  try {
+    const serviceTypes = await ServiceType.find().sort({ name: 1 });
+    res.json(serviceTypes);
+  } catch (err) {
+    console.error("서비스 종류 목록 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+app.get("/api/regions/:regionName/places", async (req, res) => {
+  try {
+    const regionName = decodeURIComponent(req.params.regionName);
+    if (!regionName) {
+      return res.status(400).json({ error: "지역명이 필요합니다." });
+    }
+
+    // 지역명으로 Region 문서 찾기
+    const region = await Region.findOne({ name: regionName });
+    if (!region) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    // Region ObjectId로 Place 문서 찾기
+    const places = await Place.find({ region: region._id }).sort({ name: 1 });
+    res.json(places);
+  } catch (err) {
+    console.error("장소 목록 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 새로운 서비스 종류 추가 (필요한 경우)
+app.post("/api/service-types", async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: "서비스 종류명을 입력해주세요." });
+    }
+
+    const existingServiceType = await ServiceType.findOne({ name });
+    if (existingServiceType) {
+      return res
+        .status(400)
+        .json({ error: "이미 존재하는 서비스 종류입니다." });
+    }
+
+    const newServiceType = new ServiceType({ name });
+    await newServiceType.save();
+
+    res.status(201).json(newServiceType);
+  } catch (err) {
+    console.error("서비스 종류 추가 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 서비스 금액 타입 목록 조회
+app.get("/api/service-amount-types", async (req, res) => {
+  try {
+    const amountTypes = await ServiceAmountType.find().sort({ name: 1 });
+    res.json(amountTypes);
+  } catch (err) {
+    console.error("서비스 금액 타입 목록 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 새로운 서비스 금액 타입 추가 (필요한 경우)
+app.post("/api/service-amount-types", async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) {
+      return res
+        .status(400)
+        .json({ error: "서비스 금액 타입명을 입력해주세요." });
+    }
+
+    const existingAmountType = await ServiceAmountType.findOne({ name });
+    if (existingAmountType) {
+      return res
+        .status(400)
+        .json({ error: "이미 존재하는 서비스 금액 타입입니다." });
+    }
+
+    const newAmountType = new ServiceAmountType({ name });
+    await newAmountType.save();
+
+    res.status(201).json(newAmountType);
+  } catch (err) {
+    console.error("서비스 금액 타입 추가 오류:", err);
     res.status(500).json({ error: "서버 오류" });
   }
 });
