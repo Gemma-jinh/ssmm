@@ -1,6 +1,5 @@
 $(document).ready(function () {
   const API_BASE_URL = "/api"; //백엔드 서버 URL
-
   //차종 목록 로드
   function loadCarTypes() {
     $.ajax({
@@ -101,8 +100,12 @@ $(document).ready(function () {
     const selectedRegion = $(this).val();
     if (selectedRegion) {
       $("#place-select").prop("disabled", false);
+      $("#place-select")
+        .empty()
+        .append('<option value="" selected>장소 선택</option>');
+
       $.ajax({
-        url: `${API_BASE_URL}/regions/${encodeURIComponent(
+        url: `${API_BASE_URL}/regions/name/${encodeURIComponent(
           selectedRegion
         )}/places`,
         method: "GET",
@@ -112,7 +115,7 @@ $(document).ready(function () {
           placeSelect.append('<option value="" selected>장소 선택</option>');
           data.forEach((place) => {
             placeSelect.append(
-              `<option value="${place.name}">${place.name}</option>`
+              `<option value="${place._id}">${place.name}</option>`
             );
           });
         },
@@ -176,7 +179,7 @@ $(document).ready(function () {
         serviceTypeSelect.append('<option value="" selected>선택</option>');
         data.forEach((serviceType) => {
           serviceTypeSelect.append(
-            `<option value="${serviceType.name}">${serviceType.name}</option>`
+            `<option value="${serviceType._id}">${serviceType.name}</option>`
           );
         });
       },
@@ -202,7 +205,7 @@ $(document).ready(function () {
         );
         data.forEach((amountType) => {
           serviceAmountTypeSelect.append(
-            `<option value="${amountType.name}">${amountType.name}</option>`
+            `<option value="${amountType._id}">${amountType.name}</option>`
           );
         });
       },
@@ -303,11 +306,11 @@ $(document).ready(function () {
         $("#custom-car-model").prop("disabled", true).val("");
         $("#customer-select").val("");
         $('input[name="licensePlate"]').val("");
-        $('select[name="region"]').val("");
-        $('select[name="place"]').val("");
-        $('select[name="parkingSpot"]').val("");
-        $('select[name="serviceType"]').val("");
-        $('input[name="serviceAmount"]').val("");
+        $("#region-select").val(null).trigger("change");
+        $("#place-select").val(null).trigger("change");
+        $("#parking-spot-select").val(null).trigger("change");
+        $("#service-type-select").val(null).trigger("change");
+        $("#service-amount-type-select").val("");
         $("#car-wash-note").val("");
       })
       .catch((err) => {

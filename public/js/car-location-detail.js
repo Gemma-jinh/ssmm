@@ -2,14 +2,14 @@ $(document).ready(function () {
   const API_BASE_URL = "/api";
 
   // 1. URL에서 region 추출
-  function getRegionFromURL() {
+  function getRegionIdFromURL() {
     const params = new URLSearchParams(window.location.search);
-    const encodedRegion = params.get("region");
-    return encodedRegion ? decodeURIComponent(encodedRegion) : null;
+    const region = params.get("region");
+    return region ? decodeURIComponent(region) : null;
     // return params.get("region");
   }
 
-  const region = getRegionFromURL();
+  const region = getRegionIdFromURL();
 
   // 디버깅용 로그 추가
   console.log("추출된 region:", region);
@@ -21,14 +21,23 @@ $(document).ready(function () {
   }
 
   // 2. 페이지 제목 설정
-  $("#detail-heading").text(`${region} 차량 위치 관리`);
+  $.ajax({
+    url: `${API_BASE_URL}/regions/name/${encodeURIComponent(region)}`,
+    method: "GET",
+    success: function (regionData) {
+      $("#detail-heading").text(`${regionData.name} 차량 위치 관리`);
+    },
+    error: function (err) {
+      console.error("지역 정보 로드 실패:", err);
+      $("#error-message").text("지역 정보를 불러오는 데 실패했습니다.").show();
+    },
+  });
 
   // 1. 지역 상세 정보 로드 함수
   function loadPlaces(region) {
     $.ajax({
-      url: `${API_BASE_URL}/car-locations`,
+      url: `${API_BASE_URL}/regions/name/${encodeURIComponent(region)}/places`,
       method: "GET",
-      data: { region },
       success: function (data) {
         const placeDetailList = $("#place-detail-list");
         placeDetailList.empty(); // 기존 데이터 비우기
@@ -89,7 +98,9 @@ $(document).ready(function () {
     const id = $(this).data("id");
     if (confirm("해당 장소를 삭제하시겠습니까?")) {
       $.ajax({
-        url: `${API_BASE_URL}/car-locations/${id}`,
+        url: `${API_BASE_URL}/regions/name/${encodeURIComponent(
+          region
+        )}/places/${id}`,
         method: "DELETE",
         success: function (data) {
           $("#success-message").text(data.message).show();
