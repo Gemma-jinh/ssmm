@@ -103,7 +103,10 @@ $(document).ready(function () {
       $("#place-select")
         .empty()
         .append('<option value="" selected>장소 선택</option>');
-
+      $("#parking-spot-select")
+        .prop("disabled", false)
+        .empty()
+        .append('<option value="" selected>주차 위치 선택</option>');
       $.ajax({
         url: `${API_BASE_URL}/regions/name/${encodeURIComponent(
           selectedRegion
@@ -182,6 +185,11 @@ $(document).ready(function () {
             `<option value="${serviceType._id}">${serviceType.name}</option>`
           );
         });
+        // Select2 초기화 (검색 가능한 드롭다운)
+        // serviceTypeSelect.select2({
+        //   placeholder: "서비스 종류 선택",
+        //   allowClear: true,
+        // });
       },
       error: function (err) {
         console.error("서비스 종류 목록 로드 실패:", err);
@@ -281,11 +289,26 @@ $(document).ready(function () {
             parkingSpot,
           },
           customerId,
-          serviceType,
-          serviceAmount,
-          serviceAmountType,
+          // serviceType,
+          // serviceAmount,
+          // serviceAmountType,
           notes,
         };
+
+        // 선택된 서비스 종류가 있을 경우 추가
+        if (serviceType) {
+          registrationData.serviceType = serviceType;
+        }
+
+        // 선택된 서비스 금액 타입이 있을 경우 추가
+        if (serviceAmountType) {
+          registrationData.serviceAmountType = serviceAmountType;
+        }
+
+        // 서비스 금액이 유효한 경우 추가
+        if (!isNaN(serviceAmount) && serviceAmount > 0) {
+          registrationData.serviceAmount = serviceAmount;
+        }
 
         // 차량 등록 요청
         return $.ajax({
@@ -298,6 +321,7 @@ $(document).ready(function () {
       .then(() => {
         //등록 완료 후 폼 초기화
         alert("등록되었습니다.");
+        window.location.href = "/pages/car-list.html";
         $("#car-type").val("");
         $("#car-model")
           .prop("disabled", true)

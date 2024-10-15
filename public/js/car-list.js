@@ -102,14 +102,20 @@ function loadCarList(searchParams = {}) {
           console.warn(`차량 ID ${car._id}에 차량 모델 정보가 없습니다.`);
         }
 
+        // 지역명과 장소명만 표시하도록 수정
+        const regionName = car.location.region
+          ? car.location.region.name
+          : "N/A";
+        const placeName = car.location.place ? car.location.place.name : "N/A";
+
         const row = `
               <tr>
                 <th><input class="form-check-input select-check-1" type="checkbox" value="${car._id}" /></th>
-                <td>${car.location.region}_${car.location.place}</td>
-                <td>${car.location.place}</td>
-                <td>${car.model.name}</td>
+                <td>${regionName}</td>
+                <td>${placeName}</td>
+                <td>${modelName}</td>
                 <td>${car.licensePlate}</td>
-                <td>${car.customer.name}</td>
+                <td>${customerName}</td>
                 <td>
                   <a href="../pages/car-info-modify.html?id=${car._id}">
                     <button type="button" class="btn btn-light btn-sm">수정</button>
@@ -131,12 +137,12 @@ function loadCarList(searchParams = {}) {
 function performSearch() {
   // 검색 조건 수집
   const carType = $("#car-type").val(); // 첫 번째 select: 차종
-  const carModel = $("select").eq(1).val(); // 두 번째 select: 차량 모델
+  const carModel = $("car-model").val(); // 두 번째 select: 차량 모델
   const carNumber = $('input[type="text"]').eq(0).val(); // 차량 번호
-  const region = $("select").eq(2).val(); // 지역 선택
-  const location = $("select").eq(3).val(); // 장소 선택
-  const parkingSpot = $("select").eq(4).val(); // 주차 위치 선택
-  const customer = $("select").eq(5).val(); // 고객사 선택
+  const region = $("#region-select").val(); // 지역 선택
+  const place = $("place-select").val(); // 장소 선택
+  const parkingSpot = $("#parking-spot-select").val(); // 주차 위치 선택
+  const customer = $("#customer-select").val(); // 고객사 선택
   const manager = $('input[type="text"]').eq(1).val(); // 담당자
 
   // 검색 파라미터 객체 생성

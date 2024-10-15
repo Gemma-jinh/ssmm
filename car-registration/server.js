@@ -146,8 +146,15 @@ const CarRegistrationSchema = new mongoose.Schema({
     ref: "Customer",
     required: true,
   },
-  serviceType: String,
-  serviceAmount: Number,
+  serviceType: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "ServiceType",
+  },
+  serviceAmountType: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "ServiceAmountType",
+  },
+  serviceAmount: { type: Number, default: 0 },
   notes: String,
   createdAt: { type: Date, default: Date.now },
 });
@@ -261,9 +268,8 @@ async function insertInitialData() {
 // DB 연결
 mongoose
   .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => {
+  .then(async () => {
     console.log("MongoDB 연결 성공");
-
     const defaultCarTypes = ["경형", "소형", "중형", "대형", "승합", "기타"];
 
     // CarType 모델이 정의된 후에 실행되어야 합니다.
@@ -279,6 +285,12 @@ mongoose
       .catch((err) => {
         console.error("기본 차종 추가 오류:", err);
       });
+    // 초기 서비스 종류 및 금액 타입 데이터 삽입
+    try {
+      await insertInitialData();
+    } catch (err) {
+      console.error("초기 데이터 삽입 실패:", err);
+    }
   })
   .catch((err) => console.error("MongoDB 연결 실패:", err));
 
@@ -1244,6 +1256,7 @@ app.post("/api/car-registrations", async (req, res) => {
       customerId,
       serviceType,
       serviceAmount,
+      serviceAmountType,
       notes,
     } = req.body;
 
@@ -1258,9 +1271,10 @@ app.post("/api/car-registrations", async (req, res) => {
       licensePlate,
       location,
       customer: customerId,
-      serviceType,
-      serviceAmount,
-      notes,
+      serviceType: serviceType || null,
+      serviceAmountType: serviceAmountType || null,
+      serviceAmount: serviceAmount || 0,
+      notes: notes || "",
     });
 
     await newCarRegistration.save();
@@ -1277,6 +1291,8 @@ app.get("/api/car-registrations", async (req, res) => {
       .populate("type") // CarType 정보 포함
       .populate("model") // CarModel 정보 포함
       .populate("customer") // Customer 정보 포함
+      .populate("location.region")
+      .populate("location.place")
       .exec();
     res.json(carRegistrations);
   } catch (err) {
