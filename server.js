@@ -194,18 +194,19 @@ const PlaceSchema = new mongoose.Schema({
   },
   name: { type: String, required: true },
   address: { type: String, required: true },
+  order: { type: Number, default: 0 },
 });
 
 const Place = mongoose.model("Place", PlaceSchema);
 
 //장소 스키마 정의
-const CarLocationSchema = new mongoose.Schema({
-  region: { type: String, required: true },
-  name: { type: String, required: true },
-  address: { type: String, required: true },
-});
+// const CarLocationSchema = new mongoose.Schema({
+//   region: { type: String, required: true },
+//   name: { type: String, required: true },
+//   address: { type: String, required: true },
+// });
 
-const CarLocation = mongoose.model("CarLocation", CarLocationSchema);
+// const CarLocation = mongoose.model("CarLocation", CarLocationSchema);
 
 // 서비스 종류 모델 (models/ServiceType.js)
 
@@ -283,52 +284,134 @@ mongoose
 
 // API 엔드포인트
 
-// POST /api/car-locations 엔드포인트 정의
-app.post("/api/car-locations", async (req, res) => {
-  const { region, name, address } = req.body;
+app.get("/api/regions/name/:regionName", async (req, res) => {
+  const { regionName } = req.params;
 
-  // 유효성 검사
-  if (!region || !name || !address) {
-    return res
-      .status(400)
-      .json({ error: "지역, 이름, 주소를 모두 입력해주세요." });
+  if (!regionName) {
+    return res.status(400).json({ error: "지역명이 필요합니다." });
   }
 
   try {
-    // 새로운 장소 생성
-    const newCarLocation = new CarLocation({ region, name, address });
-    await newCarLocation.save();
+    const region = await Region.findOne({ name: regionName });
+    if (!region) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
 
-    res.status(201).json({
-      message: "장소가 성공적으로 등록되었습니다.",
-      place: newCarLocation,
-    });
+    res.json(region);
   } catch (err) {
-    console.error("장소 등록 오류:", err);
-    res
-      .status(500)
-      .json({ error: "서버 오류로 인해 장소 등록에 실패했습니다." });
+    console.error("지역 정보 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
   }
 });
 
-// GET /api/car-locations?region=지역명 엔드포인트 정의
-app.get("/api/car-locations", async (req, res) => {
-  const { region } = req.query;
+app.get("/api/regions/name/:regionName/places", async (req, res) => {
+  const { regionName } = req.params;
 
-  if (!region) {
-    return res.status(400).json({ error: "지역 정보가 제공되지 않았습니다." });
+  if (!regionName) {
+    return res.status(400).json({ error: "지역명이 필요합니다." });
   }
 
   try {
-    const places = await CarLocation.find({ region }).sort({ createdAt: -1 });
+    const region = await Region.findOne({ name: regionName });
+    if (!region) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    const places = await Place.find({ region: region._id }).sort({ order: 1 });
     res.json(places);
   } catch (err) {
     console.error("장소 목록 조회 오류:", err);
-    res
-      .status(500)
-      .json({ error: "서버 오류로 인해 장소 목록을 조회할 수 없습니다." });
+    res.status(500).json({ error: "서버 오류" });
   }
 });
+
+// POST /api/car-locations 엔드포인트 정의
+app.post("/api/car-locations", async (req, res) => {
+  try {
+    const { region, name, address } = req.body;
+
+    // 필수 필드 검증
+    if (!region || !name || !address) {
+      return res.status(400).json({ error: "모든 필드를 입력해주세요." });
+    }
+
+    // 지역명으로 Region 문서 찾기
+    const regionDoc = await Region.findOne({ name: region });
+    if (!regionDoc) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    // 중복된 장소명 확인 (선택 사항)
+    const existingPlace = await Place.findOne({ name, region: regionDoc._id });
+    if (existingPlace) {
+      return res.status(400).json({ error: "이미 존재하는 장소명입니다." });
+    }
+
+    // 새로운 장소 생성
+    const newPlace = new Place({
+      region: regionDoc._id,
+      name,
+      address,
+    });
+
+    await newPlace.save();
+
+    res.status(201).json({
+      message: "장소가 성공적으로 등록되었습니다.",
+      place: newPlace,
+    });
+  } catch (err) {
+    console.error("장소 등록 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// POST /api/places 엔드포인트 정의
+// app.post("/api/places", async (req, res) => {
+//   const { region, name, address } = req.body;
+
+// 유효성 검사
+// if (!region || !name || !address) {
+//   return res
+//     .status(400)
+//     .json({ error: "지역, 이름, 주소를 모두 입력해주세요." });
+// }
+
+// try {
+// 새로운 장소 생성
+//     const newCarLocation = new CarLocation({ region, name, address });
+//     await newCarLocation.save();
+
+//     res.status(201).json({
+//       message: "장소가 성공적으로 등록되었습니다.",
+//       place: newCarLocation,
+//     });
+//   } catch (err) {
+//     console.error("장소 등록 오류:", err);
+//     res
+//       .status(500)
+//       .json({ error: "서버 오류로 인해 장소 등록에 실패했습니다." });
+//   }
+// });
+
+// GET /api/car-locations?region=지역명 엔드포인트 정의
+// app.get("/api/car-locations", async (req, res) => {
+//   const { region } = req.query;
+
+//   if (!region) {
+//     return res.status(400).json({ error: "지역 정보가 제공되지 않았습니다." });
+//   }
+
+//   try {
+//     const places = await CarLocation.find({ region }).sort({ createdAt: -1 });
+//     res.json(places);
+//   } catch (err) {
+//     console.error("장소 목록 조회 오류:", err);
+//     res
+//       .status(500)
+//       .json({ error: "서버 오류로 인해 장소 목록을 조회할 수 없습니다." });
+//   }
+// });
 
 // DELETE /api/car-locations/:id 엔드포인트 정의
 app.delete("/api/car-locations/:id", async (req, res) => {
@@ -417,27 +500,27 @@ app.get("/api/service-types", async (req, res) => {
   }
 });
 
-app.get("/api/regions/:regionName/places", async (req, res) => {
-  try {
-    const regionName = decodeURIComponent(req.params.regionName);
-    if (!regionName) {
-      return res.status(400).json({ error: "지역명이 필요합니다." });
-    }
+// app.get("/api/regions/:regionName/places", async (req, res) => {
+//   try {
+//     const regionName = decodeURIComponent(req.params.regionName);
+//     if (!regionName) {
+//       return res.status(400).json({ error: "지역명이 필요합니다." });
+//     }
 
-    // 지역명으로 Region 문서 찾기
-    const region = await Region.findOne({ name: regionName });
-    if (!region) {
-      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
-    }
+// 지역명으로 Region 문서 찾기
+//     const region = await Region.findOne({ name: regionName });
+//     if (!region) {
+//       return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+//     }
 
-    // Region ObjectId로 Place 문서 찾기
-    const places = await Place.find({ region: region._id }).sort({ name: 1 });
-    res.json(places);
-  } catch (err) {
-    console.error("장소 목록 조회 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
+//     // Region ObjectId로 Place 문서 찾기
+//     const places = await Place.find({ region: region._id }).sort({ name: 1 });
+//     res.json(places);
+//   } catch (err) {
+//     console.error("장소 목록 조회 오류:", err);
+//     res.status(500).json({ error: "서버 오류" });
+//   }
+// });
 
 // 새로운 서비스 종류 추가 (필요한 경우)
 app.post("/api/service-types", async (req, res) => {
@@ -607,6 +690,28 @@ app.delete("/api/regions/:id", async (req, res) => {
 //   }
 // });
 
+// GET /api/regions/:regionId 엔드포인트 정의
+app.get("/api/regions/:regionId", async (req, res) => {
+  const { regionId } = req.params;
+
+  // 유효한 MongoDB ObjectId인지 확인
+  if (!mongoose.Types.ObjectId.isValid(regionId)) {
+    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
+  }
+
+  try {
+    const region = await Region.findById(regionId);
+    if (!region) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    res.json(region);
+  } catch (err) {
+    console.error("지역 정보 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
 // GET /api/regions/:regionId/places - 특정 지역의 장소 리스트 조회
 app.get("/api/regions/:regionId/places", async (req, res) => {
   const { regionId } = req.params;
@@ -621,6 +726,106 @@ app.get("/api/regions/:regionId/places", async (req, res) => {
     res.json(places);
   } catch (err) {
     console.error("장소 목록 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+app.delete(
+  "/api/regions/name/:regionName/places/:placeId",
+  async (req, res) => {
+    const { regionName, placeId } = req.params;
+
+    if (!regionName) {
+      return res.status(400).json({ error: "지역명이 필요합니다." });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(placeId)) {
+      return res.status(400).json({ error: "유효하지 않은 장소 ID입니다." });
+    }
+
+    try {
+      const region = await Region.findOne({ name: regionName });
+      if (!region) {
+        return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+      }
+
+      const deletedPlace = await Place.findOneAndDelete({
+        _id: placeId,
+        region: region._id,
+      });
+
+      if (!deletedPlace) {
+        return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
+      }
+
+      res.json({ message: "장소가 성공적으로 삭제되었습니다." });
+    } catch (err) {
+      console.error("장소 삭제 오류:", err);
+      res.status(500).json({ error: "서버 오류" });
+    }
+  }
+);
+
+// DELETE /api/regions/:regionId/places/:placeId 엔드포인트 정의
+app.delete("/api/regions/:regionId/places/:placeId", async (req, res) => {
+  const { regionId, placeId } = req.params;
+
+  // 유효한 MongoDB ObjectId인지 확인
+  if (!mongoose.Types.ObjectId.isValid(regionId)) {
+    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(placeId)) {
+    return res.status(400).json({ error: "유효하지 않은 장소 ID입니다." });
+  }
+
+  try {
+    // 해당 지역이 실제로 존재하는지 확인
+    const region = await Region.findById(regionId);
+    if (!region) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    // 장소 삭제
+    const deletedPlace = await Place.findOneAndDelete({
+      _id: placeId,
+      region: regionId,
+    });
+    if (!deletedPlace) {
+      return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
+    }
+
+    res.json({ message: "장소가 성공적으로 삭제되었습니다." });
+  } catch (err) {
+    console.error("장소 삭제 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+app.post("/api/regions/name/:regionName/places", async (req, res) => {
+  const { regionName } = req.params;
+  const { name, address, order } = req.body;
+
+  if (!name || !address || typeof order !== "number") {
+    return res
+      .status(400)
+      .json({ error: "장소명, 주소, 순서를 모두 입력해주세요." });
+  }
+
+  try {
+    const region = await Region.findOne({ name: regionName });
+    if (!region) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    const newPlace = new Place({ region: region._id, name, address, order });
+    await newPlace.save();
+    res.status(201).json({
+      message: "장소가 성공적으로 등록되었습니다.",
+      place: newPlace,
+    });
+  } catch (err) {
+    console.error("장소 등록 오류:", err);
     res.status(500).json({ error: "서버 오류" });
   }
 });
