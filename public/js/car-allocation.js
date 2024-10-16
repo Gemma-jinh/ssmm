@@ -1,7 +1,10 @@
 const API_BASE_URL = "/api"; // 백엔드 서버 URL
-//초기 차량 목록 로딩
+
+// 초기 차량 목록 로딩 및 필드 초기화
 $(document).ready(function () {
   initializeSearchFields();
+  loadManagers();
+  loadTeams();
   loadCarList();
 
   // 검색 버튼 클릭 이벤트 핸들러
@@ -9,9 +12,10 @@ $(document).ready(function () {
     performSearch();
   });
 
-  // 전체 선택 체크박스 이벤트 핸들러
-  clickAllCheck("#flexCheckDefault", ".select-check-1");
-  clickSingleCheck("#flexCheckDefault", ".select-check-1");
+  // 배정 완료 버튼 클릭 이벤트 핸들러
+  $("#assign-button").on("click", function () {
+    assignCars();
+  });
 
   // 페이징 링크 클릭 이벤트 핸들러
   $(document).on("click", ".pagination a.page-link", function (e) {
@@ -71,7 +75,7 @@ function initializeSearchFields() {
   });
 }
 
-// 차종 목록 로드(검색)
+// 차종 목록 로드
 function loadCarTypes() {
   $.ajax({
     url: `${API_BASE_URL}/car-types`,
@@ -100,7 +104,7 @@ function loadCarTypes() {
   });
 }
 
-// 고객사 목록 로드 함수
+// 고객사 목록 로드
 function loadCustomers() {
   $.ajax({
     url: `${API_BASE_URL}/customers`,
@@ -129,7 +133,7 @@ function loadCustomers() {
   });
 }
 
-// 지역 목록 로드 함수
+// 지역 목록 로드
 function loadRegions() {
   $.ajax({
     url: `${API_BASE_URL}/regions`,
@@ -138,7 +142,9 @@ function loadRegions() {
       console.log("지역 목록:", data); // 지역 목록 출력
 
       const regionSelect = $("#region-select");
-      regionSelect.empty().append('<option value="" selected>전체</option>');
+      regionSelect
+        .empty()
+        .append('<option value="" selected>지역 선택</option>');
       data.forEach((region) => {
         if (typeof region === "object" && region.name) {
           const option = `<option value="${region._id}">${region.name}</option>`;
@@ -155,7 +161,7 @@ function loadRegions() {
   });
 }
 
-// 차량 모델 목록 로드 함수
+// 차량 모델 목록 로드
 function loadCarModels(typeId) {
   if (!typeId) {
     $("#car-model")
@@ -189,7 +195,7 @@ function loadCarModels(typeId) {
   });
 }
 
-// 장소 목록 로드 함수
+// 장소 목록 로드
 function loadPlaces(regionId) {
   if (!regionId) {
     $("#place-select")
@@ -227,7 +233,7 @@ function loadPlaces(regionId) {
   });
 }
 
-// 주차 위치 목록 로드 함수 (필요 시 API 추가)
+// 주차 위치 목록 로드 (예시)
 function loadParkingSpots(placeId) {
   if (!placeId) {
     $("#parking-spot-select")
@@ -237,9 +243,9 @@ function loadParkingSpots(placeId) {
     return;
   }
 
-  // 주차 위치 목록을 동적으로 로드하려면 백엔드 API가 필요.
-  // 예를 들어, /api/places/:placeId/parking-spots 엔드포인트를 추가.
-  // 여기서는 예시로 고정된 값을 사용.
+  // 주차 위치 목록을 동적으로 로드하려면 백엔드 API가 필요합니다.
+  // 예를 들어, /api/places/:placeId/parking-spots 엔드포인트를 추가해야 합니다.
+  // 여기서는 예시로 고정된 값을 사용하겠습니다.
 
   // 예시 주차 위치 목록
   const parkingSpots = ["A-1", "A-2", "B-1", "B-2"];
@@ -254,27 +260,83 @@ function loadParkingSpots(placeId) {
   $("#parking-spot-select").prop("disabled", false);
 }
 
+// 담당자 목록 로드
+function loadManagers() {
+  $.ajax({
+    url: `${API_BASE_URL}/managers`, // 백엔드에 담당자 목록 API 엔드포인트 필요
+    method: "GET",
+    success: function (data) {
+      console.log("담당자 목록:", data);
+
+      const managerSelect = $("#manager-select");
+      managerSelect.find('option:not([value=""])').remove();
+
+      data.forEach((manager) => {
+        if (typeof manager === "object" && manager.name) {
+          const option = `<option value="${manager._id}">${manager.name}</option>`;
+          managerSelect.append(option);
+        } else {
+          console.warn("Unexpected manager format:", manager);
+        }
+      });
+    },
+    error: function (err) {
+      console.error("담당자 목록 로드 실패:", err);
+      alert("담당자 목록을 불러오는 데 실패했습니다.");
+    },
+  });
+}
+
+// 팀 목록 로드
+function loadTeams() {
+  $.ajax({
+    url: `${API_BASE_URL}/teams`, // 백엔드에 팀 목록 API 엔드포인트 필요
+    method: "GET",
+    success: function (data) {
+      console.log("팀 목록:", data);
+
+      const teamSelect = $("#team-select");
+      teamSelect.find('option:not([value=""])').remove();
+
+      data.forEach((team) => {
+        if (typeof team === "object" && team.name) {
+          const option = `<option value="${team._id}">${team.name}</option>`;
+          teamSelect.append(option);
+        } else {
+          console.warn("Unexpected team format:", team);
+        }
+      });
+    },
+    error: function (err) {
+      console.error("팀 목록 로드 실패:", err);
+      alert("팀 목록을 불러오는 데 실패했습니다.");
+    },
+  });
+}
+
 // 차량 목록 로드 함수
 function loadCarList(searchParams = {}, page = 1, limit = 10) {
   // 페이징 파라미터 추가
   searchParams.page = page;
   searchParams.limit = limit;
+
+  // 로딩 스피너 표시
+  $("#loading-spinner").show();
+
   $.ajax({
     url: `${API_BASE_URL}/car-registrations`,
     method: "GET",
-    data: searchParams, //검색 파라미터를 요청에 포함
+    data: searchParams, // 검색 파라미터를 요청에 포함
     success: function (data) {
       const carList = $("#car-list");
       carList.empty(); // 기존 데이터 비우기
 
-      // const pagination = $("#pagination");
-      // pagination.empty();
-
       if (data.cars.length === 0) {
         carList.append(
-          '<tr><td colspan="7" class="text-center">등록된 차량이 없습니다.</td></tr>'
+          '<tr><td colspan="6" class="text-center">등록된 차량이 없습니다.</td></tr>'
         );
         $(".pagination").empty(); // 페이징 네비게이션도 비움
+        $("#loading-spinner").hide(); // 로딩 스피너 숨김
         return;
       }
 
@@ -291,50 +353,45 @@ function loadCarList(searchParams = {}, page = 1, limit = 10) {
         }
 
         // 지역명과 장소명만 표시하도록 수정
-        const regionName = car.location.region
-          ? car.location.region.name
-          : "N/A";
         const placeName = car.location.place ? car.location.place.name : "N/A";
-
         const address =
           car.location.place && car.location.place.address
             ? car.location.place.address
             : "N/A";
 
         const row = `
-              <tr>
-                <th><input class="form-check-input select-check-1" type="checkbox" value="${car._id}" /></th>
-                <td>${placeName}</td>
-                <td>${address}</td>
-                <td>${modelName}</td>
-                <td>${car.licensePlate}</td>
-                <td>${customerName}</td>
-                <td>
-                  <a href="../pages/car-info-modify.html?id=${car._id}">
-                    <button type="button" class="btn btn-light btn-sm">수정</button>
-                  </a>
-                </td>
-              </tr>
-            `;
+          <tr>
+            <th><input class="form-check-input select-check-1" type="checkbox" value="${car._id}" /></th>
+            <td>${placeName}</td>
+            <td>${address}</td>
+            <td>${modelName}</td>
+            <td>${car.licensePlate}</td>
+            <td>${customerName}</td>
+          </tr>
+        `;
         carList.append(row);
       });
 
-      // 페이징 렌더링
-      renderPagination(data.Page, data.totalPages);
+      // 페이징 네비게이션 업데이트
+      renderPagination(data.page, data.totalPages);
+
+      // 로딩 스피너 숨김
+      $("#loading-spinner").hide();
     },
     error: function (err) {
       console.error("차량 목록 로드 실패:", err);
       alert("차량 목록을 불러오는 데 실패했습니다.");
+      $("#loading-spinner").hide(); // 로딩 스피너 숨김
     },
   });
 }
 
-// 페이징 렌더링 함수
+// 페이징 네비게이션 렌더링 함수
 function renderPagination(currentPage, totalPages) {
   const pagination = $(".pagination");
   pagination.empty(); // 기존 페이징 네비게이션 비우기
 
-  // 이전 페이지 버튼
+  // 이전 버튼
   if (currentPage > 1) {
     pagination.append(`
       <li class="page-item">
@@ -354,7 +411,8 @@ function renderPagination(currentPage, totalPages) {
       </li>
     `);
   }
-  // 페이지 번호 버튼
+
+  // 페이지 번호
   for (let i = 1; i <= totalPages; i++) {
     if (i === currentPage) {
       pagination.append(`
@@ -371,7 +429,7 @@ function renderPagination(currentPage, totalPages) {
     }
   }
 
-  // 다음 페이지 버튼
+  // 다음 버튼
   if (currentPage < totalPages) {
     pagination.append(`
       <li class="page-item">
@@ -393,38 +451,16 @@ function renderPagination(currentPage, totalPages) {
   }
 }
 
-// 페이징 링크 클릭 이벤트 핸들러
-// $(".page-link")
-//   .off("click")
-//   .on("click", function (e) {
-//     e.preventDefault();
-//     const selectedPage = parseInt($(this).data("page"));
-
-//     if (
-//       isNaN(selectedPage) ||
-//       selectedPage < 1 ||
-//       selectedPage > totalPages
-//     ) {
-//       return;
-//     }
-
-// 현재 검색 조건을 유지하면서 선택된 페이지의 데이터를 로드
-//       const searchParams = getSearchParams();
-//       loadCarList(searchParams, selectedPage, 10); // limit을 필요에 따라 조정
-//     });
-// }
-
 // 검색 수행 함수
 function performSearch() {
   // 검색 조건 수집
-  const carType = $("#car-type").val(); // 첫 번째 select: 차종
-  const carModel = $("#car-model").val(); // 두 번째 select: 차량 모델
+  const carType = $("#car-type").val(); // 차종
+  const carModel = $("#car-model").val(); // 차량 모델
   const carNumber = $("#license-plate").val().trim(); // 차량 번호
-  const region = $("#region-select").val(); // 지역 선택
-  const place = $("#place-select").val(); // 장소 선택
-  const parkingSpot = $("#parking-spot-select").val(); // 주차 위치 선택
-  const customer = $("#customer-select").val(); // 고객사 선택
-  const manager = $("#manager-input").val().trim(); // 담당자
+  const region = $("#region-select").val(); // 지역
+  const place = $("#place-select").val(); // 장소
+  const parkingSpot = $("#parking-spot-select").val(); // 주차 위치
+  const customer = $("#customer-select").val(); // 고객사
 
   // 검색 파라미터 객체 생성
   const searchParams = {};
@@ -436,23 +472,11 @@ function performSearch() {
   if (place) searchParams["location.place"] = place;
   if (parkingSpot) searchParams["location.parkingSpot"] = parkingSpot;
   if (customer) searchParams.customer = customer;
-  if (manager) searchParams.manager = manager;
 
-  // carType: carType !== "" ? carType : "",
-  // carModel: carModel !== "차량 모델 선택" ? carModel : "",
-  // carNumber: carNumber.trim(),
-  // "location.region": region !== "지역 선택" ? region : "",
-  // "location.place": location !== "장소 선택" ? location : "",
-  // "location.parkingSpot": parkingSpot !== "주차 위치 선택" ? parkingSpot : "",
-  // customer: customer !== "선택" ? customer : "",
-  // manager: manager.trim(),
-
-  loadCarList(searchParams, 1, 10); // 페이지 로드 시 차량 목록 로드
+  loadCarList(searchParams, 1, 10); // 첫 페이지 로드
 }
+
 // 전체 선택 체크박스
-// $("#flexCheckDefault").on("change", function () {
-//   $(".select-check-1").prop("checked", this.checked);
-// });
 function clickAllCheck(masterCheckboxSelector, targetCheckboxSelector) {
   $(masterCheckboxSelector).on("change", function () {
     $(targetCheckboxSelector).prop("checked", this.checked);
@@ -460,14 +484,6 @@ function clickAllCheck(masterCheckboxSelector, targetCheckboxSelector) {
 }
 
 // 개별 체크박스 클릭 시 전체 체크박스 상태 변경
-// $(document).on("change", ".select-check-1", function () {
-//   if (!this.checked) {
-//     $("#flexCheckDefault").prop("checked", false);
-//   }
-//   if ($(".select-check-1:checked").length === $(".select-check-1").length) {
-//     $("#flexCheckDefault").prop("checked", true);
-//   }
-// });
 function clickSingleCheck(masterCheckboxSelector, targetCheckboxSelector) {
   $(document).on("change", targetCheckboxSelector, function () {
     if (!this.checked) {
@@ -482,38 +498,53 @@ function clickSingleCheck(masterCheckboxSelector, targetCheckboxSelector) {
   });
 }
 
-// 차량 삭제 기능 구현 (선택된 차량 삭제)
-$(document).ready(function () {
-  $("#delete-button").on("click", function () {
-    const selectedCars = $(".select-check-1:checked")
-      .map(function () {
-        return $(this).val();
-      })
-      .get();
+// 배정 기능 구현 (선택된 차량을 담당자 또는 팀에 배정)
+function assignCars() {
+  const selectedCars = $(".select-check-1:checked")
+    .map(function () {
+      return $(this).val();
+    })
+    .get();
 
-    if (selectedCars.length === 0) {
-      alert("삭제할 차량을 선택해주세요.");
-      return;
-    }
+  if (selectedCars.length === 0) {
+    alert("배정할 차량을 선택해주세요.");
+    return;
+  }
 
-    if (!confirm(`${selectedCars.length}개의 차량을 삭제하시겠습니까?`)) {
-      return;
-    }
+  const selectedManager = $("#manager-select").val();
+  const selectedTeam = $("#team-select").val();
 
-    // 삭제 요청 보내기 (삭제 API가 필요)
-    $.ajax({
-      url: `${API_BASE_URL}/car-registrations`,
-      method: "DELETE",
-      contentType: "application/json",
-      data: JSON.stringify({ ids: selectedCars }),
-      success: function () {
-        alert("선택된 차량이 삭제되었습니다.");
-        loadCarList(); // 목록 다시 로드
-      },
-      error: function (err) {
-        console.error("차량 삭제 실패:", err);
-        alert("차량 삭제에 실패했습니다.");
-      },
-    });
+  if (!selectedManager && !selectedTeam) {
+    alert("담당자 또는 팀을 선택해주세요.");
+    return;
+  }
+
+  // 배정 파라미터 설정
+  const assignParams = {
+    carIds: selectedCars,
+  };
+
+  if (selectedManager) {
+    assignParams.managerId = selectedManager;
+  }
+
+  if (selectedTeam) {
+    assignParams.teamId = selectedTeam;
+  }
+
+  // 배정 요청 보내기
+  $.ajax({
+    url: `${API_BASE_URL}/car-registrations/assign`,
+    method: "POST",
+    contentType: "application/json",
+    data: JSON.stringify(assignParams),
+    success: function (response) {
+      alert("선택된 차량이 성공적으로 배정되었습니다.");
+      loadCarList(); // 목록 다시 로드
+    },
+    error: function (err) {
+      console.error("차량 배정 실패:", err);
+      alert("차량 배정에 실패했습니다.");
+    },
   });
-});
+}
