@@ -18,72 +18,72 @@
       <div class="main-content-box">
         <h2 class="heading">차량 목록</h2>
         <div class="sub-section">
-          <div class="option-container">
-            <p class="option-title">차량 모델</p>
-            <div class="option-list">
-              <select id="car-type" class="form-select">
-                <option value="" selected>차종 선택</option>
-              </select>
-              <select class="form-select">
-                <option value="" selected>차량 모델 선택</option>
-                <option value="1">One</option>
-                <option value="2">Two</option>
-                <option value="3">Three</option>
-              </select>
+          <form id="search-form">
+            <div class="option-container">
+              <p class="option-title">차량 모델</p>
+              <div class="option-list">
+                <select id="car-type" class="form-select">
+                  <option value="" selected>차종 선택</option>
+                </select>
+                <select id="car-model" class="form-select" disabled>
+                  <option value="" selected>차량 모델 선택</option>
+                </select>
+              </div>
             </div>
-          </div>
-          <div class="option-container">
-            <p class="option-title">차량 번호</p>
-            <div>
-              <input type="text" class="form-control" />
+            <div class="option-container">
+              <p class="option-title">차량 번호</p>
+              <div>
+                <input
+                  type="text"
+                  id="license-plate"
+                  class="form-control"
+                  placeholder="차량 번호 입력"
+                />
+              </div>
             </div>
-          </div>
-          <div class="option-container">
-            <p class="option-title">위치</p>
-            <div class="option-list">
-              <select class="form-select">
-                <option vlaue="" selected>지역 선택</option>
-                <option value="1">One</option>
-                <option value="2">Two</option>
-                <option value="3">Three</option>
-              </select>
-              <select class="form-select">
-                <option value="" selected>장소 선택</option>
-                <option value="1">One</option>
-                <option value="2">Two</option>
-                <option value="3">Three</option>
-              </select>
-              <select class="form-select">
-                <option value="" selected>주차 위치 선택</option>
-                <option value="1">One</option>
-                <option value="2">Two</option>
-                <option value="3">Three</option>
-              </select>
+            <div class="option-container">
+              <p class="option-title">위치</p>
+              <div class="option-list">
+                <select id="region-select" class="form-select">
+                  <option value="" selected>지역 선택</option>
+                </select>
+                <select id="place-select" class="form-select" disabled>
+                  <option value="" selected>장소 선택</option>
+                </select>
+                <select id="parking-spot-select" class="form-select" disabled>
+                  <option value="" selected>주차 위치 선택</option>
+                </select>
+              </div>
             </div>
-          </div>
-          <div class="option-container">
-            <p class="option-title">고객사</p>
-            <div class="option-list">
-              <select id="customer-select" class="form-select">
-                <option value="" selected>선택</option>
-              </select>
+            <div class="option-container">
+              <p class="option-title">고객사</p>
+              <div class="option-list">
+                <select id="customer-select" class="form-select">
+                  <option value="" selected>선택</option>
+                </select>
+              </div>
             </div>
-          </div>
 
-          <div class="option-container">
-            <p class="option-title">담당자</p>
-            <div>
-              <input type="text" class="form-control" />
+            <div class="option-container">
+              <p class="option-title">담당자</p>
+              <div>
+                <input
+                  type="text"
+                  id="manager-input"
+                  class="form-control"
+                  placeholder="담당자 이름 입력"
+                />
+              </div>
             </div>
-          </div>
 
-          <button
-            type="button"
-            class="btn btn-primary btn-lg"
-            id="search-button"
-          >
-            검색
-          </button>
+            <button
+              type="button"
+              class="btn btn-primary btn-lg"
+              id="search-button"
+            >
+              검색
+            </button>
+          </form>
         </div>
 
         <div>
@@ -139,8 +139,8 @@
               차량 삭제
             </button>
           </div>
-          <ul class="pagination">
-            <li class="page-item">
+          <ul class="pagination" id="pagination">
+            <!-- <li class="page-item">
               <a class="page-link" href="#" aria-label="Previous">
                 <span aria-hidden="true">&laquo;</span>
               </a>
@@ -152,7 +152,7 @@
               <a class="page-link" href="#" aria-label="Next">
                 <span aria-hidden="true">&raquo;</span>
               </a>
-            </li>
+            </li> -->
           </ul>
         </div>
       </div>

@@ -1300,14 +1300,95 @@ app.post("/api/car-registrations", async (req, res) => {
 // 6. 차량 목록 조회
 app.get("/api/car-registrations", async (req, res) => {
   try {
-    const carRegistrations = await CarRegistration.find()
+    const {
+      carType, // 차량 종류 ID
+      carModel, // 차량 모델 ID
+      licensePlate, // 차량 번호 (부분 일치)
+      region, // 지역 ID
+      place, // 장소 ID
+      customer, // 고객사 ID
+      manager, // 담당자 이름 (부분 일치)
+      page = 1,
+      limit = 10,
+    } = req.query;
+
+    // 필터 객체 초기화
+    let filter = {};
+
+    if (carType) {
+      if (mongoose.Types.ObjectId.isValid(carType)) {
+        filter.type = carType;
+      } else {
+        return res
+          .status(400)
+          .json({ error: "유효하지 않은 차량 종류 ID입니다." });
+      }
+    }
+
+    if (carModel) {
+      if (mongoose.Types.ObjectId.isValid(carModel)) {
+        filter.model = carModel;
+      } else {
+        return res
+          .status(400)
+          .json({ error: "유효하지 않은 차량 모델 ID입니다." });
+      }
+    }
+
+    if (licensePlate) {
+      // 부분 일치 검색 (대소문자 구분 없음)
+      filter.licensePlate = { $regex: licensePlate, $options: "i" };
+    }
+
+    if (region) {
+      if (mongoose.Types.ObjectId.isValid(region)) {
+        filter["location.region"] = region;
+      } else {
+        return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
+      }
+    }
+
+    if (place) {
+      if (mongoose.Types.ObjectId.isValid(place)) {
+        filter["location.place"] = place;
+      } else {
+        return res.status(400).json({ error: "유효하지 않은 장소 ID입니다." });
+      }
+    }
+
+    if (customer) {
+      if (mongoose.Types.ObjectId.isValid(customer)) {
+        filter.customer = customer;
+      } else {
+        return res
+          .status(400)
+          .json({ error: "유효하지 않은 고객사 ID입니다." });
+      }
+    }
+
+    if (manager) {
+      // 부분 일치 검색 (대소문자 구분 없음)
+      filter.manager = { $regex: manager, $options: "i" };
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const total = await CarRegistration.countDocuments(filter);
+    const carRegistrations = await CarRegistration.find(filter)
       .populate("type") // CarType 정보 포함
       .populate("model") // CarModel 정보 포함
       .populate("customer") // Customer 정보 포함
       .populate("location.region")
       .populate("location.place")
+      .skip(skip)
+      .limit(parseInt(limit))
       .exec();
-    res.json(carRegistrations);
+
+    res.json({
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+      cars: carRegistrations,
+    });
   } catch (err) {
     console.error("차량 목록 조회 오류:", err);
     res.status(500).json({ error: "차량 등록 실패", details: err.message });
