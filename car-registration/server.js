@@ -137,8 +137,8 @@ const CarRegistrationSchema = new mongoose.Schema({
   },
   licensePlate: { type: String, required: true, unique: true },
   location: {
-    region: String,
-    place: String,
+    region: { type: mongoose.Schema.Types.ObjectId, ref: "Region" },
+    place: { type: mongoose.Schema.Types.ObjectId, ref: "Place" },
     parkingSpot: String,
   },
   customer: {
@@ -146,6 +146,7 @@ const CarRegistrationSchema = new mongoose.Schema({
     ref: "Customer",
     required: true,
   },
+  manager: { type: String, default: "" }, // 담당자 필드 추가
   serviceType: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "ServiceType",
@@ -350,7 +351,19 @@ app.post("/api/car-locations", async (req, res) => {
     // 지역명으로 Region 문서 찾기
     const regionDoc = await Region.findOne({ name: region });
     if (!regionDoc) {
-      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+      return res
+        .status(404)
+        .json({ error: `존재하지 않는 지역: ${region}`, row });
+    }
+
+    const placeDoc = await Place.findOne({
+      name: name,
+      region: regionDoc._id,
+    });
+    if (!placeDoc) {
+      return res
+        .status(400)
+        .json({ error: `존재하지 않는 장소: ${name} (지역: ${region})`, row });
     }
 
     // 중복된 장소명 확인 (선택 사항)
@@ -1297,7 +1310,7 @@ app.get("/api/car-registrations", async (req, res) => {
     res.json(carRegistrations);
   } catch (err) {
     console.error("차량 목록 조회 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
+    res.status(500).json({ error: "차량 등록 실패", details: err.message });
   }
 });
 
@@ -1307,6 +1320,9 @@ app.get("/api/car-registrations/:id", async (req, res) => {
     const carRegistration = await CarRegistration.findById(req.params.id)
       .populate("type") // CarType 정보 포함
       .populate("model") // CarModel 정보 포함
+      .populate("customer") // Customer 정보 포함
+      .populate("location.region") // Region 정보 포함
+      .populate("location.place") // Place 정보 포함
       .exec();
 
     if (!carRegistration) {
@@ -1346,10 +1362,29 @@ app.put("/api/car-registrations/:id", async (req, res) => {
       licensePlate,
       location,
       customer,
+      manager,
       serviceType,
       serviceAmount,
       notes,
     } = req.body;
+
+    // location.region과 location.place의 유효성 검사
+    if (location.region && !mongoose.Types.ObjectId.isValid(location.region)) {
+      return res.status(400).json({ error: "유효하지 않은 region ID입니다." });
+    }
+    if (location.place && !mongoose.Types.ObjectId.isValid(location.place)) {
+      return res.status(400).json({ error: "유효하지 않은 place ID입니다." });
+    }
+
+    // region과 place가 존재하는지 확인
+    if (location.region) {
+      const regionExists = await Region.findById(location.region);
+      if (!regionExists) {
+        return res
+          .status(400)
+          .json({ error: "존재하지 않는 region ID입니다." });
+      }
+    }
 
     const updatedData = {
       type: typeId,
@@ -1357,9 +1392,10 @@ app.put("/api/car-registrations/:id", async (req, res) => {
       licensePlate,
       location,
       customer,
-      serviceType,
-      serviceAmount,
-      notes,
+      manager,
+      serviceType: serviceType || null,
+      serviceAmount: serviceAmount || 0,
+      notes: notes || "",
     };
 
     const updatedCar = await CarRegistration.findByIdAndUpdate(
@@ -1369,6 +1405,9 @@ app.put("/api/car-registrations/:id", async (req, res) => {
     )
       .populate("type")
       .populate("model")
+      .populate("customer")
+      .populate("location.region")
+      .populate("location.place")
       .exec();
 
     if (!updatedCar) {
@@ -1614,13 +1653,30 @@ app.post(
         }
 
         // 차량 등록 객체 생성
+        const regionDoc = await Region.findOne({ name: region });
+        if (!regionDoc) {
+          return res
+            .status(400)
+            .json({ error: `존재하지 않는 지역: ${region}`, row });
+        }
+
+        const placeDoc = await Place.findOne({
+          name: place,
+          region: regionDoc._id,
+        });
+        if (!placeDoc) {
+          return res.status(400).json({
+            error: `존재하지 않는 장소: ${place} (지역: ${region})`,
+            row,
+          });
+        }
         const registration = {
           type: carTypeDoc._id,
           model: carModelDoc._id,
           licensePlate,
           location: {
-            region,
-            place,
+            region: regionDoc._id, //ObjectId로 설정
+            place: placeDoc._id, //ObjectId로 설정
             parkingSpot,
           },
           customer: customerDoc._id,

@@ -82,7 +82,7 @@ $(document).ready(function () {
         regionSelect.append('<option value="" selected>지역 선택</option>');
         data.forEach((region) => {
           regionSelect.append(
-            `<option value="${region.name}">${region.name}</option>`
+            `<option value="${region._id}">${region.name}</option>` //ObjectId를 기대하므로 region.name 대신 region._id
           );
         });
       },
@@ -108,9 +108,7 @@ $(document).ready(function () {
         .empty()
         .append('<option value="" selected>주차 위치 선택</option>');
       $.ajax({
-        url: `${API_BASE_URL}/regions/name/${encodeURIComponent(
-          selectedRegion
-        )}/places`,
+        url: `${API_BASE_URL}/regions/${selectedRegion}/places`, //name/${encodeURIComponent(selectedRegion)} 대신 objectId 사용
         method: "GET",
         success: function (data) {
           const placeSelect = $("#place-select");

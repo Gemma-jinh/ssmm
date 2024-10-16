@@ -108,11 +108,16 @@ function loadCarList(searchParams = {}) {
           : "N/A";
         const placeName = car.location.place ? car.location.place.name : "N/A";
 
+        const address =
+          car.location.place && car.location.place.address
+            ? car.location.place.address
+            : "N/A";
+
         const row = `
               <tr>
                 <th><input class="form-check-input select-check-1" type="checkbox" value="${car._id}" /></th>
-                <td>${regionName}</td>
                 <td>${placeName}</td>
+                <td>${address}</td>
                 <td>${modelName}</td>
                 <td>${car.licensePlate}</td>
                 <td>${customerName}</td>
