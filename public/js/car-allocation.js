@@ -12,10 +12,9 @@ $(document).ready(function () {
     performSearch();
   });
 
-  // 배정 완료 버튼 클릭 이벤트 핸들러
-  $("#assign-button").on("click", function () {
-    assignCars();
-  });
+  // 전체 선택 체크박스 이벤트 핸들러
+  clickAllCheck("#flexCheckDefault", ".select-check-1");
+  clickSingleCheck("#flexCheckDefault", ".select-check-1");
 
   // 페이징 링크 클릭 이벤트 핸들러
   $(document).on("click", ".pagination a.page-link", function (e) {
@@ -25,6 +24,53 @@ $(document).ready(function () {
       loadCarList({}, page, 10);
     }
   });
+
+  // 배정 완료 버튼 클릭 이벤트 핸들러
+  $("#assign-button").on("click", function () {
+    const selectedCars = getSelectedCars();
+    const managerId = $("#assign-manager").val();
+    const teamId = $("#assign-team").val();
+
+    if (selectedCars.length === 0) {
+      alert("배정할 차량을 선택해주세요.");
+      return;
+    }
+
+    if (!managerId) {
+      alert("배정할 담당자를 선택해주세요.");
+      return;
+    }
+
+    if (!teamId) {
+      alert("배정할 팀을 선택해주세요.");
+      return;
+    }
+    // 배정 요청 보내기
+    assignCars(selectedCars, managerId, teamId);
+  });
+});
+
+// 담당자 선택 시 이름 표시
+$("#assign-manager").on("change", function () {
+  const selectedManagerId = $(this).val();
+  const selectedManagerName = $(this).find("option:selected").text();
+  if (selectedManagerId) {
+    $("#selected-manager-name").text(`담당자: ${selectedManagerName}`);
+  } else {
+    $("#selected-manager-name").text("");
+  }
+});
+
+// 팀 선택 시 이름 표시
+$("#assign-team").on("change", function () {
+  const selectedTeamId = $(this).val();
+  const selectedTeamName = $(this).find("option:selected").text();
+  if (selectedTeamId) {
+    $("#selected-team-name").text(`팀: ${selectedTeamName}`);
+  } else {
+    // 팀을 선택하지 않았을 때 기본값 설정
+    $("#selected-team-name").text("팀: 기본 팀"); // 원하는 기본 팀명으로 변경
+  }
 });
 
 // 검색 필드 초기화 함수
@@ -89,7 +135,7 @@ function loadCarTypes() {
 
       // 새로운 차종 옵션 추가
       data.forEach((carType) => {
-        if (typeof carType === "object" && carType.name) {
+        if (carType._id && carType.name) {
           const option = `<option value="${carType._id}">${carType.name}</option>`;
           carTypeSelect.append(option);
         } else {
@@ -118,7 +164,7 @@ function loadCustomers() {
 
       // 새로운 고객사 옵션 추가
       data.forEach((customer) => {
-        if (typeof customer === "object" && customer.name) {
+        if (customer._id && customer.name) {
           const option = `<option value="${customer._id}">${customer.name}</option>`;
           customerSelect.append(option);
         } else {
@@ -146,7 +192,7 @@ function loadRegions() {
         .empty()
         .append('<option value="" selected>지역 선택</option>');
       data.forEach((region) => {
-        if (typeof region === "object" && region.name) {
+        if (region._id && region.name) {
           const option = `<option value="${region._id}">${region.name}</option>`;
           regionSelect.append(option);
         } else {
@@ -175,18 +221,19 @@ function loadCarModels(typeId) {
     url: `${API_BASE_URL}/car-types/${typeId}/models`,
     method: "GET",
     success: function (data) {
-      $("#car-model")
+      const carModelSelect = $("#car-model");
+      carModelSelect
         .empty()
         .append('<option value="" selected>차량 모델 선택</option>');
       data.forEach((model) => {
-        if (typeof model === "object" && model.name) {
+        if (model._id && model.name) {
           const option = `<option value="${model._id}">${model.name}</option>`;
-          $("#car-model").append(option);
+          carModelSelect.append(option);
         } else {
-          console.warn("Unexpected carModel format:", model);
+          console.warn("Invalid model data:", model);
         }
       });
-      $("#car-model").prop("disabled", false);
+      carModelSelect.prop("disabled", false);
     },
     error: function (err) {
       console.error("차량 모델 로드 실패:", err);
@@ -213,18 +260,19 @@ function loadPlaces(regionId) {
     url: `${API_BASE_URL}/regions/${regionId}/places`,
     method: "GET",
     success: function (data) {
-      $("#place-select")
+      const placeSelect = $("#place-select");
+      placeSelect
         .empty()
         .append('<option value="" selected>장소 선택</option>');
       data.forEach((place) => {
-        if (typeof place === "object" && place.name) {
+        if (place._id && place.name) {
           const option = `<option value="${place._id}">${place.name}</option>`;
-          $("#place-select").append(option);
+          placeSelect.append(option);
         } else {
           console.warn("Unexpected place format:", place);
         }
       });
-      $("#place-select").prop("disabled", false);
+      placeSelect.prop("disabled", false);
     },
     error: function (err) {
       console.error("장소 로드 실패:", err);
@@ -250,14 +298,15 @@ function loadParkingSpots(placeId) {
   // 예시 주차 위치 목록
   const parkingSpots = ["A-1", "A-2", "B-1", "B-2"];
 
-  $("#parking-spot-select")
+  const parkingSpotSelect = $("#parking-spot-select");
+  parkingSpotSelect
     .empty()
     .append('<option value="" selected>주차 위치 선택</option>');
   parkingSpots.forEach((spot) => {
     const option = `<option value="${spot}">${spot}</option>`;
-    $("#parking-spot-select").append(option);
+    parkingSpotSelect.append(option);
   });
-  $("#parking-spot-select").prop("disabled", false);
+  parkingSpotSelect.prop("disabled", false);
 }
 
 // 담당자 목록 로드
@@ -268,11 +317,11 @@ function loadManagers() {
     success: function (data) {
       console.log("담당자 목록:", data);
 
-      const managerSelect = $("#manager-select");
+      const managerSelect = $("#assign-manager");
       managerSelect.find('option:not([value=""])').remove();
 
       data.forEach((manager) => {
-        if (typeof manager === "object" && manager.name) {
+        if (manager._id && manager.name) {
           const option = `<option value="${manager._id}">${manager.name}</option>`;
           managerSelect.append(option);
         } else {
@@ -295,17 +344,23 @@ function loadTeams() {
     success: function (data) {
       console.log("팀 목록:", data);
 
-      const teamSelect = $("#team-select");
-      teamSelect.find('option:not([value=""])').remove();
+      const teamSelect = $("#assign-team");
+      teamSelect.empty().append('<option value="" selected>선택</option>');
 
       data.forEach((team) => {
-        if (typeof team === "object" && team.name) {
+        if (team._id && team.name) {
           const option = `<option value="${team._id}">${team.name}</option>`;
           teamSelect.append(option);
         } else {
           console.warn("Unexpected team format:", team);
         }
       });
+
+      // 기본 팀 선택 (예시: 첫 번째 팀을 기본 선택)
+      if (data.length > 0) {
+        const firstTeam = data[0];
+        teamSelect.val(firstTeam._id).trigger("change");
+      }
     },
     error: function (err) {
       console.error("팀 목록 로드 실패:", err);
@@ -320,9 +375,6 @@ function loadCarList(searchParams = {}, page = 1, limit = 10) {
   searchParams.page = page;
   searchParams.limit = limit;
 
-  // 로딩 스피너 표시
-  $("#loading-spinner").show();
-
   $.ajax({
     url: `${API_BASE_URL}/car-registrations`,
     method: "GET",
@@ -331,19 +383,15 @@ function loadCarList(searchParams = {}, page = 1, limit = 10) {
       const carList = $("#car-list");
       carList.empty(); // 기존 데이터 비우기
 
-      if (data.cars.length === 0) {
+      if (!data.cars || data.cars.length === 0) {
         carList.append(
           '<tr><td colspan="6" class="text-center">등록된 차량이 없습니다.</td></tr>'
         );
         $(".pagination").empty(); // 페이징 네비게이션도 비움
-        $("#loading-spinner").hide(); // 로딩 스피너 숨김
         return;
       }
 
       data.cars.forEach((car) => {
-        const customerName = car.customer ? car.customer.name : "N/A";
-        const modelName = car.model ? car.model.name : "N/A";
-
         // 디버깅: 문제 되는 차량 객체 로그 출력
         if (!car.customer) {
           console.warn(`차량 ID ${car._id}에 고객사 정보가 없습니다.`);
@@ -351,8 +399,8 @@ function loadCarList(searchParams = {}, page = 1, limit = 10) {
         if (!car.model) {
           console.warn(`차량 ID ${car._id}에 차량 모델 정보가 없습니다.`);
         }
-
-        // 지역명과 장소명만 표시하도록 수정
+        const customerName = car.customer ? car.customer.name : "N/A";
+        const modelName = car.model ? car.model.name : "N/A";
         const placeName = car.location.place ? car.location.place.name : "N/A";
         const address =
           car.location.place && car.location.place.address
@@ -374,9 +422,6 @@ function loadCarList(searchParams = {}, page = 1, limit = 10) {
 
       // 페이징 네비게이션 업데이트
       renderPagination(data.page, data.totalPages);
-
-      // 로딩 스피너 숨김
-      $("#loading-spinner").hide();
     },
     error: function (err) {
       console.error("차량 목록 로드 실패:", err);
@@ -499,48 +544,51 @@ function clickSingleCheck(masterCheckboxSelector, targetCheckboxSelector) {
 }
 
 // 배정 기능 구현 (선택된 차량을 담당자 또는 팀에 배정)
-function assignCars() {
-  const selectedCars = $(".select-check-1:checked")
+function getSelectedCars() {
+  return $(".select-check-1:checked")
     .map(function () {
       return $(this).val();
     })
     .get();
+}
 
-  if (selectedCars.length === 0) {
-    alert("배정할 차량을 선택해주세요.");
-    return;
-  }
+// const selectedManager = $("#manager-select").val();
+// const selectedTeam = $("#team-select").val();
 
-  const selectedManager = $("#manager-select").val();
-  const selectedTeam = $("#team-select").val();
+// if (!selectedManager && !selectedTeam) {
+//   alert("담당자 또는 팀을 선택해주세요.");
+//   return;
+// }
 
-  if (!selectedManager && !selectedTeam) {
-    alert("담당자 또는 팀을 선택해주세요.");
-    return;
-  }
+// 배정 파라미터 설정
+// const assignParams = {
+//   carIds: selectedCars,
+// };
 
-  // 배정 파라미터 설정
-  const assignParams = {
-    carIds: selectedCars,
-  };
+// if (selectedManager) {
+//   assignParams.managerId = selectedManager;
+// }
 
-  if (selectedManager) {
-    assignParams.managerId = selectedManager;
-  }
+// if (selectedTeam) {
+//   assignParams.teamId = selectedTeam;
+// }
 
-  if (selectedTeam) {
-    assignParams.teamId = selectedTeam;
-  }
-
-  // 배정 요청 보내기
+// 배정 요청 보내기
+function assignCars(carIds, managerId, teamId) {
   $.ajax({
     url: `${API_BASE_URL}/car-registrations/assign`,
     method: "POST",
     contentType: "application/json",
-    data: JSON.stringify(assignParams),
-    success: function (response) {
-      alert("선택된 차량이 성공적으로 배정되었습니다.");
+    data: JSON.stringify({
+      carIds: carIds,
+      managerId: managerId,
+      teamId: teamId,
+    }),
+    success: function () {
+      alert("선택된 차량이 배정되었습니다.");
       loadCarList(); // 목록 다시 로드
+      // 전체 선택 체크박스 해제
+      $("#flexCheckDefault").prop("checked", false);
     },
     error: function (err) {
       console.error("차량 배정 실패:", err);

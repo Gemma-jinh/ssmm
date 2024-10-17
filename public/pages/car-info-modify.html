@@ -49,13 +49,18 @@
           <div class="content-container">
             <div class="content-title">위치</div>
             <div class="content-list">
-              <select class="form-select" id="region">
+              <select class="form-select" id="region-select">
                 <option value="" selected>지역 선택</option>
                 <!-- <option value="1">One</option>
                 <option value="2">Two</option>
                 <option value="3">Three</option> -->
               </select>
-              <select class="form-select" id="place-select">
+              <select
+                class="form-select"
+                id="place-select"
+                name="place"
+                disabled
+              >
                 <option value="" selected>장소 선택</option>
                 <!-- <option value="1">One</option>
                 <option value="2">Two</option>
@@ -72,21 +77,17 @@
           <div class="content-container">
             <div class="content-title">고객사</div>
             <div class="content-list">
-              <select class="form-select" id="customer">
+              <select class="form-select" id="customer-select">
                 <option value="" selected>선택</option>
               </select>
             </div>
           </div>
           <div class="content-container">
             <div class="content-title">담당자</div>
-            <div class="content-list">
-              <input
-                type="text"
-                id="manager"
-                class="form-control"
-                placeholder="담당자 이름"
-              />
-            </div>
+            <select class="form-select" id="manager-select">
+              <option value="" selected>담당자 선택</option>
+              <!-- 동적으로 추가 -->
+            </select>
           </div>
         </div>
         <div class="mb-3">

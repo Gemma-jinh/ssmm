@@ -1,4 +1,5 @@
 const express = require("express");
+const router = express.Router();
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -9,6 +10,8 @@ const util = require("util");
 const fs = require("fs");
 const bcrypt = require("bcrypt");
 const Region = require("./models/Region");
+const Manager = require("./models/Manager"); // 담당자 모델
+const Team = require("./models/Team"); // 팀 모델
 // const Place = require("./models/Place");
 
 // Promisify fs functions
@@ -137,16 +140,29 @@ const CarRegistrationSchema = new mongoose.Schema({
   },
   licensePlate: { type: String, required: true, unique: true },
   location: {
-    region: { type: mongoose.Schema.Types.ObjectId, ref: "Region" },
-    place: { type: mongoose.Schema.Types.ObjectId, ref: "Place" },
-    parkingSpot: String,
+    region: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Region",
+      required: true,
+    },
+    place: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Place",
+      required: true,
+    },
+    parkingSpot: { type: String, default: "" },
   },
   customer: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Customer",
     required: true,
   },
-  manager: { type: String, default: "" }, // 담당자 필드 추가
+  manager: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Manager",
+    default: null,
+  },
+  team: { type: mongoose.Schema.Types.ObjectId, ref: "Team", default: null },
   serviceType: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "ServiceType",
@@ -156,7 +172,7 @@ const CarRegistrationSchema = new mongoose.Schema({
     ref: "ServiceAmountType",
   },
   serviceAmount: { type: Number, default: 0 },
-  notes: String,
+  notes: { type: String, default: "" },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -171,6 +187,7 @@ const accountSchema = new mongoose.Schema({
     required: true,
   },
   authorityGroup: { type: String, required: true },
+  manager: { type: mongoose.Schema.Types.ObjectId, ref: "Manager" }, // Manager 참조 추가
 });
 
 const Account = mongoose.model("Account", accountSchema);
@@ -286,6 +303,17 @@ mongoose
       .catch((err) => {
         console.error("기본 차종 추가 오류:", err);
       });
+
+    // 기본 팀 설정
+    const defaultTeams = ["A팀", "B팀", "C팀"];
+    for (const teamName of defaultTeams) {
+      const existingTeam = await Team.findOne({ name: teamName });
+      if (!existingTeam) {
+        const team = new Team({ name: teamName });
+        await team.save();
+        console.log(`기본 팀 ${teamName} 생성 완료`);
+      }
+    }
     // 초기 서비스 종류 및 금액 타입 데이터 삽입
     try {
       await insertInitialData();
@@ -1054,6 +1082,19 @@ app.post("/api/accounts", async (req, res) => {
 
     await newAccount.save();
 
+    // Manager 생성
+    const existingManager = await Manager.findOne({ name: adminName });
+    if (!existingManager) {
+      const newManager = new Manager({
+        name: adminName,
+        // 추가 필드가 필요하다면 여기서 설정
+      });
+      await newManager.save();
+      console.log(`Manager ${adminName} 생성 완료`);
+    } else {
+      console.warn(`Manager with name ${adminName} already exists`);
+    }
+
     res.status(201).json(newAccount);
   } catch (err) {
     console.error("계정 생성 오류:", err);
@@ -1274,15 +1315,50 @@ app.post("/api/car-registrations", async (req, res) => {
     } = req.body;
 
     // 필수 필드 검증
-    if (!typeId || !modelId || !licensePlate || !customerId) {
+    if (
+      !typeId ||
+      !modelId ||
+      !licensePlate ||
+      !customerId ||
+      !location ||
+      !location.region ||
+      !location.place
+    ) {
       return res.status(400).json({ error: "필수 정보를 모두 입력해주세요." });
+    }
+
+    // regionDoc 조회
+    const regionDoc = await Region.findById(location.region);
+    if (!regionDoc) {
+      return res.status(400).json({ error: "존재하지 않는 region ID입니다." });
+    }
+
+    // placeDoc 조회
+    const placeDoc = await Place.findOne({
+      _id: location.place,
+      region: regionDoc._id,
+    });
+    if (!placeDoc) {
+      return res.status(400).json({ error: "존재하지 않는 place ID입니다." });
+    }
+
+    // 차량 번호 중복 확인
+    const existingCar = await CarRegistration.findOne({
+      licensePlate: licensePlate,
+    });
+    if (existingCar) {
+      return res.status(400).json({ error: `차량 번호 중복: ${licensePlate}` });
     }
 
     const newCarRegistration = new CarRegistration({
       type: typeId,
       model: modelId,
       licensePlate,
-      location,
+      location: {
+        region: regionDoc._id,
+        place: placeDoc._id,
+        parkingSpot: location.parkingSpot || "",
+      },
       customer: customerId,
       serviceType: serviceType || null,
       serviceAmountType: serviceAmountType || null,
@@ -1377,6 +1453,8 @@ app.get("/api/car-registrations", async (req, res) => {
       .populate("type") // CarType 정보 포함
       .populate("model") // CarModel 정보 포함
       .populate("customer") // Customer 정보 포함
+      // .populate("location.region")
+      // .populate("location.place")
       .populate("location.region")
       .populate("location.place")
       .skip(skip)
@@ -1446,6 +1524,7 @@ app.put("/api/car-registrations/:id", async (req, res) => {
       manager,
       serviceType,
       serviceAmount,
+      serviceAmountType,
       notes,
     } = req.body;
 
@@ -1458,6 +1537,7 @@ app.put("/api/car-registrations/:id", async (req, res) => {
     }
 
     // region과 place가 존재하는지 확인
+    let updatedLocation = {};
     if (location.region) {
       const regionExists = await Region.findById(location.region);
       if (!regionExists) {
@@ -1465,16 +1545,57 @@ app.put("/api/car-registrations/:id", async (req, res) => {
           .status(400)
           .json({ error: "존재하지 않는 region ID입니다." });
       }
+      updatedLocation.region = regionExists._id;
+    }
+
+    if (location.place) {
+      const placeExists = await Place.findOne({
+        _id: location.place,
+        region: updatedLocation.region,
+      });
+      if (!placeExists) {
+        return res.status(400).json({ error: "존재하지 않는 place ID입니다." });
+      }
+      updatedLocation.place = placeExists._id;
+    }
+
+    if (location.parkingSpot !== undefined) {
+      updatedLocation.parkingSpot = location.parkingSpot;
+    }
+
+    // manager 필드 처리
+    let managerId = null;
+    if (manager && manager.trim() !== "") {
+      // manager가 ObjectId인지 확인
+      if (mongoose.Types.ObjectId.isValid(manager)) {
+        const managerDoc = await Manager.findById(manager);
+        if (!managerDoc) {
+          return res
+            .status(400)
+            .json({ error: "존재하지 않는 담당자 ID입니다." });
+        }
+        managerId = managerDoc._id;
+      } else {
+        // manager가 이름인 경우
+        const managerDoc = await Manager.findOne({ name: manager.trim() });
+        if (!managerDoc) {
+          return res
+            .status(400)
+            .json({ error: "존재하지 않는 담당자 이름입니다." });
+        }
+        managerId = managerDoc._id;
+      }
     }
 
     const updatedData = {
       type: typeId,
       model: modelId,
       licensePlate,
-      location,
+      location: updatedLocation,
       customer,
-      manager,
+      manager: managerId,
       serviceType: serviceType || null,
+      serviceAmountType: serviceAmountType || null,
       serviceAmount: serviceAmount || 0,
       notes: notes || "",
     };
@@ -1501,6 +1622,86 @@ app.put("/api/car-registrations/:id", async (req, res) => {
     res.status(400).json({ error: "차량 수정에 실패했습니다." });
   }
 });
+
+// 라우터를 통해 API 엔드포인트 정의
+// 고객사 목록 조회
+app.get("/customers", async (req, res) => {
+  try {
+    const customers = await Customer.find();
+    res.json(customers);
+  } catch (err) {
+    console.error("고객사 목록 조회 오류:", err);
+    res.status(500).json({ error: "고객사 목록 조회에 실패했습니다." });
+  }
+});
+
+// 담당자 목록 조회
+app.get("/managers", async (req, res) => {
+  try {
+    const managers = await Manager.find();
+    res.json(managers);
+  } catch (err) {
+    console.error("담당자 목록 조회 오류:", err);
+    res.status(500).json({ error: "담당자 목록 조회에 실패했습니다." });
+  }
+});
+
+// 팀 목록 조회
+app.get("/teams", async (req, res) => {
+  try {
+    const teams = await Team.find();
+    res.json(teams);
+  } catch (err) {
+    console.error("팀 목록 조회 오류:", err);
+    res.status(500).json({ error: "팀 목록 조회에 실패했습니다." });
+  }
+});
+// 차량 배정 엔드포인트
+app.put("/car-registrations/assign", async (req, res) => {
+  try {
+    const { carIds, managerId, teamId } = req.body;
+
+    // 필수 필드 확인
+    if (!carIds || !Array.isArray(carIds) || carIds.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "배정할 차량 ID 목록이 필요합니다." });
+    }
+    if (!managerId) {
+      return res.status(400).json({ error: "담당자 ID가 필요합니다." });
+    }
+    if (!teamId) {
+      return res.status(400).json({ error: "팀 ID가 필요합니다." });
+    }
+
+    // 담당자 및 팀 존재 여부 확인
+    const manager = await Manager.findById(managerId);
+    if (!manager) {
+      return res.status(404).json({ error: "담당자를 찾을 수 없습니다." });
+    }
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({ error: "팀을 찾을 수 없습니다." });
+    }
+
+    // 차량 배정 업데이트
+    await CarRegistration.updateMany(
+      { _id: { $in: carIds } },
+      { $set: { manager: managerId, team: teamId } }
+    );
+
+    res.json({ message: "차량이 성공적으로 배정되었습니다." });
+  } catch (err) {
+    console.error("차량 배정 오류:", err);
+    res
+      .status(500)
+      .json({ error: "차량 배정에 실패했습니다.", details: err.message });
+  }
+});
+
+// 라우터를 /api 경로에 마운트
+// app.use("/api", router);
 
 // 10. 고객사 목록 조회
 app.get("/api/customers", async (req, res) => {
@@ -1575,6 +1776,64 @@ app.put("/api/customers/:id", async (req, res) => {
   } catch (err) {
     console.error("고객사 수정 오류:", err);
     res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// GET /api/managers 담당자 목록
+app.get("/api/managers", async (req, res) => {
+  try {
+    const managers = await Manager.find(); // Manager 모델을 정의해야 함
+    res.json(managers);
+  } catch (err) {
+    console.error("담당자 목록 조회 오류:", err);
+    res
+      .status(500)
+      .json({ error: "담당자 목록 조회 실패", details: err.message });
+  }
+});
+
+// GET /api/teams 팀 목록
+app.get("/api/teams", async (req, res) => {
+  try {
+    const teams = await Team.find(); // Team 모델을 정의해야 함
+    res.json(teams);
+  } catch (err) {
+    console.error("팀 목록 조회 오류:", err);
+    res.status(500).json({ error: "팀 목록 조회 실패", details: err.message });
+  }
+});
+
+// POST /api/car-registrations/assign 차량 배정
+app.post("/api/car-registrations/assign", async (req, res) => {
+  try {
+    const { carIds, managerId, teamId } = req.body;
+
+    if (!carIds || !Array.isArray(carIds) || carIds.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "유효한 차량 ID 목록이 필요합니다." });
+    }
+
+    if (!managerId && !teamId) {
+      return res
+        .status(400)
+        .json({ error: "담당자 ID 또는 팀 ID 중 하나가 필요합니다." });
+    }
+
+    // 차량 업데이트
+    const updateData = {};
+    if (managerId) updateData.manager = managerId;
+    if (teamId) updateData.team = teamId;
+
+    await CarRegistration.updateMany(
+      { _id: { $in: carIds } },
+      { $set: updateData }
+    );
+
+    res.json({ message: "차량이 성공적으로 배정되었습니다." });
+  } catch (err) {
+    console.error("차량 배정 오류:", err);
+    res.status(500).json({ error: "차량 배정 실패", details: err.message });
   }
 });
 
