@@ -267,7 +267,7 @@ async function insertInitialData() {
     console.log("서비스 종류 초기 데이터 삽입 완료");
 
     // 서비스 금액 타입 초기 데이터
-    const amountTypes = ["일할", "단가"];
+    const amountTypes = ["일할", "단가", "무료"];
     for (const name of amountTypes) {
       const existing = await ServiceAmountType.findOne({ name });
       if (!existing) {
