@@ -22,7 +22,7 @@ const MENU_LIST = [
     initShow: true,
     subMenu: [
       {
-        title: "차량 위치 관리",
+        title: "작업 장소 관리",
         url: "./car-location.html",
       },
     ],
@@ -80,15 +80,23 @@ const renderSideNav = () => {
     menuHtml += `
       <div class="accordion-item">
         <h2 class="accordion-header">
-          <button class="accordion-button ${menu.initShow ? "" : "collapsed"}" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${menu.initShow}" aria-controls="${collapseId}">${menu.title}</button>
+          <button class="accordion-button ${
+            menu.initShow ? "" : "collapsed"
+          }" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${
+      menu.initShow
+    }" aria-controls="${collapseId}">${menu.title}</button>
         </h2>
-        <div id="${collapseId}" class="accordion-collapse collapse ${menu.initShow ? "show" : ""}">
+        <div id="${collapseId}" class="accordion-collapse collapse ${
+      menu.initShow ? "show" : ""
+    }">
           <div class="accordion-body">
             <ul class="list-unstyled">
               ${menu.subMenu
                 .map(
                   (subItem) => `
-                <li><a href="${subItem.url}" class="text-white ${subItem.disabled ? "disabled" : ""}">${subItem.title}</a></li>
+                <li><a href="${subItem.url}" class="text-white ${
+                    subItem.disabled ? "disabled" : ""
+                  }">${subItem.title}</a></li>
               `
                 )
                 .join("")}

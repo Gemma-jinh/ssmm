@@ -50,6 +50,17 @@ $(document).ready(function () {
   });
 });
 
+// "배정 변경" 버튼 클릭 이벤트 핸들러
+// document.ready 블록 내, assignCars 함수 외부에 위치해야 동작한다.
+$(document).on("click", ".change-assignment-button", function () {
+  const carId = $(this).data("car-id");
+  if (carId) {
+    window.location.href = `car-allocation-modify.html?id=${carId}`;
+  } else {
+    alert("차량 ID를 찾을 수 없습니다.");
+  }
+});
+
 // 담당자 선택 시 이름 표시
 $("#assign-manager").on("change", function () {
   const selectedManagerId = $(this).val();
@@ -385,7 +396,7 @@ function loadCarList(searchParams = {}, page = 1, limit = 10) {
 
       if (!data.cars || data.cars.length === 0) {
         carList.append(
-          '<tr><td colspan="6" class="text-center">등록된 차량이 없습니다.</td></tr>'
+          '<tr><td colspan="7" class="text-center">등록된 차량이 없습니다.</td></tr>'
         );
         $(".pagination").empty(); // 페이징 네비게이션도 비움
         return;
@@ -415,6 +426,11 @@ function loadCarList(searchParams = {}, page = 1, limit = 10) {
             <td>${modelName}</td>
             <td>${car.licensePlate}</td>
             <td>${customerName}</td>
+             <td>
+              <button type="button" class="btn btn-secondary btn-sm change-assignment-button" data-car-id="${car._id}">
+                배정 변경
+              </button>
+            </td>
           </tr>
         `;
         carList.append(row);

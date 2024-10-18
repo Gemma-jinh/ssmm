@@ -1623,6 +1623,57 @@ app.put("/api/car-registrations/:id", async (req, res) => {
   }
 });
 
+// 배정 변경 엔드포인트
+app.put("/api/car-registrations/:id/assign", async (req, res) => {
+  try {
+    const { managerId, teamId } = req.body;
+    const carId = req.params.id;
+
+    // 차량 존재 여부 확인
+    const car = await CarRegistration.findById(carId);
+    if (!car) {
+      return res.status(404).json({ error: "차량을 찾을 수 없습니다." });
+    }
+
+    // managerId 유효성 검사
+    if (managerId && !mongoose.Types.ObjectId.isValid(managerId)) {
+      return res.status(400).json({ error: "유효하지 않은 담당자 ID입니다." });
+    }
+
+    if (managerId) {
+      const manager = await Manager.findById(managerId);
+      if (!manager) {
+        return res.status(400).json({ error: "존재하지 않는 담당자입니다." });
+      }
+      car.manager = managerId;
+    } else {
+      car.manager = null; // 담당자 해제
+    }
+
+    // teamId 유효성 검사
+    if (teamId && !mongoose.Types.ObjectId.isValid(teamId)) {
+      return res.status(400).json({ error: "유효하지 않은 팀 ID입니다." });
+    }
+
+    if (teamId) {
+      const team = await Team.findById(teamId);
+      if (!team) {
+        return res.status(400).json({ error: "존재하지 않는 팀입니다." });
+      }
+      car.team = teamId;
+    } else {
+      car.team = null; // 팀 해제
+    }
+
+    await car.save();
+
+    res.json({ message: "차량 배정이 성공적으로 변경되었습니다.", car });
+  } catch (err) {
+    console.error("배정 변경 오류:", err);
+    res.status(500).json({ error: "배정 변경 중 오류가 발생했습니다." });
+  }
+});
+
 // 라우터를 통해 API 엔드포인트 정의
 // 고객사 목록 조회
 app.get("/customers", async (req, res) => {

@@ -25,7 +25,7 @@ $(document).ready(function () {
     url: `${API_BASE_URL}/regions/name/${encodeURIComponent(region)}`,
     method: "GET",
     success: function (regionData) {
-      $("#detail-heading").text(`${regionData.name} 차량 위치 관리`);
+      $("#detail-heading").text(`${regionData.name} 작업 장소 관리`);
     },
     error: function (err) {
       console.error("지역 정보 로드 실패:", err);
