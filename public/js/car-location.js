@@ -1,6 +1,15 @@
 $(document).ready(function () {
   const API_BASE_URL = "/api";
 
+  $.ajaxSetup({
+    beforeSend: function (xhr) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      }
+    },
+  });
+
   // 1. 지역 목록 로드 함수
   function loadRegions() {
     $.ajax({

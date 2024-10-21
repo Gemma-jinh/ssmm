@@ -2,6 +2,14 @@ $(document).ready(function () {
   const API_BASE_URL = "/api"; // 백엔드 서버 URL
   let isAdminIdAvailable = false; // 관리자 ID 중복 여부 상태 변수
 
+  $.ajaxSetup({
+    beforeSend: function (xhr) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      }
+    },
+  });
   // 1. 고객사 목록 로드 함수
   function loadCustomers() {
     $.ajax({

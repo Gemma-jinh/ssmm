@@ -1,4 +1,19 @@
 const API_BASE_URL = "/api"; // 백엔드 서버 URL
+
+// 글로벌 AJAX 프리필터 설정 (Authorization 헤더 자동 추가)
+$.ajaxPrefilter(function (options, originalOptions, jqXHR) {
+  if (options.url.startsWith("/api/")) {
+    // `/api/`로 시작하는 모든 요청에 적용
+    const token = localStorage.getItem("token"); // 토큰 가져오기
+    if (token) {
+      jqXHR.setRequestHeader("Authorization", "Bearer " + token);
+      console.log("Authorization 헤더 추가됨: Bearer " + token); // 디버깅 로그
+    } else {
+      console.warn("토큰이 로컬 스토리지에 없습니다.");
+    }
+  }
+});
+
 //초기 차량 목록 로딩
 $(document).ready(function () {
   initializeSearchFields();

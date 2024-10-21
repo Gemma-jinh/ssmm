@@ -1,6 +1,15 @@
 $(document).ready(function () {
   const SERVER_URL = "http://localhost:5500";
 
+  $.ajaxSetup({
+    beforeSend: function (xhr) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      }
+    },
+  });
+
   $("#upload-excel-btn").on("click", function () {
     $("#excel-file-input").click();
   });

@@ -1,6 +1,15 @@
 $(document).ready(function () {
   const API_BASE_URL = "/api"; // 백엔드 서버 URL
 
+  $.ajaxSetup({
+    beforeSend: function (xhr) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      }
+    },
+  });
+
   // URL에서 차량 ID 추출
   function getQueryParam(param) {
     const urlParams = new URLSearchParams(window.location.search);

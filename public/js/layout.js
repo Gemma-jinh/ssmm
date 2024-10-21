@@ -6,14 +6,17 @@ const MENU_LIST = [
       {
         title: "차량 목록",
         url: "./car-list.html",
+        roles: ["관리자"],
       },
       {
         title: "세차 내역 (작업자)",
         url: "./car-wash-history.html",
+        roles: ["관리자", "작업자"],
       },
       {
         title: "세차 내역 (관리자)",
         url: "./car-wash-history-admin.html",
+        roles: ["관리자"],
       },
     ],
   },
@@ -24,6 +27,7 @@ const MENU_LIST = [
       {
         title: "작업 장소 관리",
         url: "./car-location.html",
+        roles: ["관리자"],
       },
     ],
   },
@@ -35,11 +39,13 @@ const MENU_LIST = [
         title: "세차 주간 보고서",
         url: "./car-wash-report-weekly.html",
         disabled: true,
+        roles: ["관리자"],
       },
       {
         title: "세차 월간 보고서",
         url: "./car-wash-report-monthly.html",
         disabled: true,
+        roles: ["관리자"],
       },
     ],
   },
@@ -50,14 +56,17 @@ const MENU_LIST = [
       {
         title: "계정 관리",
         url: "./account-manage.html",
+        roles: ["관리자"],
       },
       {
         title: "탈퇴 계정 관리",
         url: "./account-withdrawal.html",
+        roles: ["관리자"],
       },
       {
         title: "고객사 관리",
         url: "./customer-manage.html",
+        roles: ["관리자"],
       },
     ],
   },
@@ -65,6 +74,11 @@ const MENU_LIST = [
 
 const renderSideNav = () => {
   const $sideNav = $("#sideNav");
+
+  // JWT 토큰에서 사용자 역할 추출
+  const token = localStorage.getItem("token"); // 로그인 시 저장한 토큰 키 확인
+  const payload = parseJwt(token);
+  const userRole = payload ? payload.authorityGroup : null;
 
   let menuHtml = `
     <a href="#" class="nav-logo"><div class="logo fs-3">SSMM.씀</div></a>
@@ -77,6 +91,13 @@ const renderSideNav = () => {
 
   MENU_LIST.forEach((menu, index) => {
     const collapseId = `collapse${index}`;
+    const visibleSubMenus = menu.subMenu.filter((subItem) =>
+      subItem.roles.includes(userRole)
+    );
+
+    // 역할에 맞는 서브 메뉴가 없으면 해당 메뉴는 표시하지 않음
+    if (visibleSubMenus.length === 0) return;
+
     menuHtml += `
       <div class="accordion-item">
         <h2 class="accordion-header">
@@ -91,7 +112,7 @@ const renderSideNav = () => {
     }">
           <div class="accordion-body">
             <ul class="list-unstyled">
-              ${menu.subMenu
+              ${visibleSubMenus
                 .map(
                   (subItem) => `
                 <li><a href="${subItem.url}" class="text-white ${

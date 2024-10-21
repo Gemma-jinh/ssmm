@@ -1,6 +1,14 @@
 $(document).ready(function () {
   const API_BASE_URL = "/api";
 
+  $.ajaxSetup({
+    beforeSend: function (xhr) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      }
+    },
+  });
   // 1. URL에서 region 추출
   function getRegionIdFromURL() {
     const params = new URLSearchParams(window.location.search);

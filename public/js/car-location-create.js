@@ -6,6 +6,14 @@ $(document).ready(function () {
       keyboard: false,
     }
   );
+  $.ajaxSetup({
+    beforeSend: function (xhr) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      }
+    },
+  });
 
   // 2. URL에서 region 추출
   function getRegionFromURL() {

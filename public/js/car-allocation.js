@@ -1,5 +1,14 @@
 const API_BASE_URL = "/api"; // 백엔드 서버 URL
 
+$.ajaxSetup({
+  beforeSend: function (xhr) {
+    const token = localStorage.getItem("token");
+    if (token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    }
+  },
+});
+
 // 초기 차량 목록 로딩 및 필드 초기화
 $(document).ready(function () {
   initializeSearchFields();

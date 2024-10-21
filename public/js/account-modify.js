@@ -1,6 +1,14 @@
 $(document).ready(function () {
   const API_BASE_URL = "/api";
 
+  $.ajaxSetup({
+    beforeSend: function (xhr) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      }
+    },
+  });
   // 1. URL에서 계정 ID 추출
   function getAccountIdFromURL() {
     const params = new URLSearchParams(window.location.search);
@@ -46,6 +54,9 @@ $(document).ready(function () {
     $.ajax({
       url: `${API_BASE_URL}/accounts/${id}`,
       method: "GET",
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token"), // 토큰 포함
+      },
       success: function (data) {
         $("#admin-id").val(data.adminId);
         $("#admin-name").val(data.adminName);
@@ -169,6 +180,9 @@ $(document).ready(function () {
       url: `${API_BASE_URL}/accounts/${accountId}`,
       method: "PUT",
       contentType: "application/json",
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
       data: JSON.stringify(accountData),
       success: function (response) {
         alert("계정이 성공적으로 수정되었습니다.");

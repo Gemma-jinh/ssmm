@@ -9,6 +9,15 @@ $(document).ready(function () {
       return;
     }
 
+    $.ajaxSetup({
+      beforeSend: function (xhr) {
+        const token = localStorage.getItem("token");
+        if (token) {
+          xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        }
+      },
+    });
+
     $.ajax({
       url: "http://localhost:3000/api/customers",
       type: "POST",
