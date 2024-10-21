@@ -43,6 +43,10 @@ $(document).ready(function () {
 
     if (!adminId) {
       $("#admin-id-feedback").text("관리자 ID를 입력해주세요.");
+      $("#admin-id-feedback")
+        .removeClass("text-success")
+        .addClass("text-danger");
+      isAdminIdAvailable = false;
       return;
     }
 
@@ -73,8 +77,34 @@ $(document).ready(function () {
     });
   });
 
+  // 3. 권한 그룹 변경 시 고객사 선택 필드 처리
+  $("#authority-group-select").on("change", function () {
+    const selectedRole = $(this).val();
+    if (selectedRole === "관리자") {
+      // 고객사 선택을 필수에서 비필수로 변경하고 필드 숨김
+      $("#customer-select").val("");
+      $("#customer-feedback").text("");
+      $("#customer-container").hide().removeClass("disabled");
+    } else {
+      // 고객사 선택을 필수로 변경하고 필드 표시
+      $("#customer-container").show().removeClass("disabled");
+    }
+  });
+
+  // 초기 로드 시 권한 그룹에 따라 고객사 선택 필드 표시 여부 설정
+  (function initializeForm() {
+    const selectedRole = $("#authority-group-select").val();
+    if (selectedRole === "관리자") {
+      $("#customer-select").val("");
+      $("#customer-feedback").text("");
+      $("#customer-container").hide();
+    } else {
+      $("#customer-container").show();
+    }
+  })();
+
   // 3. 입력 폼 유효성 검사 함수
-  function validateForm() {
+  function validateForm(authorityGroup) {
     let isValid = true;
 
     const adminId = $("#admin-id").val().trim();
@@ -82,7 +112,7 @@ $(document).ready(function () {
     const password = $("#password").val().trim();
     const confirmPassword = $("#confirm-password").val().trim();
     const customer = $("#customer-select").val();
-    const authorityGroup = $("#authority-group-select").val();
+    // const authorityGroup = $("#authority-group-select").val();
 
     // 관리자 ID 검증
     if (!adminId) {
@@ -125,14 +155,6 @@ $(document).ready(function () {
       $("#confirm-password-feedback").text("");
     }
 
-    // 고객사 검증
-    if (!customer) {
-      $("#customer-feedback").text("고객사를 선택해주세요.");
-      isValid = false;
-    } else {
-      $("#customer-feedback").text("");
-    }
-
     // 권한 그룹 검증
     if (!authorityGroup) {
       $("#authority-group-feedback").text("권한 그룹을 선택해주세요.");
@@ -141,12 +163,25 @@ $(document).ready(function () {
       $("#authority-group-feedback").text("");
     }
 
+    // 고객사 검증
+    if (authorityGroup !== "관리자") {
+      if (!customer) {
+        $("#customer-feedback").text("고객사를 선택해주세요.");
+        isValid = false;
+      } else {
+        $("#customer-feedback").text("");
+      }
+    } else {
+      $("#customer-feedback").text("");
+    }
+
     return isValid;
   }
 
   // 4. 계정 등록 버튼 클릭 이벤트
   $("#register-btn").on("click", function () {
-    if (!validateForm()) {
+    const authorityGroup = $("#authority-group-select").val();
+    if (!validateForm(authorityGroup)) {
       return;
     }
 
@@ -154,15 +189,20 @@ $(document).ready(function () {
     const adminName = $("#admin-name").val().trim();
     const password = $("#password").val().trim();
     const customer = $("#customer-select").val();
-    const authorityGroup = $("#authority-group-select").val();
+    // const authorityGroup = $("#authority-group-select").val();
 
     const accountData = {
       adminId,
       adminName,
       password,
-      customer,
+      // customer,
       authorityGroup,
     };
+
+    // 관리자 아닌 경우에만 고객사 포함
+    if (authorityGroup !== "관리자") {
+      accountData.customer = customer;
+    }
 
     // 계정 등록 AJAX 요청
     $.ajax({

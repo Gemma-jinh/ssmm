@@ -138,15 +138,34 @@ const renderSideNav = () => {
 
 const renderHeader = () => {
   const $header = $("#header");
+  const token = localStorage.getItem("token");
+  const payload = parseJwt(token);
+  const userRole = payload ? payload.authorityGroup : null;
+
+  // 로그아웃 버튼 HTML
+  const logoutButtonHtml = `
+    <div class="d-flex justify-content-end align-items-center">
+      <button id="logoutButton" class="btn btn-outline-primary btn-lg">로그아웃</button>
+    </div>
+  `;
+
   $header.replaceWith(`
       <header id="header" class="navbar bg-white fixed-top">
       <div class="container-fluid">
         <button id="toggleNav" class="navbar-toggler" type="button" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
         </button>
+         ${token ? logoutButtonHtml : ""}
       </div>
     </header>
     `);
+
+  // 로그아웃 버튼 이벤트 핸들러 추가
+  if (token) {
+    $("#logoutButton").click(function () {
+      logout();
+    });
+  }
 };
 
 function detectMobileDevice() {

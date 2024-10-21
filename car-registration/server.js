@@ -187,7 +187,10 @@ const accountSchema = new mongoose.Schema({
   customer: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Customer",
-    required: true,
+    required: function () {
+      return this.authorityGroup !== "관리자";
+    },
+    default: null,
   },
   authorityGroup: { type: String, enum: ["관리자", "작업자"], required: true },
   manager: { type: mongoose.Schema.Types.ObjectId, ref: "Manager" }, // Manager 참조 추가
@@ -1156,10 +1159,17 @@ app.post(
     const { adminId, adminName, password, customer, authorityGroup } = req.body;
 
     // 필수 필드 검증
-    if (!adminId || !adminName || !password || !customer || !authorityGroup) {
+    if (!adminId || !adminName || !password || !authorityGroup) {
+      // !customer 삭제
       return res.status(400).json({ error: "모든 필드를 입력해주세요." });
     }
 
+    // 관리자 권한이 아닌 경우 고객사 필드 검증
+    if (authorityGroup !== "관리자") {
+      if (!customer) {
+        return res.status(400).json({ error: "고객사를 선택해주세요." });
+      }
+    }
     try {
       // 관리자 ID 중복 확인
       const existingAccount = await Account.findOne({ adminId });
@@ -1177,7 +1187,7 @@ app.post(
         adminId,
         adminName,
         password: hashedPassword,
-        customer,
+        customer: authorityGroup !== "관리자" ? customer : null,
         authorityGroup,
       });
 
