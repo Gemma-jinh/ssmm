@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
@@ -12,6 +13,7 @@ const bcrypt = require("bcrypt");
 const Region = require("./models/Region");
 const Manager = require("./models/Manager"); // 담당자 모델
 const Team = require("./models/Team"); // 팀 모델
+const jwt = require("jsonwebtoken");
 // const Place = require("./models/Place");
 
 // Promisify fs functions
@@ -24,6 +26,7 @@ console.log("Current working directory:", process.cwd());
 
 //환경 변수 설정
 // const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key"; // 환경 변수에서 JWT_SECRET 가져오기
 const MONGO_URI = "mongodb://localhost:27017/car_registration"; // 로컬 MongoDB 사용
 
 const app = express();
@@ -186,7 +189,7 @@ const accountSchema = new mongoose.Schema({
     ref: "Customer",
     required: true,
   },
-  authorityGroup: { type: String, required: true },
+  authorityGroup: { type: String, enum: ["관리자", "작업자"], required: true },
   manager: { type: mongoose.Schema.Types.ObjectId, ref: "Manager" }, // Manager 참조 추가
 });
 
@@ -324,6 +327,98 @@ mongoose
   .catch((err) => console.error("MongoDB 연결 실패:", err));
 
 // API 엔드포인트
+
+// 로그인 엔드포인트 추가
+app.post("/api/login", async (req, res) => {
+  const { adminId, password } = req.body;
+
+  if (!adminId || !password) {
+    return res
+      .status(400)
+      .json({ error: "adminId와 비밀번호를 입력해주세요." });
+  }
+
+  try {
+    const account = await Account.findOne({ adminId })
+      .populate("customer")
+      .exec();
+    if (!account) {
+      return res.status(400).json({ error: "존재하지 않는 관리자 ID입니다." });
+    }
+
+    const isMatch = await bcrypt.compare(password, account.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: "비밀번호가 일치하지 않습니다." });
+    }
+
+    // JWT 토큰 생성
+    const token = jwt.sign(
+      {
+        id: account._id,
+        adminId: account.adminId,
+        adminName: account.adminName,
+        authorityGroup: account.authorityGroup,
+        customer: account.customer, // 필요에 따라 추가 정보 포함
+      },
+      JWT_SECRET,
+      { expiresIn: "1h" } // 토큰 유효 기간 설정
+    );
+
+    res.json({ token });
+  } catch (err) {
+    console.error("로그인 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 2. 인증 미들웨어 추가
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({ error: "토큰이 필요합니다." });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      console.error("토큰 검증 오류:", err);
+      return res.status(403).json({ error: "유효하지 않은 토큰입니다." });
+    }
+    req.user = user; // 토큰의 페이로드를 req.user에 저장
+    next();
+  });
+}
+
+// 3. 권한 부여 미들웨어 추가
+function authorizeRoles(...allowedRoles) {
+  return (req, res, next) => {
+    if (!allowedRoles.includes(req.user.authorityGroup)) {
+      return res.status(403).json({ error: "권한이 없습니다." });
+    }
+    next();
+  };
+}
+
+// 예시: 관리자 전용 엔드포인트 보호
+app.get(
+  "/api/admin-only", //api/admin-dashboard
+  authenticateToken,
+  authorizeRoles("관리자"),
+  async (req, res) => {
+    res.json({ message: "관리자 전용 데이터" });
+  }
+);
+
+// 예시: 관리자와 작업자 모두 접근 가능한 엔드포인트
+app.get(
+  "/api/worker-and-admin",
+  authenticateToken,
+  authorizeRoles("관리자", "작업자"),
+  (req, res) => {
+    res.json({ message: "작업자 및 관리자 접근 가능 데이터" });
+  }
+);
 
 app.get("/api/regions/name/:regionName", async (req, res) => {
   const { regionName } = req.params;
@@ -1053,53 +1148,69 @@ app.get("/api/accounts/check-duplicate", async (req, res) => {
 });
 
 // 2. 계정 등록 엔드포인트
-app.post("/api/accounts", async (req, res) => {
-  const { adminId, adminName, password, customer, authorityGroup } = req.body;
+app.post(
+  "/api/accounts",
+  authenticateToken,
+  authorizeRoles("관리자"),
+  async (req, res) => {
+    const { adminId, adminName, password, customer, authorityGroup } = req.body;
 
-  // 필수 필드 검증
-  if (!adminId || !adminName || !password || !customer || !authorityGroup) {
-    return res.status(400).json({ error: "모든 필드를 입력해주세요." });
-  }
-
-  try {
-    // 관리자 ID 중복 확인
-    const existingAccount = await Account.findOne({ adminId });
-    if (existingAccount) {
-      return res.status(400).json({ error: "이미 사용 중인 관리자 ID입니다." });
+    // 필수 필드 검증
+    if (!adminId || !adminName || !password || !customer || !authorityGroup) {
+      return res.status(400).json({ error: "모든 필드를 입력해주세요." });
     }
 
-    // 비밀번호 해싱 (보안 강화)
-    const hashedPassword = await bcrypt.hash(password, 10);
+    try {
+      // 관리자 ID 중복 확인
+      const existingAccount = await Account.findOne({ adminId });
+      if (existingAccount) {
+        return res
+          .status(400)
+          .json({ error: "이미 사용 중인 관리자 ID입니다." });
+      }
 
-    // 계정 생성
-    const newAccount = new Account({
-      adminId,
-      adminName,
-      password: hashedPassword,
-      customer,
-      authorityGroup,
-    });
+      // 비밀번호 해싱 (보안 강화)
+      const hashedPassword = await bcrypt.hash(password, 10);
 
-    await newAccount.save();
-
-    // Manager 생성
-    const existingManager = await Manager.findOne({ name: adminName });
-    if (!existingManager) {
-      const newManager = new Manager({
-        name: adminName,
-        // 추가 필드가 필요하다면 여기서 설정
+      // 계정 생성
+      const newAccount = new Account({
+        adminId,
+        adminName,
+        password: hashedPassword,
+        customer,
+        authorityGroup,
       });
-      await newManager.save();
-      console.log(`Manager ${adminName} 생성 완료`);
-    } else {
-      console.warn(`Manager with name ${adminName} already exists`);
-    }
 
-    res.status(201).json(newAccount);
-  } catch (err) {
-    console.error("계정 생성 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
+      await newAccount.save();
+
+      // Manager 생성
+      const existingManager = await Manager.findOne({ name: adminName });
+      if (!existingManager) {
+        const newManager = new Manager({
+          name: adminName,
+          // 추가 필드가 필요하다면 여기서 설정
+        });
+        await newManager.save();
+        console.log(`Manager ${adminName} 생성 완료`);
+      } else {
+        console.warn(`Manager with name ${adminName} already exists`);
+      }
+
+      res.status(201).json(newAccount);
+    } catch (err) {
+      console.error("계정 생성 오류:", err);
+      res.status(500).json({ error: "서버 오류" });
+    }
   }
+);
+
+// 관리자 계정 생성 예시
+app.post("/api/register-admin", async (req, res) => {
+  const { username, password } = req.body;
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const user = new User({ username, password: hashedPassword, role: "관리자" });
+  await user.save();
+  res.json({ message: "관리자 계정이 생성되었습니다." });
 });
 
 // 3. 계정 목록 조회 엔드포인트
@@ -1170,88 +1281,100 @@ app.get("/api/accounts/:id", async (req, res) => {
 });
 
 // 5. 계정 삭제 엔드포인트
-app.delete("/api/accounts/:id", async (req, res) => {
-  const { id } = req.params;
+app.delete(
+  "/api/accounts/:id",
+  authenticateToken,
+  authorizeRoles("관리자"),
+  async (req, res) => {
+    const { id } = req.params;
 
-  // 유효한 MongoDB ObjectId인지 확인
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ error: "유효하지 않은 계정 ID입니다." });
-  }
-
-  try {
-    const deletedAccount = await Account.findByIdAndDelete(id);
-
-    if (!deletedAccount) {
-      return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
+    // 유효한 MongoDB ObjectId인지 확인
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "유효하지 않은 계정 ID입니다." });
     }
 
-    res.json({ message: "계정이 성공적으로 삭제되었습니다." });
-  } catch (err) {
-    console.error("계정 삭제 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
+    try {
+      const deletedAccount = await Account.findByIdAndDelete(id);
+
+      if (!deletedAccount) {
+        return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
+      }
+
+      res.json({ message: "계정이 성공적으로 삭제되었습니다." });
+    } catch (err) {
+      console.error("계정 삭제 오류:", err);
+      res.status(500).json({ error: "서버 오류" });
+    }
   }
-});
+);
 
 // 계정 수정 엔드포인트
-app.put("/api/accounts/:id", async (req, res) => {
-  const { id } = req.params;
-  const { adminId, adminName, password, customer, authorityGroup } = req.body;
+app.put(
+  "/api/accounts/:id",
+  authenticateToken,
+  authorizeRoles("관리자"),
+  async (req, res) => {
+    const { id } = req.params;
+    const { adminId, adminName, password, customer, authorityGroup } = req.body;
 
-  // 유효한 MongoDB ObjectId인지 확인
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ error: "유효하지 않은 계정 ID입니다." });
-  }
-
-  // 필수 필드 검증
-  if (!adminId || !adminName || !customer || !authorityGroup) {
-    return res.status(400).json({ error: "필수 필드를 모두 입력해주세요." });
-  }
-
-  try {
-    // 기존 계정 찾기
-    const account = await Account.findById(id);
-    if (!account) {
-      return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
+    console.log("계정 수정 요청 데이터:", req.body);
+    console.log("요청자 권한:", req.user.authorityGroup);
+    // 유효한 MongoDB ObjectId인지 확인
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "유효하지 않은 계정 ID입니다." });
     }
 
-    // 관리자 ID가 변경되었고, 중복된 ID가 있는지 확인
-    if (adminId !== account.adminId) {
-      const existingAccount = await Account.findOne({ adminId });
-      if (existingAccount) {
-        return res
-          .status(400)
-          .json({ error: "이미 사용 중인 관리자 ID입니다." });
+    // 필수 필드 검증
+    if (!adminId || !adminName || !customer || !authorityGroup) {
+      return res.status(400).json({ error: "필수 필드를 모두 입력해주세요." });
+    }
+
+    try {
+      // 기존 계정 찾기
+      const account = await Account.findById(id);
+      if (!account) {
+        return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
       }
-      account.adminId = adminId;
-    }
 
-    // 관리자명 업데이트
-    account.adminName = adminName;
-
-    // 비밀번호가 변경되었는지 확인하고 해싱
-    if (password) {
-      if (password.length < 2) {
-        return res
-          .status(400)
-          .json({ error: "비밀번호는 최소 2자 이상이어야 합니다." });
+      // 관리자 ID가 변경되었고, 중복된 ID가 있는지 확인
+      if (adminId !== account.adminId) {
+        const existingAccount = await Account.findOne({ adminId });
+        if (existingAccount) {
+          return res
+            .status(400)
+            .json({ error: "이미 사용 중인 관리자 ID입니다." });
+        }
+        account.adminId = adminId;
       }
-      const hashedPassword = await bcrypt.hash(password, 10);
-      account.password = hashedPassword;
+
+      // 관리자명 업데이트
+      account.adminName = adminName;
+
+      // 비밀번호가 변경되었는지 확인하고 해싱
+      if (password) {
+        if (password.length < 2) {
+          return res
+            .status(400)
+            .json({ error: "비밀번호는 최소 2자 이상이어야 합니다." });
+        }
+        const hashedPassword = await bcrypt.hash(password, 10);
+        account.password = hashedPassword;
+      }
+
+      // 고객사 및 권한 그룹 업데이트
+      account.customer = customer;
+      account.authorityGroup = authorityGroup;
+
+      // 계정 저장
+      await account.save();
+
+      res.json({ message: "계정이 성공적으로 수정되었습니다.", account });
+    } catch (err) {
+      console.error("계정 수정 오류:", err);
+      res.status(500).json({ error: "서버 오류" });
     }
-
-    // 고객사 및 권한 그룹 업데이트
-    account.customer = customer;
-    account.authorityGroup = authorityGroup;
-
-    // 계정 저장
-    await account.save();
-
-    res.json({ message: "계정이 성공적으로 수정되었습니다.", account });
-  } catch (err) {
-    console.error("계정 수정 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
   }
-});
+);
 
 // 1. 차종 목록 조회
 app.get("/api/car-types", async (req, res) => {
@@ -1374,104 +1497,119 @@ app.post("/api/car-registrations", async (req, res) => {
 });
 
 // 6. 차량 목록 조회
-app.get("/api/car-registrations", async (req, res) => {
-  try {
-    const {
-      carType, // 차량 종류 ID
-      carModel, // 차량 모델 ID
-      licensePlate, // 차량 번호 (부분 일치)
-      region, // 지역 ID
-      place, // 장소 ID
-      customer, // 고객사 ID
-      manager, // 담당자 이름 (부분 일치)
-      page = 1,
-      limit = 10,
-    } = req.query;
+app.get(
+  "/api/car-registrations",
+  authenticateToken,
+  authorizeRoles("관리자", "작업자"),
+  async (req, res) => {
+    try {
+      const {
+        carType, // 차량 종류 ID
+        carModel, // 차량 모델 ID
+        licensePlate, // 차량 번호 (부분 일치)
+        region, // 지역 ID
+        place, // 장소 ID
+        customer, // 고객사 ID
+        manager, // 담당자 이름 (부분 일치)
+        page = 1,
+        limit = 10,
+      } = req.query;
 
-    // 필터 객체 초기화
-    let filter = {};
+      // 필터 객체 초기화
+      let filter = {};
 
-    if (carType) {
-      if (mongoose.Types.ObjectId.isValid(carType)) {
-        filter.type = carType;
-      } else {
-        return res
-          .status(400)
-          .json({ error: "유효하지 않은 차량 종류 ID입니다." });
+      if (carType) {
+        if (mongoose.Types.ObjectId.isValid(carType)) {
+          filter.type = carType;
+        } else {
+          return res
+            .status(400)
+            .json({ error: "유효하지 않은 차량 종류 ID입니다." });
+        }
       }
-    }
 
-    if (carModel) {
-      if (mongoose.Types.ObjectId.isValid(carModel)) {
-        filter.model = carModel;
-      } else {
-        return res
-          .status(400)
-          .json({ error: "유효하지 않은 차량 모델 ID입니다." });
+      if (carModel) {
+        if (mongoose.Types.ObjectId.isValid(carModel)) {
+          filter.model = carModel;
+        } else {
+          return res
+            .status(400)
+            .json({ error: "유효하지 않은 차량 모델 ID입니다." });
+        }
       }
-    }
 
-    if (licensePlate) {
-      // 부분 일치 검색 (대소문자 구분 없음)
-      filter.licensePlate = { $regex: licensePlate, $options: "i" };
-    }
-
-    if (region) {
-      if (mongoose.Types.ObjectId.isValid(region)) {
-        filter["location.region"] = region;
-      } else {
-        return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
+      if (licensePlate) {
+        // 부분 일치 검색 (대소문자 구분 없음)
+        filter.licensePlate = { $regex: licensePlate, $options: "i" };
       }
-    }
 
-    if (place) {
-      if (mongoose.Types.ObjectId.isValid(place)) {
-        filter["location.place"] = place;
-      } else {
-        return res.status(400).json({ error: "유효하지 않은 장소 ID입니다." });
+      if (region) {
+        if (mongoose.Types.ObjectId.isValid(region)) {
+          filter["location.region"] = region;
+        } else {
+          return res
+            .status(400)
+            .json({ error: "유효하지 않은 지역 ID입니다." });
+        }
       }
-    }
 
-    if (customer) {
-      if (mongoose.Types.ObjectId.isValid(customer)) {
-        filter.customer = customer;
-      } else {
-        return res
-          .status(400)
-          .json({ error: "유효하지 않은 고객사 ID입니다." });
+      if (place) {
+        if (mongoose.Types.ObjectId.isValid(place)) {
+          filter["location.place"] = place;
+        } else {
+          return res
+            .status(400)
+            .json({ error: "유효하지 않은 장소 ID입니다." });
+        }
       }
+
+      if (customer) {
+        if (mongoose.Types.ObjectId.isValid(customer)) {
+          filter.customer = customer;
+        } else {
+          return res
+            .status(400)
+            .json({ error: "유효하지 않은 고객사 ID입니다." });
+        }
+      }
+
+      if (manager) {
+        // 부분 일치 검색 (대소문자 구분 없음)
+        filter.manager = { $regex: manager, $options: "i" };
+      }
+
+      // 역할에 따른 필터링
+      if (req.user.authorityGroup === "작업자") {
+        // 작업자는 자신에게 배정된 차량만 조회
+        filter.manager = req.user.id; // 또는 req.user.managerId 등 실제 필드에 맞게 조정
+      }
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const total = await CarRegistration.countDocuments(filter);
+      const carRegistrations = await CarRegistration.find(filter)
+        .populate("type") // CarType 정보 포함
+        .populate("model") // CarModel 정보 포함
+        .populate("customer") // Customer 정보 포함
+        // .populate("location.region")
+        // .populate("location.place")
+        .populate("location.region")
+        .populate("location.place")
+        .skip(skip)
+        .limit(parseInt(limit))
+        .exec();
+
+      res.json({
+        total,
+        page: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        cars: carRegistrations,
+      });
+    } catch (err) {
+      console.error("차량 목록 조회 오류:", err);
+      res.status(500).json({ error: "차량 등록 실패", details: err.message });
     }
-
-    if (manager) {
-      // 부분 일치 검색 (대소문자 구분 없음)
-      filter.manager = { $regex: manager, $options: "i" };
-    }
-
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const total = await CarRegistration.countDocuments(filter);
-    const carRegistrations = await CarRegistration.find(filter)
-      .populate("type") // CarType 정보 포함
-      .populate("model") // CarModel 정보 포함
-      .populate("customer") // Customer 정보 포함
-      // .populate("location.region")
-      // .populate("location.place")
-      .populate("location.region")
-      .populate("location.place")
-      .skip(skip)
-      .limit(parseInt(limit))
-      .exec();
-
-    res.json({
-      total,
-      page: parseInt(page),
-      totalPages: Math.ceil(total / parseInt(limit)),
-      cars: carRegistrations,
-    });
-  } catch (err) {
-    console.error("차량 목록 조회 오류:", err);
-    res.status(500).json({ error: "차량 등록 실패", details: err.message });
   }
-});
+);
 
 // 6-1. 특정 차량 정보 조회
 app.get("/api/car-registrations/:id", async (req, res) => {
@@ -1855,38 +1993,43 @@ app.get("/api/teams", async (req, res) => {
 });
 
 // POST /api/car-registrations/assign 차량 배정
-app.post("/api/car-registrations/assign", async (req, res) => {
-  try {
-    const { carIds, managerId, teamId } = req.body;
+app.post(
+  "/api/car-registrations/assign",
+  authenticateToken,
+  authorizeRoles("관리자"),
+  async (req, res) => {
+    try {
+      const { carIds, managerId, teamId } = req.body;
 
-    if (!carIds || !Array.isArray(carIds) || carIds.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "유효한 차량 ID 목록이 필요합니다." });
+      if (!carIds || !Array.isArray(carIds) || carIds.length === 0) {
+        return res
+          .status(400)
+          .json({ error: "유효한 차량 ID 목록이 필요합니다." });
+      }
+
+      if (!managerId && !teamId) {
+        return res
+          .status(400)
+          .json({ error: "담당자 ID 또는 팀 ID 중 하나가 필요합니다." });
+      }
+
+      // 차량 업데이트
+      const updateData = {};
+      if (managerId) updateData.manager = managerId;
+      if (teamId) updateData.team = teamId;
+
+      await CarRegistration.updateMany(
+        { _id: { $in: carIds } },
+        { $set: updateData }
+      );
+
+      res.json({ message: "차량이 성공적으로 배정되었습니다." });
+    } catch (err) {
+      console.error("차량 배정 오류:", err);
+      res.status(500).json({ error: "차량 배정 실패", details: err.message });
     }
-
-    if (!managerId && !teamId) {
-      return res
-        .status(400)
-        .json({ error: "담당자 ID 또는 팀 ID 중 하나가 필요합니다." });
-    }
-
-    // 차량 업데이트
-    const updateData = {};
-    if (managerId) updateData.manager = managerId;
-    if (teamId) updateData.team = teamId;
-
-    await CarRegistration.updateMany(
-      { _id: { $in: carIds } },
-      { $set: updateData }
-    );
-
-    res.json({ message: "차량이 성공적으로 배정되었습니다." });
-  } catch (err) {
-    console.error("차량 배정 오류:", err);
-    res.status(500).json({ error: "차량 배정 실패", details: err.message });
   }
-});
+);
 
 // 9. 검색 API 엔드포인트
 // app.get("/api/car-registrations", (req, res) => {
