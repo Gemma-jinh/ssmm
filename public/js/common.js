@@ -28,6 +28,33 @@
 //   $(".pagination").html(paginationHtml);
 // }
 
+$(document).ready(function () {
+  // JWT 토큰 가져오기
+  const token = localStorage.getItem("token");
+
+  // 토큰이 없으면 로그인 페이지로 리디렉션
+  if (!token) {
+    window.location.href = "/login.html"; // 로그인 페이지 경로로 수정
+    return;
+  }
+
+  // 토큰이 있는 경우, 유효성 검사 (선택 사항)
+  $.ajax({
+    url: "/api/verify-token", // 토큰 유효성 검사 엔드포인트 (추가 필요)
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    success: function (response) {
+      // 토큰이 유효한 경우 아무 작업도 하지 않음
+    },
+    error: function (xhr, status, error) {
+      // 토큰이 유효하지 않거나 만료된 경우 로그인 페이지로 리디렉션
+      window.location.href = "/login.html"; // 로그인 페이지 경로로 수정
+    },
+  });
+});
+
 // JWT 디코딩 함수
 function parseJwt(token) {
   try {

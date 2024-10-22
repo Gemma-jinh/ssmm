@@ -364,7 +364,7 @@ app.post("/api/login", async (req, res) => {
         customer: account.customer, // 필요에 따라 추가 정보 포함
       },
       JWT_SECRET,
-      { expiresIn: "1h" } // 토큰 유효 기간 설정
+      { expiresIn: "24h" } // 토큰 유효 기간 설정
     );
 
     res.json({ token });
@@ -1130,6 +1130,13 @@ app.get("/car-location-register", (req, res) => {
 //     res.status(500).json({ error: "서버 오류" });
 //   }
 // });
+
+// 토큰 유효성 검사 엔드포인트
+app.post("/api/verify-token", authenticateToken, (req, res) => {
+  // authenticateToken 미들웨어에서 토큰 검증이 완료되었으므로,
+  // 여기서는 단순히 성공 응답을 보냄
+  res.json({ valid: true });
+});
 
 // 1. 관리자 ID 중복 확인 엔드포인트
 app.get("/api/accounts/check-duplicate", async (req, res) => {
