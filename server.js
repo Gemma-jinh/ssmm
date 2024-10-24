@@ -42,6 +42,11 @@ app.use("/api", router);
 //정적 파일 서빙 설정
 app.use(express.static(path.join(__dirname, "public")));
 
+// 로그인 페이지 라우트
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
+});
+
 // Catch-All 라우트는 라우터 마운트 이후에 정의
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
