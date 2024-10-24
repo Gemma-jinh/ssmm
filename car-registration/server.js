@@ -294,7 +294,7 @@ async function insertInitialData() {
 
 // DB 연결
 mongoose
-  .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .connect(MONGO_URI)
   .then(async () => {
     console.log("MongoDB 연결 성공");
     const defaultCarTypes = ["경형", "소형", "중형", "대형", "승합", "기타"];
