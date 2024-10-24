@@ -44,7 +44,9 @@ build/Release
 
 # Dependency directories
 node_modules/
+.env
 jspm_packages/
+uploads/
 
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
@@ -52,7 +54,6 @@ web_modules/
 # TypeScript cache
 *.tsbuildinfo
 
-.env
 
 # Optional npm cache directory
 .npm
