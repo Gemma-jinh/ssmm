@@ -9,7 +9,7 @@ const multer = require("multer");
 const XLSX = require("xlsx");
 const util = require("util");
 const fs = require("fs");
-const bcrypt = require("bcrypt");
+const bcryptjs = require("bcryptjs");
 const Region = require("./models/Region");
 const Manager = require("./models/Manager"); // 담당자 모델
 const Team = require("./models/Team"); // 팀 모델
@@ -27,7 +27,8 @@ console.log("Current working directory:", process.cwd());
 //환경 변수 설정
 // const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key"; // 환경 변수에서 JWT_SECRET 가져오기
-const MONGO_URI = "mongodb://localhost:27017/car_registration"; // 로컬 MongoDB 사용
+// const MONGO_URI = "mongodb://localhost:27017/car_registration";
+const MONGO_URI = process.env.MONGO_URI;
 
 const app = express();
 const router = express.Router();
@@ -397,7 +398,7 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "존재하지 않는 관리자 ID입니다." });
     }
 
-    const isMatch = await bcrypt.compare(password, account.password);
+    const isMatch = await bcryptjs.compare(password, account.password);
     if (!isMatch) {
       return res.status(400).json({ error: "비밀번호가 일치하지 않습니다." });
     }
@@ -1252,7 +1253,7 @@ router.post(
       }
 
       // 비밀번호 해싱 (보안 강화)
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcryptjs.hash(password, 10);
 
       // 계정 생성
       const newAccount = new Account({
@@ -1289,7 +1290,7 @@ router.post(
 // 관리자 계정 생성 예시
 router.post("/register-admin", async (req, res) => {
   const { username, password } = req.body;
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await bcryptjs.hash(password, 10);
   const user = new User({ username, password: hashedPassword, role: "관리자" });
   await user.save();
   res.json({ message: "관리자 계정이 생성되었습니다." });
@@ -1411,7 +1412,7 @@ router.put(
             .status(400)
             .json({ error: "비밀번호는 최소 2자 이상이어야 합니다." });
         }
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await bcryptjs.hash(password, 10);
         account.password = hashedPassword;
       }
 
