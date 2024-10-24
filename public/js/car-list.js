@@ -285,11 +285,19 @@ function loadCarList(searchParams = {}, page = 1, limit = 10) {
       // const pagination = $("#pagination");
       // pagination.empty();
 
-      if (data.cars.length === 0) {
+      if (data.cars && data.cars.length === 0) {
         carList.append(
           '<tr><td colspan="7" class="text-center">등록된 차량이 없습니다.</td></tr>'
         );
         $(".pagination").empty(); // 페이징 네비게이션도 비움
+        return;
+      }
+
+      if (!Array.isArray(data.cars)) {
+        console.error("예상치 못한 데이터 형식:", data);
+        carList.append(
+          '<tr><td colspan="7" class="text-center">데이터 형식 오류</td></tr>'
+        );
         return;
       }
 
@@ -335,7 +343,7 @@ function loadCarList(searchParams = {}, page = 1, limit = 10) {
       });
 
       // 페이징 렌더링
-      renderPagination(data.Page, data.totalPages);
+      renderPagination(data.page, data.totalPages);
     },
     error: function (err) {
       console.error("차량 목록 로드 실패:", err);
@@ -498,7 +506,23 @@ function clickSingleCheck(masterCheckboxSelector, targetCheckboxSelector) {
 }
 
 // 차량 삭제 기능 구현 (선택된 차량 삭제)
-$(document).ready(function () {
+// $(document).ready(function () {
+//   $("#delete-button").on("click", function () {
+//     const selectedCars = $(".select-check-1:checked")
+//       .map(function () {
+//         return $(this).val();
+//       })
+//       .get();
+
+//     if (selectedCars.length === 0) {
+//       alert("삭제할 차량을 선택해주세요.");
+//       return;
+//     }
+
+//     if (!confirm(`${selectedCars.length}개의 차량을 삭제하시겠습니까?`)) {
+//       return;
+//     }
+function setupDeleteButton() {
   $("#delete-button").on("click", function () {
     const selectedCars = $(".select-check-1:checked")
       .map(function () {
@@ -531,4 +555,4 @@ $(document).ready(function () {
       },
     });
   });
-});
+}

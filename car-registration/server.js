@@ -1,6 +1,6 @@
 require("dotenv").config();
+const dotenv = require("dotenv");
 const express = require("express");
-const router = express.Router();
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -30,13 +30,26 @@ const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key"; // 환경 �
 const MONGO_URI = "mongodb://localhost:27017/car_registration"; // 로컬 MongoDB 사용
 
 const app = express();
+const router = express.Router();
 
 // 미들웨어 설정
 app.use(cors());
 app.use(express.json());
 
+// 라우터를  경로에 마운트
+app.use("/api", router);
 //정적 파일 서빙 설정
 app.use(express.static(path.join(__dirname, "../public")));
+
+// Catch-All 라우트는 라우터 마운트 이후에 정의
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public", "login.html"));
+});
+
+// 모든 기타 라우트는 로그인 페이지로 리디렉션 (SPA 용)
+// app.get("*", (req, res) => {
+//   res.sendFile(path.join(__dirname, "../public", "pages", "login.html"));
+// });
 
 // 파일 저장 경로 설정 및 폴더 생성
 const uploadDir = path.resolve(__dirname, "uploads");
@@ -230,17 +243,6 @@ const PlaceSchema = new mongoose.Schema({
 
 const Place = mongoose.model("Place", PlaceSchema);
 
-//장소 스키마 정의
-// const CarLocationSchema = new mongoose.Schema({
-//   region: { type: String, required: true },
-//   name: { type: String, required: true },
-//   address: { type: String, required: true },
-// });
-
-// const CarLocation = mongoose.model("CarLocation", CarLocationSchema);
-
-// 서비스 종류 모델 (models/ServiceType.js)
-
 const ServiceTypeSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
 });
@@ -330,9 +332,56 @@ mongoose
   .catch((err) => console.error("MongoDB 연결 실패:", err));
 
 // API 엔드포인트
+// app.get("/login.html", (req, res) => {
+//   res.sendFile(path.join(__dirname, "../public", "login.html"));
+// });
+
+// 로그인 페이지 라우트
+router.get("/login.html", async (req, res) => {
+  const filePath = path.join(__dirname, "../public", "login.html");
+  console.log("Attempting to send file:", filePath);
+  try {
+    await access(filePath, fs.constants.R_OK);
+    res.sendFile(filePath);
+    console.log("File sent successfully:", filePath);
+  } catch (err) {
+    console.error("File not found or inaccessible:", filePath, err);
+    res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
+  }
+});
+
+// 특정 라우트 정의
+router.get("/car-list.html", (req, res) => {
+  // res.sendFile(path.join(__dirname, "public", "pages", "car-list.html"));
+  const filePath = path.join(__dirname, "../public", "pages", "car-list.html");
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      console.error("Error sending file:", err);
+      res.status(500).send("차량 목록 페이지를 찾을 수 없습니다.");
+    }
+  });
+});
+
+// 모든 기타 라우트는 로그인 페이지로 리디렉션 (SPA 용)
+
+// app.get("*", (req, res) => {
+//   const filePath = path.join(__dirname, "../public", "login.html");
+//   console.log(
+//     "Redirecting to login page:",
+//     filePath,
+//     "for request:",
+//     req.originalUrl
+//   );
+//   res.sendFile(filePath, (err) => {
+//     if (err) {
+//       console.error("Error sending file:", err);
+//       res.status(500).send("파일 전송 중 오류가 발생했습니다.");
+//     }
+//   });
+// });
 
 // 로그인 엔드포인트 추가
-app.post("/api/login", async (req, res) => {
+router.post("/login", async (req, res) => {
   const { adminId, password } = req.body;
 
   if (!adminId || !password) {
@@ -340,7 +389,6 @@ app.post("/api/login", async (req, res) => {
       .status(400)
       .json({ error: "adminId와 비밀번호를 입력해주세요." });
   }
-
   try {
     const account = await Account.findOne({ adminId })
       .populate("customer")
@@ -403,1119 +451,8 @@ function authorizeRoles(...allowedRoles) {
   };
 }
 
-// 예시: 관리자 전용 엔드포인트 보호
-app.get(
-  "/api/admin-only", //api/admin-dashboard
-  authenticateToken,
-  authorizeRoles("관리자"),
-  async (req, res) => {
-    res.json({ message: "관리자 전용 데이터" });
-  }
-);
-
-// 예시: 관리자와 작업자 모두 접근 가능한 엔드포인트
-app.get(
-  "/api/worker-and-admin",
-  authenticateToken,
-  authorizeRoles("관리자", "작업자"),
-  (req, res) => {
-    res.json({ message: "작업자 및 관리자 접근 가능 데이터" });
-  }
-);
-
-app.get("/api/regions/name/:regionName", async (req, res) => {
-  const { regionName } = req.params;
-
-  if (!regionName) {
-    return res.status(400).json({ error: "지역명이 필요합니다." });
-  }
-
-  try {
-    const region = await Region.findOne({ name: regionName });
-    if (!region) {
-      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
-    }
-
-    res.json(region);
-  } catch (err) {
-    console.error("지역 정보 조회 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-app.get("/api/regions/name/:regionName/places", async (req, res) => {
-  const { regionName } = req.params;
-
-  if (!regionName) {
-    return res.status(400).json({ error: "지역명이 필요합니다." });
-  }
-
-  try {
-    const region = await Region.findOne({ name: regionName });
-    if (!region) {
-      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
-    }
-
-    const places = await Place.find({ region: region._id }).sort({ order: 1 });
-    res.json(places);
-  } catch (err) {
-    console.error("장소 목록 조회 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// POST /api/car-locations 엔드포인트 정의
-app.post("/api/car-locations", async (req, res) => {
-  try {
-    const { region, name, address } = req.body;
-
-    // 필수 필드 검증
-    if (!region || !name || !address) {
-      return res.status(400).json({ error: "모든 필드를 입력해주세요." });
-    }
-
-    // 지역명으로 Region 문서 찾기
-    const regionDoc = await Region.findOne({ name: region });
-    if (!regionDoc) {
-      return res
-        .status(404)
-        .json({ error: `존재하지 않는 지역: ${region}`, row });
-    }
-
-    const placeDoc = await Place.findOne({
-      name: name,
-      region: regionDoc._id,
-    });
-    if (!placeDoc) {
-      return res
-        .status(400)
-        .json({ error: `존재하지 않는 장소: ${name} (지역: ${region})`, row });
-    }
-
-    // 중복된 장소명 확인 (선택 사항)
-    const existingPlace = await Place.findOne({ name, region: regionDoc._id });
-    if (existingPlace) {
-      return res.status(400).json({ error: "이미 존재하는 장소명입니다." });
-    }
-
-    // 새로운 장소 생성
-    const newPlace = new Place({
-      region: regionDoc._id,
-      name,
-      address,
-    });
-
-    await newPlace.save();
-
-    res.status(201).json({
-      message: "장소가 성공적으로 등록되었습니다.",
-      place: newPlace,
-    });
-  } catch (err) {
-    console.error("장소 등록 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// POST /api/places 엔드포인트 정의
-// app.post("/api/places", async (req, res) => {
-//   const { region, name, address } = req.body;
-
-// 유효성 검사
-// if (!region || !name || !address) {
-//   return res
-//     .status(400)
-//     .json({ error: "지역, 이름, 주소를 모두 입력해주세요." });
-// }
-
-// try {
-// 새로운 장소 생성
-//     const newCarLocation = new CarLocation({ region, name, address });
-//     await newCarLocation.save();
-
-//     res.status(201).json({
-//       message: "장소가 성공적으로 등록되었습니다.",
-//       place: newCarLocation,
-//     });
-//   } catch (err) {
-//     console.error("장소 등록 오류:", err);
-//     res
-//       .status(500)
-//       .json({ error: "서버 오류로 인해 장소 등록에 실패했습니다." });
-//   }
-// });
-
-// GET /api/car-locations?region=지역명 엔드포인트 정의
-// app.get("/api/car-locations", async (req, res) => {
-//   const { region } = req.query;
-
-//   if (!region) {
-//     return res.status(400).json({ error: "지역 정보가 제공되지 않았습니다." });
-//   }
-
-//   try {
-//     const places = await CarLocation.find({ region }).sort({ createdAt: -1 });
-//     res.json(places);
-//   } catch (err) {
-//     console.error("장소 목록 조회 오류:", err);
-//     res
-//       .status(500)
-//       .json({ error: "서버 오류로 인해 장소 목록을 조회할 수 없습니다." });
-//   }
-// });
-
-// DELETE /api/car-locations/:id 엔드포인트 정의
-app.delete("/api/car-locations/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const deletedPlace = await CarLocation.findByIdAndDelete(id);
-    if (!deletedPlace) {
-      return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
-    }
-    res.json({ message: "장소가 성공적으로 삭제되었습니다." });
-  } catch (err) {
-    console.error("장소 삭제 오류:", err);
-    res
-      .status(500)
-      .json({ error: "서버 오류로 인해 장소 삭제에 실패했습니다." });
-  }
-});
-
-// GET /api/regions - 지역 리스트 조회
-app.get("/api/regions", async (req, res) => {
-  try {
-    const regions = await Region.find().sort({ order: 1 });
-    res.json(regions);
-  } catch (err) {
-    console.error("지역 목록 조회 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// POST /api/regions - 새로운 지역 등록
-app.post("/api/regions", async (req, res) => {
-  const { regions } = req.body;
-
-  // 필수 필드 검증
-  if (!regions || !Array.isArray(regions)) {
-    return res.status(400).json({ error: "유효하지 않은 지역 데이터입니다." });
-  }
-  try {
-    // 기존 지역 모두 삭제
-    await Region.deleteMany({});
-
-    // 중복된 지역 이름 검사 (서버 측에서도 방지)
-    const uniqueRegionsMap = {};
-    for (let region of regions) {
-      if (!region.name || typeof region.order !== "number") {
-        return res
-          .status(400)
-          .json({ error: "모든 지역은 이름과 순서를 가져야 합니다." });
-      }
-      if (uniqueRegionsMap[region.name]) {
-        return res
-          .status(400)
-          .json({ error: `중복된 지역 이름: ${region.name}` });
-      }
-      uniqueRegionsMap[region.name] = region;
-    }
-
-    const uniqueRegions = Object.values(uniqueRegionsMap);
-
-    // 지역 데이터 삽입
-    const savedRegions = await Region.insertMany(uniqueRegions);
-
-    res.status(201).json({
-      message: "지역이 성공적으로 저장되었습니다.",
-      regions: savedRegions,
-    });
-  } catch (err) {
-    console.error("지역 저장 오류:", err);
-    if (err.code === 11000) {
-      // MongoDB 중복 키 오류 코드
-      return res.status(400).json({ error: "이미 존재하는 지역 이름입니다." });
-    }
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// 서비스 종류 목록 조회
-app.get("/api/service-types", async (req, res) => {
-  try {
-    const serviceTypes = await ServiceType.find().sort({ name: 1 });
-    res.json(serviceTypes);
-  } catch (err) {
-    console.error("서비스 종류 목록 조회 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// app.get("/api/regions/:regionName/places", async (req, res) => {
-//   try {
-//     const regionName = decodeURIComponent(req.params.regionName);
-//     if (!regionName) {
-//       return res.status(400).json({ error: "지역명이 필요합니다." });
-//     }
-
-// 지역명으로 Region 문서 찾기
-//     const region = await Region.findOne({ name: regionName });
-//     if (!region) {
-//       return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
-//     }
-
-//     // Region ObjectId로 Place 문서 찾기
-//     const places = await Place.find({ region: region._id }).sort({ name: 1 });
-//     res.json(places);
-//   } catch (err) {
-//     console.error("장소 목록 조회 오류:", err);
-//     res.status(500).json({ error: "서버 오류" });
-//   }
-// });
-
-// 새로운 서비스 종류 추가 (필요한 경우)
-app.post("/api/service-types", async (req, res) => {
-  try {
-    const { name } = req.body;
-    if (!name) {
-      return res.status(400).json({ error: "서비스 종류명을 입력해주세요." });
-    }
-
-    const existingServiceType = await ServiceType.findOne({ name });
-    if (existingServiceType) {
-      return res
-        .status(400)
-        .json({ error: "이미 존재하는 서비스 종류입니다." });
-    }
-
-    const newServiceType = new ServiceType({ name });
-    await newServiceType.save();
-
-    res.status(201).json(newServiceType);
-  } catch (err) {
-    console.error("서비스 종류 추가 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// 서비스 금액 타입 목록 조회
-app.get("/api/service-amount-types", async (req, res) => {
-  try {
-    const amountTypes = await ServiceAmountType.find().sort({ name: 1 });
-    res.json(amountTypes);
-  } catch (err) {
-    console.error("서비스 금액 타입 목록 조회 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// 새로운 서비스 금액 타입 추가 (필요한 경우)
-app.post("/api/service-amount-types", async (req, res) => {
-  try {
-    const { name } = req.body;
-    if (!name) {
-      return res
-        .status(400)
-        .json({ error: "서비스 금액 타입명을 입력해주세요." });
-    }
-
-    const existingAmountType = await ServiceAmountType.findOne({ name });
-    if (existingAmountType) {
-      return res
-        .status(400)
-        .json({ error: "이미 존재하는 서비스 금액 타입입니다." });
-    }
-
-    const newAmountType = new ServiceAmountType({ name });
-    await newAmountType.save();
-
-    res.status(201).json(newAmountType);
-  } catch (err) {
-    console.error("서비스 금액 타입 추가 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-//   try {
-
-//     const savedRegions = await Region.insertMany(uniqueRegions);
-//     res.status(201).json({
-//       message: "지역이 성공적으로 저장되었습니다.",
-//       regions: savedRegions,
-//     });
-//   } catch (err) {
-//     console.error("지역 저장 오류:", err);
-//     if (err.code === 11000) {
-
-//       return res.status(400).json({ error: "이미 존재하는 지역 이름입니다." });
-//     }
-//     res.status(500).json({ error: "서버 오류" });
-//   }
-// });
-
-// PUT /api/regions/:id - 특정 지역 수정
-app.put("/api/regions/:id", async (req, res) => {
-  const { id } = req.params;
-  const { name, order } = req.body;
-
-  // 유효한 MongoDB ObjectId인지 확인
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
-  }
-
-  try {
-    const region = await Region.findById(id);
-    if (!region) {
-      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
-    }
-
-    // 지역명 중복 확인
-    if (name && name !== region.name) {
-      const existingRegion = await Region.findOne({ name });
-      if (existingRegion) {
-        return res.status(400).json({ error: "이미 존재하는 지역명입니다." });
-      }
-      region.name = name;
-    }
-
-    if (typeof order === "number") {
-      region.order = order;
-    }
-
-    await region.save();
-    res.json({
-      message: "지역이 성공적으로 수정되었습니다.",
-      region,
-    });
-  } catch (err) {
-    console.error("지역 수정 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// DELETE /api/regions/:id - 특정 지역 삭제
-app.delete("/api/regions/:id", async (req, res) => {
-  const { id } = req.params;
-
-  // 유효한 MongoDB ObjectId인지 확인
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
-  }
-
-  try {
-    // 해당 지역에 속한 장소가 있는지 확인
-    const associatedPlaces = await Place.findOne({ region: id });
-    if (associatedPlaces) {
-      return res.status(400).json({
-        error: "해당 지역에 속한 장소가 있습니다. 먼저 장소를 삭제해주세요.",
-      });
-    }
-
-    const deletedRegion = await Region.findByIdAndDelete(id);
-    if (!deletedRegion) {
-      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
-    }
-
-    res.json({ message: "지역이 성공적으로 삭제되었습니다." });
-  } catch (err) {
-    console.error("지역 삭제 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// GET /api/car-locations - 지역별 장소 조회
-// app.get("/api/car-locations", async (req, res) => {
-//   const { region } = req.query; // URL 쿼리 파라미터에서 region 추출
-
-//   let filter = {};
-//   if (region) {
-//     filter.region = region;
-//   }
-
-//   try {
-//     const locations = await CarLocation.find().sort({ order: 1 });
-//     res.json(locations);
-//   } catch (err) {
-//     console.error("지역 조회 오류:", err);
-//     res.status(500).json({ error: "서버 오류" });
-//   }
-// });
-
-// GET /api/regions/:regionId 엔드포인트 정의
-app.get("/api/regions/:regionId", async (req, res) => {
-  const { regionId } = req.params;
-
-  // 유효한 MongoDB ObjectId인지 확인
-  if (!mongoose.Types.ObjectId.isValid(regionId)) {
-    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
-  }
-
-  try {
-    const region = await Region.findById(regionId);
-    if (!region) {
-      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
-    }
-
-    res.json(region);
-  } catch (err) {
-    console.error("지역 정보 조회 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// GET /api/regions/:regionId/places - 특정 지역의 장소 리스트 조회
-app.get("/api/regions/:regionId/places", async (req, res) => {
-  const { regionId } = req.params;
-
-  // 유효한 MongoDB ObjectId인지 확인
-  if (!mongoose.Types.ObjectId.isValid(regionId)) {
-    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
-  }
-
-  try {
-    const places = await Place.find({ region: regionId }).sort({ order: 1 });
-    res.json(places);
-  } catch (err) {
-    console.error("장소 목록 조회 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-app.delete(
-  "/api/regions/name/:regionName/places/:placeId",
-  async (req, res) => {
-    const { regionName, placeId } = req.params;
-
-    if (!regionName) {
-      return res.status(400).json({ error: "지역명이 필요합니다." });
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(placeId)) {
-      return res.status(400).json({ error: "유효하지 않은 장소 ID입니다." });
-    }
-
-    try {
-      const region = await Region.findOne({ name: regionName });
-      if (!region) {
-        return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
-      }
-
-      const deletedPlace = await Place.findOneAndDelete({
-        _id: placeId,
-        region: region._id,
-      });
-
-      if (!deletedPlace) {
-        return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
-      }
-
-      res.json({ message: "장소가 성공적으로 삭제되었습니다." });
-    } catch (err) {
-      console.error("장소 삭제 오류:", err);
-      res.status(500).json({ error: "서버 오류" });
-    }
-  }
-);
-
-// DELETE /api/regions/:regionId/places/:placeId 엔드포인트 정의
-app.delete("/api/regions/:regionId/places/:placeId", async (req, res) => {
-  const { regionId, placeId } = req.params;
-
-  // 유효한 MongoDB ObjectId인지 확인
-  if (!mongoose.Types.ObjectId.isValid(regionId)) {
-    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
-  }
-
-  if (!mongoose.Types.ObjectId.isValid(placeId)) {
-    return res.status(400).json({ error: "유효하지 않은 장소 ID입니다." });
-  }
-
-  try {
-    // 해당 지역이 실제로 존재하는지 확인
-    const region = await Region.findById(regionId);
-    if (!region) {
-      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
-    }
-
-    // 장소 삭제
-    const deletedPlace = await Place.findOneAndDelete({
-      _id: placeId,
-      region: regionId,
-    });
-    if (!deletedPlace) {
-      return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
-    }
-
-    res.json({ message: "장소가 성공적으로 삭제되었습니다." });
-  } catch (err) {
-    console.error("장소 삭제 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-app.post("/api/regions/name/:regionName/places", async (req, res) => {
-  const { regionName } = req.params;
-  const { name, address, order } = req.body;
-
-  if (!name || !address || typeof order !== "number") {
-    return res
-      .status(400)
-      .json({ error: "장소명, 주소, 순서를 모두 입력해주세요." });
-  }
-
-  try {
-    const region = await Region.findOne({ name: regionName });
-    if (!region) {
-      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
-    }
-
-    const newPlace = new Place({ region: region._id, name, address, order });
-    await newPlace.save();
-    res.status(201).json({
-      message: "장소가 성공적으로 등록되었습니다.",
-      place: newPlace,
-    });
-  } catch (err) {
-    console.error("장소 등록 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// POST /api/regions/:regionId/places - 특정 지역에 새로운 장소 등록
-app.post("/api/regions/:regionId/places", async (req, res) => {
-  const { regionId } = req.params;
-  const { name, address, order } = req.body;
-
-  // 필수 필드 검증
-  if (!name || !address || typeof order !== "number") {
-    return res
-      .status(400)
-      .json({ error: "장소명, 주소, 순서를 모두 입력해주세요." });
-  }
-
-  // 유효한 MongoDB ObjectId인지 확인
-  if (!mongoose.Types.ObjectId.isValid(regionId)) {
-    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
-  }
-
-  try {
-    const region = await Region.findById(regionId);
-    if (!region) {
-      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
-    }
-
-    const newPlace = new Place({ region: regionId, name, address, order });
-    await newPlace.save();
-    res.status(201).json({
-      message: "장소가 성공적으로 등록되었습니다.",
-      place: newPlace,
-    });
-  } catch (err) {
-    console.error("장소 등록 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// PUT /api/places/:id - 특정 장소 수정
-app.put("/api/places/:id", async (req, res) => {
-  const { id } = req.params;
-  const { name, address, order } = req.body;
-
-  // 유효한 MongoDB ObjectId인지 확인
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ error: "유효하지 않은 장소 ID입니다." });
-  }
-
-  try {
-    const place = await Place.findById(id);
-    if (!place) {
-      return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
-    }
-
-    if (name) place.name = name;
-    if (address) place.address = address;
-    if (typeof order === "number") place.order = order;
-
-    await place.save();
-    res.json({
-      message: "장소가 성공적으로 수정되었습니다.",
-      place,
-    });
-  } catch (err) {
-    console.error("장소 수정 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// DELETE /api/places/:id - 특정 장소 삭제
-app.delete("/api/places/:id", async (req, res) => {
-  const { id } = req.params;
-
-  // 유효한 MongoDB ObjectId인지 확인
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ error: "유효하지 않은 장소 ID입니다." });
-  }
-
-  try {
-    const deletedPlace = await Place.findByIdAndDelete(id);
-    if (!deletedPlace) {
-      return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
-    }
-
-    res.json({ message: "장소가 성공적으로 삭제되었습니다." });
-  } catch (err) {
-    console.error("장소 삭제 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-app.get("/car-location-register", (req, res) => {
-  const region = req.query.region;
-
-  if (!region) {
-    return res.status(400).send("지역 정보가 제공되지 않았습니다.");
-  }
-
-  res.render("car-location-register", { region });
-});
-
-// 선택 사항: PUT /api/car-locations/:id - 특정 지역 수정
-// app.put("/api/car-locations/:id", async (req, res) => {
-//   const { id } = req.params;
-//   const { name, order } = req.body;
-
-//   if (!mongoose.Types.ObjectId.isValid(id)) {
-//     return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
-//   }
-
-//   try {
-//     const updatedLocation = await CarLocation.findByIdAndUpdate(
-//       id,
-//       { name, order },
-//       { new: true, runValidators: true }
-//     );
-
-//     if (!updatedLocation) {
-//       return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
-//     }
-
-//     res.json({
-//       message: "지역이 성공적으로 수정되었습니다.",
-//       location: updatedLocation,
-//     });
-//   } catch (err) {
-//     console.error("지역 수정 오류:", err);
-//     res.status(500).json({ error: "서버 오류" });
-//   }
-// });
-
-// POST /api/car-locations 엔드포인트
-// app.post("/api/car-locations", async (req, res) => {
-//   try {
-//     const { region, name, address } = req.body;
-//     if (!region || !name || !address) {
-//       return res.status(400).json({ error: "모든 필드를 입력해주세요." });
-//     }
-
-//     // 새로운 장소 생성
-//     const newLocation = new CarLocation({ region, name, address, order: 0 }); // order는 필요 시 조정
-//     await newLocation.save();
-
-//     res.status(201).json({
-//       message: "장소가 성공적으로 등록되었습니다.",
-//       location: newLocation,
-//     });
-//   } catch (err) {
-//     console.error("장소 등록 오류:", err);
-//     res.status(500).json({ error: "서버 오류" });
-//   }
-// });
-
-// 토큰 유효성 검사 엔드포인트
-app.post("/api/verify-token", authenticateToken, (req, res) => {
-  // authenticateToken 미들웨어에서 토큰 검증이 완료되었으므로,
-  // 여기서는 단순히 성공 응답을 보냄
-  res.json({ valid: true });
-});
-
-// 1. 관리자 ID 중복 확인 엔드포인트
-app.get("/api/accounts/check-duplicate", async (req, res) => {
-  const { adminId } = req.query;
-  if (!adminId) {
-    return res.status(400).json({ error: "관리자 ID가 필요합니다." });
-  }
-  try {
-    const existingAccount = await Account.findOne({ adminId });
-    if (existingAccount) {
-      return res.json({ isDuplicate: true });
-    } else {
-      return res.json({ isDuplicate: false });
-    }
-  } catch (err) {
-    console.error("관리자 ID 중복 확인 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// 2. 계정 등록 엔드포인트
-app.post(
-  "/api/accounts",
-  authenticateToken,
-  authorizeRoles("관리자"),
-  async (req, res) => {
-    const { adminId, adminName, password, customer, authorityGroup } = req.body;
-
-    // 필수 필드 검증
-    if (!adminId || !adminName || !password || !authorityGroup) {
-      // !customer 삭제
-      return res.status(400).json({ error: "모든 필드를 입력해주세요." });
-    }
-
-    // 관리자 권한이 아닌 경우 고객사 필드 검증
-    if (authorityGroup !== "관리자") {
-      if (!customer) {
-        return res.status(400).json({ error: "고객사를 선택해주세요." });
-      }
-    }
-    try {
-      // 관리자 ID 중복 확인
-      const existingAccount = await Account.findOne({ adminId });
-      if (existingAccount) {
-        return res
-          .status(400)
-          .json({ error: "이미 사용 중인 관리자 ID입니다." });
-      }
-
-      // 비밀번호 해싱 (보안 강화)
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      // 계정 생성
-      const newAccount = new Account({
-        adminId,
-        adminName,
-        password: hashedPassword,
-        customer: authorityGroup !== "관리자" ? customer : null,
-        authorityGroup,
-      });
-
-      await newAccount.save();
-
-      // Manager 생성
-      const existingManager = await Manager.findOne({ name: adminName });
-      if (!existingManager) {
-        const newManager = new Manager({
-          name: adminName,
-          // 추가 필드가 필요하다면 여기서 설정
-        });
-        await newManager.save();
-        console.log(`Manager ${adminName} 생성 완료`);
-      } else {
-        console.warn(`Manager with name ${adminName} already exists`);
-      }
-
-      res.status(201).json(newAccount);
-    } catch (err) {
-      console.error("계정 생성 오류:", err);
-      res.status(500).json({ error: "서버 오류" });
-    }
-  }
-);
-
-// 관리자 계정 생성 예시
-app.post("/api/register-admin", async (req, res) => {
-  const { username, password } = req.body;
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const user = new User({ username, password: hashedPassword, role: "관리자" });
-  await user.save();
-  res.json({ message: "관리자 계정이 생성되었습니다." });
-});
-
-// 3. 계정 목록 조회 엔드포인트
-app.get("/api/accounts", async (req, res) => {
-  const { authorityGroup, adminId, adminName, customerName } = req.query;
-  let filter = {};
-
-  if (authorityGroup) filter.authorityGroup = authorityGroup;
-  if (adminId) filter.adminId = adminId;
-  if (adminName) filter.adminName = { $regex: adminName, $options: "i" };
-  if (customerName) {
-    // 고객사명으로 필터링하려면 Customer 모델과 조인 필요
-    const customers = await Customer.find({
-      name: { $regex: customerName, $options: "i" },
-    });
-    const customerIds = customers.map((c) => c._id);
-    filter.customer = { $in: customerIds };
-  }
-
-  try {
-    const accounts = await Account.find(filter).populate("customer").exec();
-    const formattedAccounts = accounts.map((account) => ({
-      _id: account._id,
-      affiliation: "소속", // 소속구분에 대한 추가 정보가 필요함
-      authorityGroup: account.authorityGroup,
-      adminId: account.adminId,
-      adminName: account.adminName, // 관리자명에 대한 필드가 필요함
-      customerName: account.customer ? account.customer.name : "N/A",
-    }));
-    res.json(formattedAccounts);
-  } catch (err) {
-    console.error("계정 목록 조회 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// 4. 계정 상세 정보 조회 엔드포인트
-app.get("/api/accounts/:id", async (req, res) => {
-  const { id } = req.params;
-
-  // 유효한 MongoDB ObjectId인지 확인
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ error: "유효하지 않은 계정 ID입니다." });
-  }
-
-  try {
-    const account = await Account.findById(id).populate("customer").exec();
-
-    if (!account) {
-      return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
-    }
-
-    // 필요한 필드만 선택하여 응답
-    const accountDetails = {
-      _id: account._id,
-      adminId: account.adminId,
-      adminName: account.adminName,
-      authorityGroup: account.authorityGroup,
-      customerName: account.customer ? account.customer.name : "N/A",
-      // 추가적인 필드가 있다면 여기에 추가
-    };
-
-    res.json(accountDetails);
-  } catch (err) {
-    console.error("계정 상세 정보 조회 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// 5. 계정 삭제 엔드포인트
-app.delete(
-  "/api/accounts/:id",
-  authenticateToken,
-  authorizeRoles("관리자"),
-  async (req, res) => {
-    const { id } = req.params;
-
-    // 유효한 MongoDB ObjectId인지 확인
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ error: "유효하지 않은 계정 ID입니다." });
-    }
-
-    try {
-      const deletedAccount = await Account.findByIdAndDelete(id);
-
-      if (!deletedAccount) {
-        return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
-      }
-
-      res.json({ message: "계정이 성공적으로 삭제되었습니다." });
-    } catch (err) {
-      console.error("계정 삭제 오류:", err);
-      res.status(500).json({ error: "서버 오류" });
-    }
-  }
-);
-
-// 계정 수정 엔드포인트
-app.put(
-  "/api/accounts/:id",
-  authenticateToken,
-  authorizeRoles("관리자"),
-  async (req, res) => {
-    const { id } = req.params;
-    const { adminId, adminName, password, customer, authorityGroup } = req.body;
-
-    console.log("계정 수정 요청 데이터:", req.body);
-    console.log("요청자 권한:", req.user.authorityGroup);
-    // 유효한 MongoDB ObjectId인지 확인
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ error: "유효하지 않은 계정 ID입니다." });
-    }
-
-    // 필수 필드 검증
-    if (!adminId || !adminName || !customer || !authorityGroup) {
-      return res.status(400).json({ error: "필수 필드를 모두 입력해주세요." });
-    }
-
-    try {
-      // 기존 계정 찾기
-      const account = await Account.findById(id);
-      if (!account) {
-        return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
-      }
-
-      // 관리자 ID가 변경되었고, 중복된 ID가 있는지 확인
-      if (adminId !== account.adminId) {
-        const existingAccount = await Account.findOne({ adminId });
-        if (existingAccount) {
-          return res
-            .status(400)
-            .json({ error: "이미 사용 중인 관리자 ID입니다." });
-        }
-        account.adminId = adminId;
-      }
-
-      // 관리자명 업데이트
-      account.adminName = adminName;
-
-      // 비밀번호가 변경되었는지 확인하고 해싱
-      if (password) {
-        if (password.length < 2) {
-          return res
-            .status(400)
-            .json({ error: "비밀번호는 최소 2자 이상이어야 합니다." });
-        }
-        const hashedPassword = await bcrypt.hash(password, 10);
-        account.password = hashedPassword;
-      }
-
-      // 고객사 및 권한 그룹 업데이트
-      account.customer = customer;
-      account.authorityGroup = authorityGroup;
-
-      // 계정 저장
-      await account.save();
-
-      res.json({ message: "계정이 성공적으로 수정되었습니다.", account });
-    } catch (err) {
-      console.error("계정 수정 오류:", err);
-      res.status(500).json({ error: "서버 오류" });
-    }
-  }
-);
-
-// 1. 차종 목록 조회
-app.get("/api/car-types", async (req, res) => {
-  try {
-    const carTypes = await CarType.find();
-    res.json(carTypes);
-  } catch (err) {
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// 2. 특정 차종의 차량 모델 목록 조회
-app.get("/api/car-types/:typeId/models", async (req, res) => {
-  try {
-    const { typeId } = req.params;
-    const carModels = await CarModel.find({ type: typeId });
-    res.json(carModels);
-  } catch (err) {
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
-// 3. 새로운 차종 추가
-app.post("/api/car-types", async (req, res) => {
-  try {
-    const { name } = req.body;
-    const newCarType = new CarType({ name });
-    await newCarType.save();
-    res.status(201).json(newCarType);
-  } catch (err) {
-    res.status(400).json({ error: "차종 추가 실패" });
-  }
-});
-
-// 4. 새로운 차량 모델 추가
-app.post("/api/car-types/:typeId/models", async (req, res) => {
-  try {
-    const { typeId } = req.params;
-    const { name } = req.body;
-    const newCarModel = new CarModel({ type: typeId, name });
-    await newCarModel.save();
-    res.status(201).json(newCarModel);
-  } catch (err) {
-    res.status(400).json({ error: "차량 모델 추가 실패" });
-  }
-});
-
-// 5. 차량 등록
-app.post("/api/car-registrations", async (req, res) => {
-  try {
-    const {
-      typeId,
-      modelId,
-      licensePlate,
-      location,
-      customerId,
-      serviceType,
-      serviceAmount,
-      serviceAmountType,
-      notes,
-    } = req.body;
-
-    // 필수 필드 검증
-    if (
-      !typeId ||
-      !modelId ||
-      !licensePlate ||
-      !customerId ||
-      !location ||
-      !location.region ||
-      !location.place
-    ) {
-      return res.status(400).json({ error: "필수 정보를 모두 입력해주세요." });
-    }
-
-    // regionDoc 조회
-    const regionDoc = await Region.findById(location.region);
-    if (!regionDoc) {
-      return res.status(400).json({ error: "존재하지 않는 region ID입니다." });
-    }
-
-    // placeDoc 조회
-    const placeDoc = await Place.findOne({
-      _id: location.place,
-      region: regionDoc._id,
-    });
-    if (!placeDoc) {
-      return res.status(400).json({ error: "존재하지 않는 place ID입니다." });
-    }
-
-    // 차량 번호 중복 확인
-    const existingCar = await CarRegistration.findOne({
-      licensePlate: licensePlate,
-    });
-    if (existingCar) {
-      return res.status(400).json({ error: `차량 번호 중복: ${licensePlate}` });
-    }
-
-    const newCarRegistration = new CarRegistration({
-      type: typeId,
-      model: modelId,
-      licensePlate,
-      location: {
-        region: regionDoc._id,
-        place: placeDoc._id,
-        parkingSpot: location.parkingSpot || "",
-      },
-      customer: customerId,
-      serviceType: serviceType || null,
-      serviceAmountType: serviceAmountType || null,
-      serviceAmount: serviceAmount || 0,
-      notes: notes || "",
-    });
-
-    await newCarRegistration.save();
-    res.status(201).json(newCarRegistration);
-  } catch (err) {
-    res.status(400).json({ error: "차량 등록 실패" });
-  }
-});
-
-// 6. 차량 목록 조회
-app.get(
-  "/api/car-registrations",
+router.get(
+  "/car-registrations",
   authenticateToken,
   authorizeRoles("관리자", "작업자"),
   async (req, res) => {
@@ -1611,6 +548,8 @@ app.get(
         // .populate("location.place")
         .populate("location.region")
         .populate("location.place")
+        .populate("manager")
+        .populate("team")
         .skip(skip)
         .limit(parseInt(limit))
         .exec();
@@ -1628,8 +567,998 @@ app.get(
   }
 );
 
+// 예시: 관리자 전용 엔드포인트 보호
+router.get(
+  "/admin-only", //admin-dashboard
+  authenticateToken,
+  authorizeRoles("관리자"),
+  async (req, res) => {
+    res.json({ message: "관리자 전용 데이터" });
+  }
+);
+
+// 예시: 관리자와 작업자 모두 접근 가능한 엔드포인트
+router.get(
+  "/worker-and-admin",
+  authenticateToken,
+  authorizeRoles("관리자", "작업자"),
+  (req, res) => {
+    res.json({ message: "작업자 및 관리자 접근 가능 데이터" });
+  }
+);
+
+// car-list.html 라우트 추가
+router.get(
+  "/car-list.html",
+  authenticateToken,
+  authorizeRoles("관리자"),
+  async (req, res) => {
+    const filePath = path.join(
+      __dirname,
+      "../public",
+      "pages",
+      "car-list.html"
+    );
+    console.log("Attempting to send file:", filePath);
+    try {
+      await access(filePath, fs.constants.R_OK);
+      res.sendFile(filePath);
+      console.log("File sent successfully:", filePath);
+    } catch (err) {
+      console.error("File not found or inaccessible:", filePath, err);
+      res.status(500).send("차량 목록 페이지를 찾을 수 없습니다.");
+    }
+  }
+);
+
+// 모든 기타 라우트는 로그인 페이지로 리디렉션
+// app.get("*", (req, res) => {
+//   const filePath = path.join(__dirname, "../public", "login.html");
+//   console.log(
+//     "Redirecting to login page:",
+//     filePath,
+//     "for request:",
+//     req.originalUrl
+//   );
+//   res.sendFile(filePath, (err) => {
+//     if (err) {
+//       console.error("Error sending file:", err);
+//       res.status(500).send("파일 전송 중 오류가 발생했습니다.");
+//     }
+//   });
+// });
+
+// 작업자 페이지 라우트 추가 (필요 시)
+router.get("/pages/car-wash-history.html", async (req, res) => {
+  const filePath = path.join(
+    __dirname,
+    "../public",
+    "pages",
+    "car-wash-history.html"
+  );
+  console.log("Attempting to send file:", filePath);
+  try {
+    await access(filePath, fs.constants.R_OK);
+    res.sendFile(filePath);
+    console.log("File sent successfully:", filePath);
+  } catch (err) {
+    console.error("File not found or inaccessible:", filePath, err);
+    res.status(500).send("차량 세차 내역 페이지를 찾을 수 없습니다.");
+  }
+});
+
+router.get("/regions/name/:regionName", async (req, res) => {
+  const { regionName } = req.params;
+
+  if (!regionName) {
+    return res.status(400).json({ error: "지역명이 필요합니다." });
+  }
+
+  try {
+    const region = await Region.findOne({ name: regionName });
+    if (!region) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    res.json(region);
+  } catch (err) {
+    console.error("지역 정보 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+router.get("/regions/name/:regionName/places", async (req, res) => {
+  const { regionName } = req.params;
+
+  if (!regionName) {
+    return res.status(400).json({ error: "지역명이 필요합니다." });
+  }
+
+  try {
+    const region = await Region.findOne({ name: regionName });
+    if (!region) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    const places = await Place.find({ region: region._id }).sort({ order: 1 });
+    res.json(places);
+  } catch (err) {
+    console.error("장소 목록 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// POST /car-locations 엔드포인트 정의
+router.post("/car-locations", async (req, res) => {
+  try {
+    const { region, name, address } = req.body;
+
+    // 필수 필드 검증
+    if (!region || !name || !address) {
+      return res.status(400).json({ error: "모든 필드를 입력해주세요." });
+    }
+
+    // 지역명으로 Region 문서 찾기
+    const regionDoc = await Region.findOne({ name: region });
+    if (!regionDoc) {
+      return res
+        .status(404)
+        .json({ error: `존재하지 않는 지역: ${region}`, row });
+    }
+
+    const placeDoc = await Place.findOne({
+      name: name,
+      region: regionDoc._id,
+    });
+    if (!placeDoc) {
+      return res
+        .status(400)
+        .json({ error: `존재하지 않는 장소: ${name} (지역: ${region})`, row });
+    }
+
+    // 중복된 장소명 확인 (선택 사항)
+    const existingPlace = await Place.findOne({ name, region: regionDoc._id });
+    if (existingPlace) {
+      return res.status(400).json({ error: "이미 존재하는 장소명입니다." });
+    }
+
+    // 새로운 장소 생성
+    const newPlace = new Place({
+      region: regionDoc._id,
+      name,
+      address,
+    });
+
+    await newPlace.save();
+
+    res.status(201).json({
+      message: "장소가 성공적으로 등록되었습니다.",
+      place: newPlace,
+    });
+  } catch (err) {
+    console.error("장소 등록 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// DELETE /car-locations/:id 엔드포인트 정의
+router.delete("/car-locations/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const deletedPlace = await CarLocation.findByIdAndDelete(id);
+    if (!deletedPlace) {
+      return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
+    }
+    res.json({ message: "장소가 성공적으로 삭제되었습니다." });
+  } catch (err) {
+    console.error("장소 삭제 오류:", err);
+    res
+      .status(500)
+      .json({ error: "서버 오류로 인해 장소 삭제에 실패했습니다." });
+  }
+});
+
+// GET /regions - 지역 리스트 조회
+router.get("/regions", async (req, res) => {
+  try {
+    const regions = await Region.find().sort({ order: 1 });
+    res.json(regions);
+  } catch (err) {
+    console.error("지역 목록 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// POST /regions - 새로운 지역 등록
+router.post("/regions", async (req, res) => {
+  const { regions } = req.body;
+
+  // 필수 필드 검증
+  if (!regions || !Array.isArray(regions)) {
+    return res.status(400).json({ error: "유효하지 않은 지역 데이터입니다." });
+  }
+  try {
+    // 기존 지역 모두 삭제
+    await Region.deleteMany({});
+
+    // 중복된 지역 이름 검사 (서버 측에서도 방지)
+    const uniqueRegionsMap = {};
+    for (let region of regions) {
+      if (!region.name || typeof region.order !== "number") {
+        return res
+          .status(400)
+          .json({ error: "모든 지역은 이름과 순서를 가져야 합니다." });
+      }
+      if (uniqueRegionsMap[region.name]) {
+        return res
+          .status(400)
+          .json({ error: `중복된 지역 이름: ${region.name}` });
+      }
+      uniqueRegionsMap[region.name] = region;
+    }
+
+    const uniqueRegions = Object.values(uniqueRegionsMap);
+
+    // 지역 데이터 삽입
+    const savedRegions = await Region.insertMany(uniqueRegions);
+
+    res.status(201).json({
+      message: "지역이 성공적으로 저장되었습니다.",
+      regions: savedRegions,
+    });
+  } catch (err) {
+    console.error("지역 저장 오류:", err);
+    if (err.code === 11000) {
+      // MongoDB 중복 키 오류 코드
+      return res.status(400).json({ error: "이미 존재하는 지역 이름입니다." });
+    }
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 서비스 종류 목록 조회
+router.get("/service-types", async (req, res) => {
+  try {
+    const serviceTypes = await ServiceType.find().sort({ name: 1 });
+    res.json(serviceTypes);
+  } catch (err) {
+    console.error("서비스 종류 목록 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 새로운 서비스 종류 추가 (필요한 경우)
+router.post("/service-types", async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: "서비스 종류명을 입력해주세요." });
+    }
+
+    const existingServiceType = await ServiceType.findOne({ name });
+    if (existingServiceType) {
+      return res
+        .status(400)
+        .json({ error: "이미 존재하는 서비스 종류입니다." });
+    }
+
+    const newServiceType = new ServiceType({ name });
+    await newServiceType.save();
+
+    res.status(201).json(newServiceType);
+  } catch (err) {
+    console.error("서비스 종류 추가 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 서비스 금액 타입 목록 조회
+router.get("/service-amount-types", async (req, res) => {
+  try {
+    const amountTypes = await ServiceAmountType.find().sort({ name: 1 });
+    res.json(amountTypes);
+  } catch (err) {
+    console.error("서비스 금액 타입 목록 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 새로운 서비스 금액 타입 추가 (필요한 경우)
+router.post("/service-amount-types", async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) {
+      return res
+        .status(400)
+        .json({ error: "서비스 금액 타입명을 입력해주세요." });
+    }
+
+    const existingAmountType = await ServiceAmountType.findOne({ name });
+    if (existingAmountType) {
+      return res
+        .status(400)
+        .json({ error: "이미 존재하는 서비스 금액 타입입니다." });
+    }
+
+    const newAmountType = new ServiceAmountType({ name });
+    await newAmountType.save();
+
+    res.status(201).json(newAmountType);
+  } catch (err) {
+    console.error("서비스 금액 타입 추가 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// PUT /regions/:id - 특정 지역 수정
+router.put("/regions/:id", async (req, res) => {
+  const { id } = req.params;
+  const { name, order } = req.body;
+
+  // 유효한 MongoDB ObjectId인지 확인
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
+  }
+
+  try {
+    const region = await Region.findById(id);
+    if (!region) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    // 지역명 중복 확인
+    if (name && name !== region.name) {
+      const existingRegion = await Region.findOne({ name });
+      if (existingRegion) {
+        return res.status(400).json({ error: "이미 존재하는 지역명입니다." });
+      }
+      region.name = name;
+    }
+
+    if (typeof order === "number") {
+      region.order = order;
+    }
+
+    await region.save();
+    res.json({
+      message: "지역이 성공적으로 수정되었습니다.",
+      region,
+    });
+  } catch (err) {
+    console.error("지역 수정 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// DELETE /regions/:id - 특정 지역 삭제
+router.delete("/regions/:id", async (req, res) => {
+  const { id } = req.params;
+
+  // 유효한 MongoDB ObjectId인지 확인
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
+  }
+
+  try {
+    // 해당 지역에 속한 장소가 있는지 확인
+    const associatedPlaces = await Place.findOne({ region: id });
+    if (associatedPlaces) {
+      return res.status(400).json({
+        error: "해당 지역에 속한 장소가 있습니다. 먼저 장소를 삭제해주세요.",
+      });
+    }
+
+    const deletedRegion = await Region.findByIdAndDelete(id);
+    if (!deletedRegion) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    res.json({ message: "지역이 성공적으로 삭제되었습니다." });
+  } catch (err) {
+    console.error("지역 삭제 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// GET /regions/:regionId 엔드포인트 정의
+router.get("/regions/:regionId", async (req, res) => {
+  const { regionId } = req.params;
+
+  // 유효한 MongoDB ObjectId인지 확인
+  if (!mongoose.Types.ObjectId.isValid(regionId)) {
+    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
+  }
+
+  try {
+    const region = await Region.findById(regionId);
+    if (!region) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    res.json(region);
+  } catch (err) {
+    console.error("지역 정보 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// GET /regions/:regionId/places - 특정 지역의 장소 리스트 조회
+router.get("/regions/:regionId/places", async (req, res) => {
+  const { regionId } = req.params;
+
+  // 유효한 MongoDB ObjectId인지 확인
+  if (!mongoose.Types.ObjectId.isValid(regionId)) {
+    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
+  }
+
+  try {
+    const places = await Place.find({ region: regionId }).sort({ order: 1 });
+    res.json(places);
+  } catch (err) {
+    console.error("장소 목록 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+router.delete("/regions/name/:regionName/places/:placeId", async (req, res) => {
+  const { regionName, placeId } = req.params;
+
+  if (!regionName) {
+    return res.status(400).json({ error: "지역명이 필요합니다." });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(placeId)) {
+    return res.status(400).json({ error: "유효하지 않은 장소 ID입니다." });
+  }
+
+  try {
+    const region = await Region.findOne({ name: regionName });
+    if (!region) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    const deletedPlace = await Place.findOneAndDelete({
+      _id: placeId,
+      region: region._id,
+    });
+
+    if (!deletedPlace) {
+      return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
+    }
+
+    res.json({ message: "장소가 성공적으로 삭제되었습니다." });
+  } catch (err) {
+    console.error("장소 삭제 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// DELETE /regions/:regionId/places/:placeId 엔드포인트 정의
+router.delete("/regions/:regionId/places/:placeId", async (req, res) => {
+  const { regionId, placeId } = req.params;
+
+  // 유효한 MongoDB ObjectId인지 확인
+  if (!mongoose.Types.ObjectId.isValid(regionId)) {
+    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(placeId)) {
+    return res.status(400).json({ error: "유효하지 않은 장소 ID입니다." });
+  }
+
+  try {
+    // 해당 지역이 실제로 존재하는지 확인
+    const region = await Region.findById(regionId);
+    if (!region) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    // 장소 삭제
+    const deletedPlace = await Place.findOneAndDelete({
+      _id: placeId,
+      region: regionId,
+    });
+    if (!deletedPlace) {
+      return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
+    }
+
+    res.json({ message: "장소가 성공적으로 삭제되었습니다." });
+  } catch (err) {
+    console.error("장소 삭제 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+router.post("/regions/name/:regionName/places", async (req, res) => {
+  const { regionName } = req.params;
+  const { name, address, order } = req.body;
+
+  if (!name || !address || typeof order !== "number") {
+    return res
+      .status(400)
+      .json({ error: "장소명, 주소, 순서를 모두 입력해주세요." });
+  }
+
+  try {
+    const region = await Region.findOne({ name: regionName });
+    if (!region) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    const newPlace = new Place({ region: region._id, name, address, order });
+    await newPlace.save();
+    res.status(201).json({
+      message: "장소가 성공적으로 등록되었습니다.",
+      place: newPlace,
+    });
+  } catch (err) {
+    console.error("장소 등록 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// POST /regions/:regionId/places - 특정 지역에 새로운 장소 등록
+router.post("/regions/:regionId/places", async (req, res) => {
+  const { regionId } = req.params;
+  const { name, address, order } = req.body;
+
+  // 필수 필드 검증
+  if (!name || !address || typeof order !== "number") {
+    return res
+      .status(400)
+      .json({ error: "장소명, 주소, 순서를 모두 입력해주세요." });
+  }
+
+  // 유효한 MongoDB ObjectId인지 확인
+  if (!mongoose.Types.ObjectId.isValid(regionId)) {
+    return res.status(400).json({ error: "유효하지 않은 지역 ID입니다." });
+  }
+
+  try {
+    const region = await Region.findById(regionId);
+    if (!region) {
+      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    }
+
+    const newPlace = new Place({ region: regionId, name, address, order });
+    await newPlace.save();
+    res.status(201).json({
+      message: "장소가 성공적으로 등록되었습니다.",
+      place: newPlace,
+    });
+  } catch (err) {
+    console.error("장소 등록 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// PUT /places/:id - 특정 장소 수정
+router.put("/places/:id", async (req, res) => {
+  const { id } = req.params;
+  const { name, address, order } = req.body;
+
+  // 유효한 MongoDB ObjectId인지 확인
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "유효하지 않은 장소 ID입니다." });
+  }
+
+  try {
+    const place = await Place.findById(id);
+    if (!place) {
+      return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
+    }
+
+    if (name) place.name = name;
+    if (address) place.address = address;
+    if (typeof order === "number") place.order = order;
+
+    await place.save();
+    res.json({
+      message: "장소가 성공적으로 수정되었습니다.",
+      place,
+    });
+  } catch (err) {
+    console.error("장소 수정 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// DELETE /places/:id - 특정 장소 삭제
+router.delete("/places/:id", async (req, res) => {
+  const { id } = req.params;
+
+  // 유효한 MongoDB ObjectId인지 확인
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "유효하지 않은 장소 ID입니다." });
+  }
+
+  try {
+    const deletedPlace = await Place.findByIdAndDelete(id);
+    if (!deletedPlace) {
+      return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
+    }
+
+    res.json({ message: "장소가 성공적으로 삭제되었습니다." });
+  } catch (err) {
+    console.error("장소 삭제 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+router.get("/car-location-register", (req, res) => {
+  const region = req.query.region;
+
+  if (!region) {
+    return res.status(400).send("지역 정보가 제공되지 않았습니다.");
+  }
+
+  res.render("car-location-register", { region });
+});
+
+// 토큰 유효성 검사 엔드포인트
+router.post("/verify-token", authenticateToken, (req, res) => {
+  // authenticateToken 미들웨어에서 토큰 검증이 완료되었으므로,
+  // 여기서는 단순히 성공 응답을 보냄
+  res.json({ valid: true });
+});
+
+// 1. 관리자 ID 중복 확인 엔드포인트
+router.get("/accounts/check-duplicate", async (req, res) => {
+  const { adminId } = req.query;
+  if (!adminId) {
+    return res.status(400).json({ error: "관리자 ID가 필요합니다." });
+  }
+  try {
+    const existingAccount = await Account.findOne({ adminId });
+    if (existingAccount) {
+      return res.json({ isDuplicate: true });
+    } else {
+      return res.json({ isDuplicate: false });
+    }
+  } catch (err) {
+    console.error("관리자 ID 중복 확인 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 2. 계정 등록 엔드포인트
+router.post(
+  "/accounts",
+  authenticateToken,
+  authorizeRoles("관리자"),
+  async (req, res) => {
+    const { adminId, adminName, password, customer, authorityGroup } = req.body;
+
+    // 필수 필드 검증
+    if (!adminId || !adminName || !password || !authorityGroup) {
+      // !customer 삭제
+      return res.status(400).json({ error: "모든 필드를 입력해주세요." });
+    }
+
+    // 관리자 권한이 아닌 경우 고객사 필드 검증
+    if (authorityGroup !== "관리자") {
+      if (!customer) {
+        return res.status(400).json({ error: "고객사를 선택해주세요." });
+      }
+    }
+    try {
+      // 관리자 ID 중복 확인
+      const existingAccount = await Account.findOne({ adminId });
+      if (existingAccount) {
+        return res
+          .status(400)
+          .json({ error: "이미 사용 중인 관리자 ID입니다." });
+      }
+
+      // 비밀번호 해싱 (보안 강화)
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // 계정 생성
+      const newAccount = new Account({
+        adminId,
+        adminName,
+        password: hashedPassword,
+        customer: authorityGroup !== "관리자" ? customer : null,
+        authorityGroup,
+      });
+
+      await newAccount.save();
+
+      // Manager 생성
+      const existingManager = await Manager.findOne({ name: adminName });
+      if (!existingManager) {
+        const newManager = new Manager({
+          name: adminName,
+          // 추가 필드가 필요하다면 여기서 설정
+        });
+        await newManager.save();
+        console.log(`Manager ${adminName} 생성 완료`);
+      } else {
+        console.warn(`Manager with name ${adminName} already exists`);
+      }
+
+      res.status(201).json(newAccount);
+    } catch (err) {
+      console.error("계정 생성 오류:", err);
+      res.status(500).json({ error: "서버 오류" });
+    }
+  }
+);
+
+// 관리자 계정 생성 예시
+router.post("/register-admin", async (req, res) => {
+  const { username, password } = req.body;
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const user = new User({ username, password: hashedPassword, role: "관리자" });
+  await user.save();
+  res.json({ message: "관리자 계정이 생성되었습니다." });
+});
+
+// 3. 계정 목록 조회 엔드포인트
+router.get(
+  "/accounts",
+  authenticateToken,
+  authorizeRoles("관리자"),
+  async (req, res) => {
+    const { authorityGroup, adminId, adminName, customerName } = req.query;
+    let filter = {};
+
+    if (authorityGroup) filter.authorityGroup = authorityGroup;
+    if (adminId) filter.adminId = adminId;
+    if (adminName) filter.adminName = { $regex: adminName, $options: "i" };
+    if (customerName) {
+      // 고객사명으로 필터링하려면 Customer 모델과 조인 필요
+      const customers = await Customer.find({
+        name: { $regex: customerName, $options: "i" },
+      });
+      const customerIds = customers.map((c) => c._id);
+      filter.customer = { $in: customerIds };
+    }
+
+    try {
+      const accounts = await Account.find(filter).populate("customer").exec();
+      const formattedAccounts = accounts.map((account) => ({
+        _id: account._id,
+        affiliation: "소속", // 소속구분에 대한 추가 정보가 필요함
+        authorityGroup: account.authorityGroup,
+        adminId: account.adminId,
+        adminName: account.adminName, // 관리자명에 대한 필드가 필요함
+        customerName: account.customer ? account.customer.name : "N/A",
+      }));
+      res.json(formattedAccounts);
+    } catch (err) {
+      console.error("계정 목록 조회 오류:", err);
+      res.status(500).json({ error: "서버 오류" });
+    }
+  }
+);
+
+// 5. 계정 삭제 엔드포인트
+router.delete(
+  "/accounts/:id",
+  authenticateToken,
+  authorizeRoles("관리자"),
+  async (req, res) => {
+    const { id } = req.params;
+
+    // 유효한 MongoDB ObjectId인지 확인
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "유효하지 않은 계정 ID입니다." });
+    }
+
+    try {
+      const deletedAccount = await Account.findByIdAndDelete(id);
+
+      if (!deletedAccount) {
+        return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
+      }
+
+      res.json({ message: "계정이 성공적으로 삭제되었습니다." });
+    } catch (err) {
+      console.error("계정 삭제 오류:", err);
+      res.status(500).json({ error: "서버 오류" });
+    }
+  }
+);
+
+// 계정 수정 엔드포인트
+router.put(
+  "/accounts/:id",
+  authenticateToken,
+  authorizeRoles("관리자"),
+  async (req, res) => {
+    const { id } = req.params;
+    const { adminId, adminName, password, customer, authorityGroup } = req.body;
+
+    console.log("계정 수정 요청 데이터:", req.body);
+    console.log("요청자 권한:", req.user.authorityGroup);
+    // 유효한 MongoDB ObjectId인지 확인
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "유효하지 않은 계정 ID입니다." });
+    }
+
+    // 필수 필드 검증
+    if (!adminId || !adminName || !customer || !authorityGroup) {
+      return res.status(400).json({ error: "필수 필드를 모두 입력해주세요." });
+    }
+
+    try {
+      // 기존 계정 찾기
+      const account = await Account.findById(id);
+      if (!account) {
+        return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
+      }
+
+      // 관리자 ID가 변경되었고, 중복된 ID가 있는지 확인
+      if (adminId !== account.adminId) {
+        const existingAccount = await Account.findOne({ adminId });
+        if (existingAccount) {
+          return res
+            .status(400)
+            .json({ error: "이미 사용 중인 관리자 ID입니다." });
+        }
+        account.adminId = adminId;
+      }
+
+      // 관리자명 업데이트
+      account.adminName = adminName;
+
+      // 비밀번호가 변경되었는지 확인하고 해싱
+      if (password) {
+        if (password.length < 2) {
+          return res
+            .status(400)
+            .json({ error: "비밀번호는 최소 2자 이상이어야 합니다." });
+        }
+        const hashedPassword = await bcrypt.hash(password, 10);
+        account.password = hashedPassword;
+      }
+
+      // 고객사 및 권한 그룹 업데이트
+      account.customer = customer;
+      account.authorityGroup = authorityGroup;
+
+      // 계정 저장
+      await account.save();
+
+      res.json({ message: "계정이 성공적으로 수정되었습니다.", account });
+    } catch (err) {
+      console.error("계정 수정 오류:", err);
+      res.status(500).json({ error: "서버 오류" });
+    }
+  }
+);
+
+// 1. 차종 목록 조회
+router.get(
+  "/car-types",
+  authenticateToken,
+  authorizeRoles("관리자", "작업자"),
+  async (req, res) => {
+    try {
+      const carTypes = await CarType.find();
+      res.json(carTypes);
+    } catch (err) {
+      res.status(500).json({ error: "서버 오류" });
+    }
+  }
+);
+
+// 2. 특정 차종의 차량 모델 목록 조회
+router.get("/car-types/:typeId/models", async (req, res) => {
+  try {
+    const { typeId } = req.params;
+    const carModels = await CarModel.find({ type: typeId });
+    res.json(carModels);
+  } catch (err) {
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+// 3. 새로운 차종 추가
+router.post("/car-types", async (req, res) => {
+  try {
+    const { name } = req.body;
+    const newCarType = new CarType({ name });
+    await newCarType.save();
+    res.status(201).json(newCarType);
+  } catch (err) {
+    res.status(400).json({ error: "차종 추가 실패" });
+  }
+});
+
+// 4. 새로운 차량 모델 추가
+router.post("/car-types/:typeId/models", async (req, res) => {
+  try {
+    const { typeId } = req.params;
+    const { name } = req.body;
+    const newCarModel = new CarModel({ type: typeId, name });
+    await newCarModel.save();
+    res.status(201).json(newCarModel);
+  } catch (err) {
+    res.status(400).json({ error: "차량 모델 추가 실패" });
+  }
+});
+
+// 5. 차량 등록
+router.post("/car-registrations", async (req, res) => {
+  try {
+    const {
+      typeId,
+      modelId,
+      licensePlate,
+      location,
+      customerId,
+      serviceType,
+      serviceAmount,
+      serviceAmountType,
+      notes,
+    } = req.body;
+
+    // 필수 필드 검증
+    if (
+      !typeId ||
+      !modelId ||
+      !licensePlate ||
+      !customerId ||
+      !location ||
+      !location.region ||
+      !location.place
+    ) {
+      return res.status(400).json({ error: "필수 정보를 모두 입력해주세요." });
+    }
+
+    // regionDoc 조회
+    const regionDoc = await Region.findById(location.region);
+    if (!regionDoc) {
+      return res.status(400).json({ error: "존재하지 않는 region ID입니다." });
+    }
+
+    // placeDoc 조회
+    const placeDoc = await Place.findOne({
+      _id: location.place,
+      region: regionDoc._id,
+    });
+    if (!placeDoc) {
+      return res.status(400).json({ error: "존재하지 않는 place ID입니다." });
+    }
+
+    // 차량 번호 중복 확인
+    const existingCar = await CarRegistration.findOne({
+      licensePlate: licensePlate,
+    });
+    if (existingCar) {
+      return res.status(400).json({ error: `차량 번호 중복: ${licensePlate}` });
+    }
+
+    const newCarRegistration = new CarRegistration({
+      type: typeId,
+      model: modelId,
+      licensePlate,
+      location: {
+        region: regionDoc._id,
+        place: placeDoc._id,
+        parkingSpot: location.parkingSpot || "",
+      },
+      customer: customerId,
+      serviceType: serviceType || null,
+      serviceAmountType: serviceAmountType || null,
+      serviceAmount: serviceAmount || 0,
+      notes: notes || "",
+    });
+
+    await newCarRegistration.save();
+    res.status(201).json(newCarRegistration);
+  } catch (err) {
+    res.status(400).json({ error: "차량 등록 실패" });
+  }
+});
+
+// 6. 차량 목록 조회
+
 // 6-1. 특정 차량 정보 조회
-app.get("/api/car-registrations/:id", async (req, res) => {
+router.get("/car-registrations/:id", async (req, res) => {
   try {
     const carRegistration = await CarRegistration.findById(req.params.id)
       .populate("type") // CarType 정보 포함
@@ -1651,7 +1580,7 @@ app.get("/api/car-registrations/:id", async (req, res) => {
 });
 
 // 7. 차량 삭제
-app.delete("/api/car-registrations", async (req, res) => {
+router.delete("/car-registrations", async (req, res) => {
   try {
     const { ids } = req.body; // 배열 형태로 전달된 차량 ID들
 
@@ -1668,7 +1597,7 @@ app.delete("/api/car-registrations", async (req, res) => {
 });
 
 // 8. 특정 차량 정보 수정
-app.put("/api/car-registrations/:id", async (req, res) => {
+router.put("/car-registrations/:id", async (req, res) => {
   try {
     const {
       typeId,
@@ -1779,7 +1708,7 @@ app.put("/api/car-registrations/:id", async (req, res) => {
 });
 
 // 배정 변경 엔드포인트
-app.put("/api/car-registrations/:id/assign", async (req, res) => {
+router.put("/car-registrations/:id/assign", async (req, res) => {
   try {
     const { managerId, teamId } = req.body;
     const carId = req.params.id;
@@ -1831,9 +1760,9 @@ app.put("/api/car-registrations/:id/assign", async (req, res) => {
 
 // 라우터를 통해 API 엔드포인트 정의
 // 고객사 목록 조회
-app.get("/customers", async (req, res) => {
+router.get("/customers", async (req, res) => {
   try {
-    const customers = await Customer.find();
+    const customers = await Customer.find().sort({ name: 1 });
     res.json(customers);
   } catch (err) {
     console.error("고객사 목록 조회 오류:", err);
@@ -1842,7 +1771,7 @@ app.get("/customers", async (req, res) => {
 });
 
 // 담당자 목록 조회
-app.get("/managers", async (req, res) => {
+router.get("/managers", async (req, res) => {
   try {
     const managers = await Manager.find();
     res.json(managers);
@@ -1853,7 +1782,7 @@ app.get("/managers", async (req, res) => {
 });
 
 // 팀 목록 조회
-app.get("/teams", async (req, res) => {
+router.get("/teams", async (req, res) => {
   try {
     const teams = await Team.find();
     res.json(teams);
@@ -1863,7 +1792,7 @@ app.get("/teams", async (req, res) => {
   }
 });
 // 차량 배정 엔드포인트
-app.put("/car-registrations/assign", async (req, res) => {
+router.put("/car-registrations/assign", async (req, res) => {
   try {
     const { carIds, managerId, teamId } = req.body;
 
@@ -1906,12 +1835,9 @@ app.put("/car-registrations/assign", async (req, res) => {
   }
 });
 
-// 라우터를 /api 경로에 마운트
-// app.use("/api", router);
-
 // 10. 고객사 목록 조회
-app.get("/api/customers", async (req, res) => {
-  console.log("Received GET request for /api/customers");
+router.get("/customers", async (req, res) => {
+  console.log("Received GET request for /customers");
   try {
     const customers = await Customer.find().sort({ name: 1 }); //이름순 정렬
     res.json(customers);
@@ -1922,7 +1848,7 @@ app.get("/api/customers", async (req, res) => {
 });
 
 // 11. 새로운 고객사 추가
-app.post("/api/customers", async (req, res) => {
+router.post("/customers", async (req, res) => {
   try {
     const { name, display } = req.body;
     if (!name) {
@@ -1947,7 +1873,7 @@ app.post("/api/customers", async (req, res) => {
   }
 });
 // 특정 고객사 조회
-app.get("/api/customers/:id", async (req, res) => {
+router.get("/customers/:id", async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id);
     if (!customer) {
@@ -1961,7 +1887,7 @@ app.get("/api/customers/:id", async (req, res) => {
 });
 
 // 12. 특정 고객사 정보 수정
-app.put("/api/customers/:id", async (req, res) => {
+router.put("/customers/:id", async (req, res) => {
   try {
     const { name, display } = req.body;
     if (!name) {
@@ -1985,8 +1911,8 @@ app.put("/api/customers/:id", async (req, res) => {
   }
 });
 
-// GET /api/managers 담당자 목록
-app.get("/api/managers", async (req, res) => {
+// GET /managers 담당자 목록
+router.get("/managers", async (req, res) => {
   try {
     const managers = await Manager.find(); // Manager 모델을 정의해야 함
     res.json(managers);
@@ -1998,8 +1924,8 @@ app.get("/api/managers", async (req, res) => {
   }
 });
 
-// GET /api/teams 팀 목록
-app.get("/api/teams", async (req, res) => {
+// GET /teams 팀 목록
+router.get("/teams", async (req, res) => {
   try {
     const teams = await Team.find(); // Team 모델을 정의해야 함
     res.json(teams);
@@ -2009,9 +1935,9 @@ app.get("/api/teams", async (req, res) => {
   }
 });
 
-// POST /api/car-registrations/assign 차량 배정
-app.post(
-  "/api/car-registrations/assign",
+// POST /car-registrations/assign 차량 배정
+router.post(
+  "/car-registrations/assign",
   authenticateToken,
   authorizeRoles("관리자"),
   async (req, res) => {
@@ -2048,59 +1974,9 @@ app.post(
   }
 );
 
-// 9. 검색 API 엔드포인트
-// app.get("/api/car-registrations", (req, res) => {
-//   let filteredCars = cars;
-
-//   const {
-//     carType,
-//     carModel,
-//     carNumber,
-//     region,
-//     location,
-//     parkingLocation,
-//     customer,
-//     manager,
-//   } = req.query;
-
-//   if (carType) {
-//     filteredCars = filteredCars.filter((car) => car.carType === carType);
-//   }
-//   if (carModel) {
-//     filteredCars = filteredCars.filter((car) => car.model.name === carModel);
-//   }
-//   if (carNumber) {
-//     filteredCars = filteredCars.filter((car) =>
-//       car.licensePlate.includes(carNumber)
-//     );
-//   }
-//   if (region) {
-//     filteredCars = filteredCars.filter((car) => car.location.region === region);
-//   }
-//   if (location) {
-//     filteredCars = filteredCars.filter(
-//       (car) => car.location.place === location
-//     );
-//   }
-//   if (parkingLocation) {
-//     filteredCars = filteredCars.filter(
-//       (car) => car.parkingLocation === parkingLocation
-//     );
-//   }
-// 주차 위치와 같은 다른 필드도 추가 가능
-//   if (customer) {
-//     filteredCars = filteredCars.filter((car) => car.customer === customer);
-//   }
-//   if (manager) {
-//     filteredCars = filteredCars.filter((car) => car.manager.includes(manager));
-//   }
-
-//   res.json(filteredCars);
-// });
-
 // 엑셀 업로드 (차량 대량 등록)
-app.post(
-  "/api/car-registrations/bulk-upload",
+router.post(
+  "/car-registrations/bulk-upload",
   (req, res, next) => {
     console.log("Received upload request");
     upload.single("file")(req, res, (err) => {

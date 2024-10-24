@@ -38,6 +38,24 @@ $(document).ready(function () {
     return;
   }
 
+  try {
+    const decoded = jwt_decode(token);
+    const currentTime = Date.now() / 1000;
+
+    if (decoded.exp < currentTime) {
+      // 토큰이 만료된 경우
+      alert("세션이 만료되었습니다. 다시 로그인해주세요.");
+      localStorage.removeItem("token");
+      window.location.href = "/login.html";
+      return;
+    }
+  } catch (e) {
+    console.error("토큰 디코딩 오류:", e);
+    localStorage.removeItem("token");
+    window.location.href = "/login.html";
+    return;
+  }
+
   // 토큰이 있는 경우, 유효성 검사 (선택 사항)
   $.ajax({
     url: "/api/verify-token", // 토큰 유효성 검사 엔드포인트 (추가 필요)
@@ -50,6 +68,8 @@ $(document).ready(function () {
     },
     error: function (xhr, status, error) {
       // 토큰이 유효하지 않거나 만료된 경우 로그인 페이지로 리디렉션
+      alert("세션이 만료되었습니다. 다시 로그인해주세요.");
+      localStorage.removeItem("token");
       window.location.href = "/login.html"; // 로그인 페이지 경로로 수정
     },
   });
