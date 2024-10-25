@@ -356,7 +356,7 @@ router.get("/login.html", async (req, res) => {
   const filePath = path.join(__dirname, "../public", "login.html");
   console.log("Attempting to send file:", filePath);
   try {
-    await access(filePath, fs.constants.R_OK);
+    await fs.promises.access(filePath, fs.constants.R_OK);
     res.sendFile(filePath);
     console.log("File sent successfully:", filePath);
   } catch (err) {
@@ -412,7 +412,7 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "존재하지 않는 관리자 ID입니다." });
     }
 
-    const isMatch = await bcryptjs.compare(password, account.password);
+    const isMatch = await bcrypt.compare(password, account.password);
     if (!isMatch) {
       return res.status(400).json({ error: "비밀번호가 일치하지 않습니다." });
     }
