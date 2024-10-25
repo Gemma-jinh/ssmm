@@ -45,7 +45,12 @@ app.use("/api", router);
 
 // Catch-All 라우트는 라우터 마운트 이후에 정의
 app.get("*", async (req, res) => {
-  res.sendFile(path.join(__dirname, "../public", "login.html"));
+  res.sendFile(path.join(__dirname, "../public", "login.html"), (err) => {
+    if (err) {
+      console.error("파일 전송 오류:", err);
+      res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
+    }
+  });
   // console.log("Attempting to send file:", filePath);
   // try {
   //   await fs.access(filePath, fs.constants.R_OK);
