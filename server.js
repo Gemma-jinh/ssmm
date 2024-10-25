@@ -51,6 +51,7 @@ app.get("/", (req, res) => {
 app.get("*", async (req, res) => {
   // res.sendFile(path.join(__dirname, "public", "login.html"));
   const filePath = path.join(__dirname, "../public", "login.html");
+  console.log("Attempting to send file:", filePath);
   try {
     await fs.access(filePath, fs.constants.R_OK);
     res.sendFile(filePath);
