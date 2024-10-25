@@ -26,7 +26,7 @@ console.log("Current working directory:", process.cwd());
 
 //환경 변수 설정
 // const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || "autism0727"; // 환경 변수에서 JWT_SECRET 가져오기
+const JWT_SECRET = process.env.JWT_SECRET || "gemma-jinh"; // 환경 변수에서 JWT_SECRET 가져오기
 // const MONGO_URI = "mongodb://localhost:27017/car_registration";
 const MONGO_URI = process.env.MONGO_URI;
 
