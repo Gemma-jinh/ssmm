@@ -17,10 +17,10 @@ const jwt = require("jsonwebtoken");
 // const Place = require("./models/Place");
 
 // Promisify fs functions
-const mkdir = util.promisify(fs.mkdir);
-const stat = util.promisify(fs.stat);
-const access = util.promisify(fs.access);
-const unlink = util.promisify(fs.unlink);
+// const mkdir = util.promisify(fs.mkdir);
+// const stat = util.promisify(fs.stat);
+// const access = util.promisify(fs.access);
+// const unlink = util.promisify(fs.unlink);
 
 console.log("Current working directory:", process.cwd());
 
@@ -356,7 +356,7 @@ router.get("/login.html", async (req, res) => {
   const filePath = path.join(__dirname, "../public", "login.html");
   console.log("Attempting to send file:", filePath);
   try {
-    await fs.promises.access(filePath, fs.constants.R_OK);
+    await fs.access(filePath, fs.constants.R_OK);
     res.sendFile(filePath);
     console.log("File sent successfully:", filePath);
   } catch (err) {
@@ -2018,7 +2018,7 @@ router.post(
 
     // 파일 존재 확인
     try {
-      await access(req.file.path, fs.constants.R_OK);
+      await fs.access(req.file.path, fs.constants.R_OK);
       console.log("File exists and is accessible");
 
       //엑셀 파일 읽기
@@ -2134,7 +2134,7 @@ router.post(
       await CarRegistration.insertMany(registrations);
 
       // 파일 삭제
-      await unlink(req.file.path);
+      await fs.unlink(req.file.path);
       console.log("File deleted:", req.file.path);
 
       res.json({
