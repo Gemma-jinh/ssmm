@@ -8,7 +8,7 @@ const path = require("path"); //경로 관련 모듈 추가
 const multer = require("multer");
 const XLSX = require("xlsx");
 const util = require("util");
-const fs = require("fs");
+const fs = require("fs/promises");
 const bcrypt = require("bcryptjs");
 const Region = require("./models/Region");
 const Manager = require("./models/Manager"); // 담당자 모델
@@ -26,7 +26,7 @@ console.log("Current working directory:", process.cwd());
 
 //환경 변수 설정
 // const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key"; // 환경 변수에서 JWT_SECRET 가져오기
+const JWT_SECRET = process.env.JWT_SECRET || "autism0727"; // 환경 변수에서 JWT_SECRET 가져오기
 // const MONGO_URI = "mongodb://localhost:27017/car_registration";
 const MONGO_URI = process.env.MONGO_URI;
 
@@ -73,10 +73,10 @@ console.log("Upload directory:", uploadDir);
 // 디렉토리 생성 함수
 async function ensureDir(dirpath) {
   try {
-    await fs.promises.mkdir(dirpath, { recursive: true });
+    await fs.mkdir(dirpath, { recursive: true });
     console.log(`Directory created or already exists: ${dirpath}`);
     // 디렉토리 권한 확인
-    const stats = await fs.promises.stat(dirpath);
+    const stats = await fs.stat(dirpath);
     console.log(`Directory permissions: ${stats.mode}`);
   } catch (err) {
     console.error(`Error creating/checking directory ${dirpath}:`, err);
