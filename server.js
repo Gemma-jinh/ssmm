@@ -37,15 +37,11 @@ const router = express.Router();
 app.use(cors());
 app.use(express.json());
 
-// 라우터를  경로에 마운트
-app.use("/api", router);
 //정적 파일 서빙 설정
 app.use(express.static(path.join(__dirname, "../public")));
 
-// 로그인 페이지 라우트
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public", "login.html"));
-});
+// 라우터를  경로에 마운트
+app.use("/api", router);
 
 // Catch-All 라우트는 라우터 마운트 이후에 정의
 app.get("*", async (req, res) => {
@@ -60,6 +56,11 @@ app.get("*", async (req, res) => {
     console.error("File not found or inaccessible:", filePath, err);
     res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
   }
+});
+
+// 로그인 페이지 라우트
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public", "login.html"));
 });
 
 // 모든 기타 라우트는 로그인 페이지로 리디렉션 (SPA 용)
