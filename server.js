@@ -8,7 +8,7 @@ const path = require("path"); //경로 관련 모듈 추가
 const multer = require("multer");
 const XLSX = require("xlsx");
 const util = require("util");
-const fs = require("fs");
+const fs = require("fs").promises;
 const bcrypt = require("bcryptjs");
 const Region = require("./models/Region");
 const Manager = require("./models/Manager"); // 담당자 모델
@@ -40,16 +40,25 @@ app.use(express.json());
 // 라우터를  경로에 마운트
 app.use("/api", router);
 //정적 파일 서빙 설정
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "../public")));
 
 // 로그인 페이지 라우트
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
+  res.sendFile(path.join(__dirname, "../public", "login.html"));
 });
 
 // Catch-All 라우트는 라우터 마운트 이후에 정의
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
+app.get("*", async (req, res) => {
+  // res.sendFile(path.join(__dirname, "public", "login.html"));
+  const filePath = path.join(__dirname, "../public", "login.html");
+  try {
+    await fs.access(filePath, fs.constants.R_OK);
+    res.sendFile(filePath);
+    console.log("File sent successfully:", filePath);
+  } catch (err) {
+    console.error("File not found or inaccessible:", filePath, err);
+    res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
+  }
 });
 
 // 모든 기타 라우트는 로그인 페이지로 리디렉션 (SPA 용)
@@ -299,10 +308,7 @@ async function insertInitialData() {
 
 // DB 연결
 mongoose
-  .connect(MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(MONGO_URI)
   .then(async () => {
     console.log("MongoDB 연결 성공");
     const defaultCarTypes = ["경형", "소형", "중형", "대형", "승합", "기타"];
