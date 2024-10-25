@@ -37,30 +37,35 @@ const router = express.Router();
 app.use(cors());
 app.use(express.json());
 
-// 라우터를  경로에 마운트
-app.use("/api", router);
 //정적 파일 서빙 설정
 app.use(express.static(path.join(__dirname, "../public")));
 
-// 로그인 페이지 라우트
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public", "login.html"));
-});
+// 라우터를  경로에 마운트
+app.use("/api", router);
 
 // Catch-All 라우트는 라우터 마운트 이후에 정의
 app.get("*", async (req, res) => {
-  // res.sendFile(path.join(__dirname, "public", "login.html"));
-  const filePath = path.join(__dirname, "../public", "login.html");
-  console.log("Attempting to send file:", filePath);
-  try {
-    await fs.access(filePath, fs.constants.R_OK);
-    res.sendFile(filePath);
-    console.log("File sent successfully:", filePath);
-  } catch (err) {
-    console.error("File not found or inaccessible:", filePath, err);
-    res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
-  }
+  res.sendFile(path.join(__dirname, "../public", "login.html"), (err) => {
+    if (err) {
+      console.error("파일 전송 오류:", err);
+      res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
+    }
+  });
+  // console.log("Attempting to send file:", filePath);
+  // try {
+  //   await fs.access(filePath, fs.constants.R_OK);
+  //   res.sendFile(filePath);
+  //   console.log("File sent successfully:", filePath);
+  // } catch (err) {
+  //   console.error("File not found or inaccessible:", filePath, err);
+  //   res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
+  // }
 });
+
+// 로그인 페이지 라우트
+// app.get("/", (req, res) => {
+//   res.sendFile(path.join(__dirname, "../public", "login.html"));
+// });
 
 // 모든 기타 라우트는 로그인 페이지로 리디렉션 (SPA 용)
 // app.get("*", (req, res) => {
@@ -68,7 +73,7 @@ app.get("*", async (req, res) => {
 // });
 
 // 파일 저장 경로 설정 및 폴더 생성
-const uploadDir = path.resolve(__dirname, "uploads");
+const uploadDir = path.join(__dirname, "uploads");
 console.log("Upload directory:", uploadDir);
 
 // 디렉토리 생성 함수
@@ -309,7 +314,7 @@ async function insertInitialData() {
 
 // DB 연결
 mongoose
-  .connect(MONGO_URI)
+  .connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("MongoDB 연결 성공");
     const defaultCarTypes = ["경형", "소형", "중형", "대형", "승합", "기타"];
@@ -353,22 +358,21 @@ mongoose
 // });
 
 // 로그인 페이지 라우트
-router.get("/login.html", async (req, res) => {
-  const filePath = path.join(__dirname, "../public", "login.html");
-  console.log("Attempting to send file:", filePath);
-  try {
-    await fs.access(filePath, fs.constants.R_OK);
-    res.sendFile(filePath);
-    console.log("File sent successfully:", filePath);
-  } catch (err) {
-    console.error("File not found or inaccessible:", filePath, err);
-    res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
-  }
-});
+// router.get("/login.html", async (req, res) => {
+//   const filePath = path.join(__dirname, "../public", "login.html");
+//   console.log("Attempting to send file:", filePath);
+//   try {
+//     await fs.access(filePath, fs.constants.R_OK);
+//     res.sendFile(filePath);
+//     console.log("File sent successfully:", filePath);
+//   } catch (err) {
+//     console.error("File not found or inaccessible:", filePath, err);
+//     res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
+//   }
+// });
 
 // 특정 라우트 정의
 router.get("/car-list.html", (req, res) => {
-  // res.sendFile(path.join(__dirname, "public", "pages", "car-list.html"));
   const filePath = path.join(__dirname, "../public", "pages", "car-list.html");
   res.sendFile(filePath, (err) => {
     if (err) {
