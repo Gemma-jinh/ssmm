@@ -46,7 +46,7 @@ app.use("/api", router);
 // Catch-All 라우트는 라우터 마운트 이후에 정의
 app.get("*", async (req, res) => {
   // res.sendFile(path.join(__dirname, "public", "login.html"));
-  const filePath = path.join(__dirname, "../public/login.html");
+  const filePath = path.join(__dirname, "public", "login.html");
   console.log("Attempting to send file:", filePath);
   try {
     await fs.access(filePath, fs.constants.R_OK);
@@ -60,7 +60,7 @@ app.get("*", async (req, res) => {
 
 // 로그인 페이지 라우트
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public", "login.html"));
+  res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
 // 모든 기타 라우트는 로그인 페이지로 리디렉션 (SPA 용)
@@ -69,7 +69,7 @@ app.get("/", (req, res) => {
 // });
 
 // 파일 저장 경로 설정 및 폴더 생성
-const uploadDir = path.resolve(__dirname, "uploads");
+const uploadDir = path.join(__dirname, "uploads");
 console.log("Upload directory:", uploadDir);
 
 // 디렉토리 생성 함수
@@ -355,7 +355,7 @@ mongoose
 
 // 로그인 페이지 라우트
 router.get("/login.html", async (req, res) => {
-  const filePath = path.join(__dirname, "../public", "login.html");
+  const filePath = path.join(__dirname, "public", "login.html");
   console.log("Attempting to send file:", filePath);
   try {
     await fs.access(filePath, fs.constants.R_OK);
