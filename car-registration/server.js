@@ -8,7 +8,7 @@ const path = require("path"); //경로 관련 모듈 추가
 const multer = require("multer");
 const XLSX = require("xlsx");
 const util = require("util");
-const fs = require("fs");
+const fs = require("fs/promises");
 const bcrypt = require("bcryptjs");
 const Region = require("./models/Region");
 const Manager = require("./models/Manager"); // 담당자 모델
@@ -17,16 +17,16 @@ const jwt = require("jsonwebtoken");
 // const Place = require("./models/Place");
 
 // Promisify fs functions
-const mkdir = util.promisify(fs.mkdir);
-const stat = util.promisify(fs.stat);
-const access = util.promisify(fs.access);
-const unlink = util.promisify(fs.unlink);
+// const mkdir = util.promisify(fs.mkdir);
+// const stat = util.promisify(fs.stat);
+// const access = util.promisify(fs.access);
+// const unlink = util.promisify(fs.unlink);
 
 console.log("Current working directory:", process.cwd());
 
 //환경 변수 설정
 // const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key"; // 환경 변수에서 JWT_SECRET 가져오기
+const JWT_SECRET = process.env.JWT_SECRET || "gemma-jinh"; // 환경 변수에서 JWT_SECRET 가져오기
 // const MONGO_URI = "mongodb://localhost:27017/car_registration";
 const MONGO_URI = process.env.MONGO_URI;
 
@@ -40,16 +40,26 @@ app.use(express.json());
 // 라우터를  경로에 마운트
 app.use("/api", router);
 //정적 파일 서빙 설정
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "../public")));
 
 // 로그인 페이지 라우트
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
+  res.sendFile(path.join(__dirname, "../public", "login.html"));
 });
 
 // Catch-All 라우트는 라우터 마운트 이후에 정의
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
+app.get("*", async (req, res) => {
+  // res.sendFile(path.join(__dirname, "public", "login.html"));
+  const filePath = path.join(__dirname, "../public", "login.html");
+  console.log("Attempting to send file:", filePath);
+  try {
+    await fs.access(filePath, fs.constants.R_OK);
+    res.sendFile(filePath);
+    console.log("File sent successfully:", filePath);
+  } catch (err) {
+    console.error("File not found or inaccessible:", filePath, err);
+    res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
+  }
 });
 
 // 모든 기타 라우트는 로그인 페이지로 리디렉션 (SPA 용)
@@ -64,10 +74,10 @@ console.log("Upload directory:", uploadDir);
 // 디렉토리 생성 함수
 async function ensureDir(dirpath) {
   try {
-    await fs.promises.mkdir(dirpath, { recursive: true });
+    await fs.mkdir(dirpath, { recursive: true });
     console.log(`Directory created or already exists: ${dirpath}`);
     // 디렉토리 권한 확인
-    const stats = await fs.promises.stat(dirpath);
+    const stats = await fs.stat(dirpath);
     console.log(`Directory permissions: ${stats.mode}`);
   } catch (err) {
     console.error(`Error creating/checking directory ${dirpath}:`, err);
@@ -347,7 +357,7 @@ router.get("/login.html", async (req, res) => {
   const filePath = path.join(__dirname, "../public", "login.html");
   console.log("Attempting to send file:", filePath);
   try {
-    await access(filePath, fs.constants.R_OK);
+    await fs.access(filePath, fs.constants.R_OK);
     res.sendFile(filePath);
     console.log("File sent successfully:", filePath);
   } catch (err) {
@@ -403,7 +413,7 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "존재하지 않는 관리자 ID입니다." });
     }
 
-    const isMatch = await bcryptjs.compare(password, account.password);
+    const isMatch = await bcrypt.compare(password, account.password);
     if (!isMatch) {
       return res.status(400).json({ error: "비밀번호가 일치하지 않습니다." });
     }
@@ -2009,7 +2019,7 @@ router.post(
 
     // 파일 존재 확인
     try {
-      await access(req.file.path, fs.constants.R_OK);
+      await fs.access(req.file.path, fs.constants.R_OK);
       console.log("File exists and is accessible");
 
       //엑셀 파일 읽기
@@ -2125,7 +2135,7 @@ router.post(
       await CarRegistration.insertMany(registrations);
 
       // 파일 삭제
-      await unlink(req.file.path);
+      await fs.unlink(req.file.path);
       console.log("File deleted:", req.file.path);
 
       res.json({
