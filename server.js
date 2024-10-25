@@ -50,7 +50,7 @@ app.get("/", (req, res) => {
 // Catch-All 라우트는 라우터 마운트 이후에 정의
 app.get("*", async (req, res) => {
   // res.sendFile(path.join(__dirname, "public", "login.html"));
-  const filePath = path.join(__dirname, "../public", "login.html");
+  const filePath = path.join(__dirname, "../public/login.html");
   console.log("Attempting to send file:", filePath);
   try {
     await fs.access(filePath, fs.constants.R_OK);
