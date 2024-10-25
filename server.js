@@ -69,7 +69,7 @@ app.get("/", (req, res) => {
 // });
 
 // 파일 저장 경로 설정 및 폴더 생성
-const uploadDir = path.resolve(__dirname, "../uploads");
+const uploadDir = path.resolve(__dirname, "uploads");
 console.log("Upload directory:", uploadDir);
 
 // 디렉토리 생성 함수
