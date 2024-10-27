@@ -34,7 +34,16 @@ const app = express();
 const router = express.Router();
 
 // 미들웨어 설정
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.ALLOWED_ORIGINS || "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+// 보안 헤더 추가
+app.use(helmet());
+
 app.use(express.json());
 
 //정적 파일 서빙 설정
@@ -45,7 +54,7 @@ app.use("/api", router);
 
 // Catch-All 라우트는 라우터 마운트 이후에 정의
 app.get("*", async (req, res) => {
-  res.sendFile(path.join(__dirname, "../public", "login.html"), (err) => {
+  res.filePath(path.join(__dirname, "../public", "login.html"), (err) => {
     if (err) {
       console.error("파일 전송 오류:", err);
       res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
@@ -2158,11 +2167,15 @@ router.post(
 // 에러 핸들링 미들웨어 (라우트 정의 후에 추가)
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  if (err instanceof multer.MulterError) {
-    res.status(400).json({ error: err.message });
-  } else {
-    res.status(500).json({ error: "서버 내부 오류" });
-  }
+  // if (err instanceof multer.MulterError) {
+  //   res.status(400).json({ error: err.message });
+  // } else {
+  //   res.status(500).json({ error: "서버 내부 오류" });
+  // }
+  res.status(500).json({
+    error: "Internal Server Error",
+    message: process.env.NODE_ENV === "development" ? err.message : undefined,
+  });
 });
 
 // 서버 시작
