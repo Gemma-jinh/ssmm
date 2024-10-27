@@ -9,6 +9,7 @@ const multer = require("multer");
 const XLSX = require("xlsx");
 const util = require("util");
 const fs = require("fs/promises");
+const helmet = require("helmet");
 const bcrypt = require("bcryptjs");
 const Region = require("./models/Region");
 const Manager = require("./models/Manager"); // 담당자 모델
@@ -47,7 +48,7 @@ app.use(helmet());
 app.use(express.json());
 
 //정적 파일 서빙 설정
-app.use(express.static(path.join(__dirname, "../public")));
+app.use(express.static(path.join(__dirname, "public")));
 
 // 라우터를  경로에 마운트
 app.use("/api", router);
