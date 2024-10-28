@@ -38,14 +38,14 @@ app.use(cors());
 app.use(express.json());
 
 //정적 파일 서빙 설정
-app.use(express.static(path.join(__dirname, "../public")));
+app.use(express.static(path.join(__dirname, "public")));
 
 // 라우터를  경로에 마운트
 app.use("/api", router);
 
 // Catch-All 라우트는 라우터 마운트 이후에 정의
 app.get("*", async (req, res) => {
-  const filePath = path.join(__dirname, "../public", "login.html");
+  const filePath = path.join(__dirname, "public", "login.html");
   res.sendFile(filePath, (err) => {
     if (err) {
       console.error("파일 전송 오류:", err);
@@ -375,7 +375,7 @@ const filePath = path.join(__dirname, "public", "login.html");
 
 // 특정 라우트 정의
 router.get("/car-list.html", (req, res) => {
-  const filePath = path.join(__dirname, "../public", "pages", "car-list.html");
+  const filePath = path.join(__dirname, "public", "pages", "car-list.html");
   res.sendFile(filePath, (err) => {
     if (err) {
       console.error("Error sending file:", err);
@@ -615,12 +615,7 @@ router.get(
   authenticateToken,
   authorizeRoles("관리자"),
   async (req, res) => {
-    const filePath = path.join(
-      __dirname,
-      "../public",
-      "pages",
-      "car-list.html"
-    );
+    const filePath = path.join(__dirname, "public", "pages", "car-list.html");
     console.log("Attempting to send file:", filePath);
     try {
       await access(filePath, fs.constants.R_OK);
@@ -654,7 +649,7 @@ router.get(
 router.get("/pages/car-wash-history.html", async (req, res) => {
   const filePath = path.join(
     __dirname,
-    "../public",
+    "public",
     "pages",
     "car-wash-history.html"
   );
