@@ -10,9 +10,9 @@ const XLSX = require("xlsx");
 const util = require("util");
 const fs = require("fs/promises");
 const bcrypt = require("bcryptjs");
-const Region = require("./car-registration/models/Region");
-const Manager = require("./car-registration/models/Manager"); // 담당자 모델
-const Team = require("./car-registration/models/Team"); // 팀 모델
+const Region = require("./models/Region");
+const Manager = require("./models/Manager"); // 담당자 모델
+const Team = require("./models/Team"); // 팀 모델
 const jwt = require("jsonwebtoken");
 // const Place = require("./models/Place");
 
@@ -45,7 +45,8 @@ app.use("/api", router);
 
 // Catch-All 라우트는 라우터 마운트 이후에 정의
 app.get("*", async (req, res) => {
-  res.sendFile(path.join(__dirname, "../public", "login.html"), (err) => {
+  const filePath = path.join(__dirname, "../public", "login.html");
+  res.sendFile(filePath, (err) => {
     if (err) {
       console.error("파일 전송 오류:", err);
       res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
@@ -2159,11 +2160,15 @@ router.post(
 // 에러 핸들링 미들웨어 (라우트 정의 후에 추가)
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  if (err instanceof multer.MulterError) {
-    res.status(400).json({ error: err.message });
-  } else {
-    res.status(500).json({ error: "서버 내부 오류" });
-  }
+  // if (err instanceof multer.MulterError) {
+  //   res.status(400).json({ error: err.message });
+  // } else {
+  //   res.status(500).json({ error: "서버 내부 오류" });
+  // }
+  res.status(500).json({
+    error: "Internal Server Error",
+    message: process.env.NODE_ENV === "development" ? err.message : undefined,
+  });
 });
 
 // 서버 시작
