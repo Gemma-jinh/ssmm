@@ -9,7 +9,6 @@ const multer = require("multer");
 const XLSX = require("xlsx");
 const util = require("util");
 const fs = require("fs/promises");
-const helmet = require("helmet");
 const bcrypt = require("bcryptjs");
 const Region = require("./models/Region");
 const Manager = require("./models/Manager"); // 담당자 모델
@@ -43,19 +42,20 @@ app.use(
   })
 );
 // 보안 헤더 추가
-app.use(helmet());
+// app.use(helmet());
 
 app.use(express.json());
 
 //정적 파일 서빙 설정
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "../public")));
 
 // 라우터를  경로에 마운트
 app.use("/api", router);
 
 // Catch-All 라우트는 라우터 마운트 이후에 정의
 app.get("*", async (req, res) => {
-  res.filePath(path.join(__dirname, "../public", "login.html"), (err) => {
+  const filePath = path.join(__dirname, "../public", "login.html");
+  res.sendFile(filePath, (err) => {
     if (err) {
       console.error("파일 전송 오류:", err);
       res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
