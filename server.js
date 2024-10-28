@@ -10,9 +10,9 @@ const XLSX = require("xlsx");
 const util = require("util");
 const fs = require("fs/promises");
 const bcrypt = require("bcryptjs");
-const Region = require("./models/Region");
-const Manager = require("./models/Manager"); // 담당자 모델
-const Team = require("./models/Team"); // 팀 모델
+const Region = require("./car-registration/models/Region");
+const Manager = require("./car-registration/models/Manager"); // 담당자 모델
+const Team = require("./car-registration/models/Team"); // 팀 모델
 const jwt = require("jsonwebtoken");
 // const Place = require("./models/Place");
 
@@ -358,6 +358,7 @@ mongoose
 // });
 
 // 로그인 페이지 라우트
+const filePath = path.join(__dirname, "public", "login.html");
 // router.get("/login.html", async (req, res) => {
 //   const filePath = path.join(__dirname, "../public", "login.html");
 //   console.log("Attempting to send file:", filePath);
