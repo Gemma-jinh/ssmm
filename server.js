@@ -29,6 +29,7 @@ console.log("Current working directory:", process.cwd());
 const JWT_SECRET = process.env.JWT_SECRET || "gemma-jinh"; // 환경 변수에서 JWT_SECRET 가져오기
 // const MONGO_URI = "mongodb://localhost:27017/car_registration";
 const MONGO_URI = process.env.MONGO_URI;
+console.log("MONGO_URI:", MONGO_URI);
 
 const app = express();
 const router = express.Router();
@@ -353,10 +354,11 @@ const accountSchema = new mongoose.Schema({
     default: null,
   },
   authorityGroup: { type: String, enum: ["관리자", "작업자"], required: true },
-  manager: { type: mongoose.Schema.Types.ObjectId, ref: "Manager" }, // Manager 참조 추가
+  manager: { type: mongoose.Schema.Types.ObjectId, ref: "Manager" },
 });
 
-const Account = mongoose.model("Account", accountSchema);
+const Account =
+  mongoose.models.Account || mongoose.model("Account", accountSchema);
 
 // 모델 생성
 const CarType = mongoose.model("CarType", CarTypeSchema);
@@ -530,6 +532,7 @@ const filePath = path.join(__dirname, "public", "login.html");
 // 로그인 엔드포인트 추가
 router.post("/login", async (req, res) => {
   const { adminId, password } = req.body;
+  console.log("Received adminId:", adminId);
 
   if (!adminId || !password) {
     return res
@@ -537,9 +540,13 @@ router.post("/login", async (req, res) => {
       .json({ error: "adminId와 비밀번호를 입력해주세요." });
   }
   try {
-    const account = await Account.findOne({ adminId })
-      .populate("customer")
-      .exec();
+    // 전체 accounts 컬렉션을 확인
+    const allAccounts = await Account.find({});
+    console.log("All accounts in DB:", allAccounts);
+    const account = await Account.findOne({ adminId });
+    console.log("Found account:", account);
+    // .populate("customer")
+    // .exec();
     if (!account) {
       return res.status(400).json({ error: "존재하지 않는 관리자 ID입니다." });
     }

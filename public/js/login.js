@@ -3,7 +3,7 @@ $(document).ready(function () {
 
   // 토큰 체크 및 리다이렉션 함수
   const token = localStorage.getItem("token");
-  if (!token) {
+  if (token) {
     const decoded = parseJwt(token);
     if (decoded && decoded.authorityGroup) {
       const redirect =
