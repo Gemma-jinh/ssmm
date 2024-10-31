@@ -9,7 +9,7 @@ const multer = require("multer");
 const XLSX = require("xlsx");
 const util = require("util");
 const fs = require("fs/promises");
-const bcrypt = require("bcryptjs");
+const bcryptjs = require("bcryptjs");
 const Region = require("./models/Region");
 const Manager = require("./models/Manager"); // 담당자 모델
 const Team = require("./models/Team"); // 팀 모델
@@ -33,35 +33,111 @@ const MONGO_URI = process.env.MONGO_URI;
 const app = express();
 const router = express.Router();
 
+app.set("timeout", 120000);
 // 미들웨어 설정
 app.use(cors());
 app.use(express.json());
 
 //정적 파일 서빙 설정
-app.use(express.static(path.join(__dirname, "public")));
+app.use(
+  express.static(path.join(__dirname, "public"), {
+    // 정적 파일 제공 옵션 설정
+    setHeaders: (res, filePath) => {
+      // HTML 파일에 대한 적절한 헤더 설정
+      if (filePath.endsWith(".html")) {
+        res.setHeader("Content-Type", "text/html; charset=UTF-8");
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+      }
+    },
+    // 캐시 설정
+    maxAge: "1h",
+  })
+);
 
 // 라우터를  경로에 마운트
 app.use("/api", router);
 
-// Catch-All 라우트는 라우터 마운트 이후에 정의
-app.get("*", async (req, res) => {
-  const filePath = path.join(__dirname, "public", "login.html");
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      console.error("파일 전송 오류:", err);
-      res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
-    }
-  });
-  // console.log("Attempting to send file:", filePath);
-  // try {
-  //   await fs.access(filePath, fs.constants.R_OK);
-  //   res.sendFile(filePath);
-  //   console.log("File sent successfully:", filePath);
-  // } catch (err) {
-  //   console.error("File not found or inaccessible:", filePath, err);
-  //   res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
-  // }
+// HTML 파일 전송을 위한 전용 미들웨어
+const sendFileOptions = {
+  root: path.join(__dirname, "public"),
+  dotfiles: "deny",
+  headers: {
+    "Content-Type": "text/html; charset=UTF-8",
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+  },
+};
+
+// login.html 라우트 처리
+app.get("/login.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
 });
+
+// 기본 라우트
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
+});
+
+// 인증된 페이지 라우트
+app.get(
+  "/car-list.html",
+  authenticateToken,
+  authorizeRoles("관리자"),
+  (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "pages", "car-list.html"));
+  }
+);
+
+app.get(
+  "/car-wash-history.html",
+  authenticateToken,
+  authorizeRoles("작업자"),
+  (req, res) => {
+    res.sendFile(
+      path.join(__dirname, "public", "pages", "car-wash-history.html")
+    );
+  }
+);
+
+// Catch-All 라우트는 라우터 마운트 이후에 정의
+// app.get("*.html", (req, res, next) => {
+//   const filePath = path.join(__dirname, "public", "req.path");
+//   res.sendFile(filePath, htmlFileOptions, (err) => {
+//     if (err) {
+//       console.error("파일 전송 오류(${req.path}):", err);
+//       console.error(`파일 전송 오류 (${req.path}):`, err);
+//       if (err.code === "ECONNABORTED") {
+//         return;
+//       }
+//       if (err.code === "ENOENT") {
+//         return res.redirect("/login.html");
+//       }
+//       next(err);
+//     }
+//   });
+
+// Catch-all 라우트
+app.get("*", (req, res) => {
+  if (!req.path.startsWith("/api")) {
+    res.redirect("/login.html");
+  } else {
+    res.status(404).json({ error: "Not Found" });
+  }
+});
+
+// console.log("Attempting to send file:", filePath);
+// try {
+//   await fs.access(filePath, fs.constants.R_OK);
+//   res.sendFile(filePath);
+//   console.log("File sent successfully:", filePath);
+// } catch (err) {
+//   console.error("File not found or inaccessible:", filePath, err);
+//   res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
+// }
+// });
 
 // 로그인 페이지 라우트
 // app.get("/", (req, res) => {
@@ -147,7 +223,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024,
+    fileSize: 10 * 1024 * 1024,
   },
 });
 
@@ -374,15 +450,15 @@ const filePath = path.join(__dirname, "public", "login.html");
 // });
 
 // 특정 라우트 정의
-router.get("/car-list.html", (req, res) => {
-  const filePath = path.join(__dirname, "public", "pages", "car-list.html");
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      console.error("Error sending file:", err);
-      res.status(500).send("차량 목록 페이지를 찾을 수 없습니다.");
-    }
-  });
-});
+// router.get("/car-list.html", (req, res) => {
+//   const filePath = path.join(__dirname, "public", "pages", "car-list.html");
+//   res.sendFile(filePath, (err) => {
+//     if (err) {
+//       console.error("Error sending file:", err);
+//       res.status(500).send("차량 목록 페이지를 찾을 수 없습니다.");
+//     }
+//   });
+// });
 
 // 모든 기타 라우트는 로그인 페이지로 리디렉션 (SPA 용)
 
@@ -419,7 +495,7 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "존재하지 않는 관리자 ID입니다." });
     }
 
-    const isMatch = await bcrypt.compare(password, account.password);
+    const isMatch = await bcryptjs.compare(password, account.password);
     if (!isMatch) {
       return res.status(400).json({ error: "비밀번호가 일치하지 않습니다." });
     }
@@ -614,17 +690,14 @@ router.get(
   "/car-list.html",
   authenticateToken,
   authorizeRoles("관리자"),
-  async (req, res) => {
+  (req, res) => {
     const filePath = path.join(__dirname, "public", "pages", "car-list.html");
-    console.log("Attempting to send file:", filePath);
-    try {
-      await access(filePath, fs.constants.R_OK);
-      res.sendFile(filePath);
-      console.log("File sent successfully:", filePath);
-    } catch (err) {
-      console.error("File not found or inaccessible:", filePath, err);
-      res.status(500).send("차량 목록 페이지를 찾을 수 없습니다.");
-    }
+    res.sendFile(filePath, (err) => {
+      if (err) {
+        console.error("차량 목록 페이지 전송 오류:", err);
+        res.status(500).send("차량 목록 페이지를 찾을 수 없습니다.");
+      }
+    });
   }
 );
 
@@ -646,23 +719,25 @@ router.get(
 // });
 
 // 작업자 페이지 라우트 추가 (필요 시)
-router.get("/pages/car-wash-history.html", async (req, res) => {
-  const filePath = path.join(
-    __dirname,
-    "public",
-    "pages",
-    "car-wash-history.html"
-  );
-  console.log("Attempting to send file:", filePath);
-  try {
-    await access(filePath, fs.constants.R_OK);
-    res.sendFile(filePath);
-    console.log("File sent successfully:", filePath);
-  } catch (err) {
-    console.error("File not found or inaccessible:", filePath, err);
-    res.status(500).send("차량 세차 내역 페이지를 찾을 수 없습니다.");
+router.get(
+  "/pages/car-wash-history.html",
+  authenticateToken,
+  authorizeRoles("작업자"),
+  (req, res) => {
+    const filePath = path.join(
+      __dirname,
+      "public",
+      "pages",
+      "car-wash-history.html"
+    );
+    res.sendFile(filePath, (err) => {
+      if (err) {
+        console.error("세차 내역 페이지 전송 오류:", err);
+        res.status(500).send("세차 내역 페이지를 찾을 수 없습니다.");
+      }
+    });
   }
-});
+);
 
 router.get("/regions/name/:regionName", async (req, res) => {
   const { regionName } = req.params;
@@ -1305,10 +1380,25 @@ router.post(
 
 // 관리자 계정 생성 예시
 router.post("/register-admin", async (req, res) => {
-  const { username, password } = req.body;
+  const { adminId, adminName, password, authorityGroup } = req.body;
+
+  if (!adminId || !adminName || !password || !authorityGroup) {
+    return res.status(400).json({ error: "모든 필드를 입력해주세요." });
+  }
+  // 관리자 ID 중복 확인
+  const existingAccount = await Account.findOne({ adminId });
+  if (existingAccount) {
+    return res.status(400).json({ error: "이미 사용 중인 관리자 ID입니다." });
+  }
+
   const hashedPassword = await bcryptjs.hash(password, 10);
-  const user = new User({ username, password: hashedPassword, role: "관리자" });
-  await user.save();
+  const newAccount = new Account({
+    adminId,
+    adminName,
+    password: hashedPassword,
+    authorityGroup,
+  });
+  await newAccount.save();
   res.json({ message: "관리자 계정이 생성되었습니다." });
 });
 
@@ -1993,7 +2083,7 @@ router.post(
 
 // 엑셀 업로드 (차량 대량 등록)
 router.post(
-  "/car-registrations/bulk-upload",
+  "/bulk-upload",
   (req, res, next) => {
     console.log("Received upload request");
     upload.single("file")(req, res, (err) => {
@@ -2154,17 +2244,29 @@ router.post(
 
 // 에러 핸들링 미들웨어 (라우트 정의 후에 추가)
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error("서버 에러:", err);
   // if (err instanceof multer.MulterError) {
   //   res.status(400).json({ error: err.message });
   // } else {
   //   res.status(500).json({ error: "서버 내부 오류" });
   // }
-  res.status(500).json({
-    error: "Internal Server Error",
-    message: process.env.NODE_ENV === "development" ? err.message : undefined,
-  });
+
+  // ECONNABORTED 에러 특별 처리
+  if (err.code === "ECONNABORTED") {
+    return;
+  }
+  if (req.xhr || req.headers.accept.includes("application/json")) {
+    res.status(500).json({
+      error: "Internal Server Error",
+      message: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  } else {
+    // 일반 웹 요청에 대한 에러 처리
+    res.redirect("/login.html");
+  }
 });
+
+module.exports = app;
 
 // 서버 시작
 const PORT = process.env.PORT || 3000;
