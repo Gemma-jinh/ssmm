@@ -37,96 +37,145 @@ app.set("timeout", 120000);
 // 미들웨어 설정
 app.use(cors());
 app.use(express.json());
-
-//정적 파일 서빙 설정
-app.use(
-  express.static(path.join(__dirname, "public"), {
-    // 정적 파일 제공 옵션 설정
-    setHeaders: (res, filePath) => {
-      // HTML 파일에 대한 적절한 헤더 설정
-      if (filePath.endsWith(".html")) {
-        res.setHeader("Content-Type", "text/html; charset=UTF-8");
-        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-        res.setHeader("Pragma", "no-cache");
-        res.setHeader("Expires", "0");
-      }
-    },
-    // 캐시 설정
-    maxAge: "1h",
-  })
-);
-
-// 라우터를  경로에 마운트
+//API 라우터 마운트
 app.use("/api", router);
 
-// HTML 파일 전송을 위한 전용 미들웨어
-const sendFileOptions = {
-  root: path.join(__dirname, "public"),
-  dotfiles: "deny",
-  headers: {
-    "Content-Type": "text/html; charset=UTF-8",
-    "Cache-Control": "no-cache, no-store, must-revalidate",
-    Pragma: "no-cache",
-    Expires: "0",
-  },
+router.post("/api/verify-token", (req, res) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    return res.json({ valid: false });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    res.json({
+      valid: true,
+      authorityGroup: decoded.authorityGroup,
+      adminId: decoded.adminId,
+    });
+  } catch (err) {
+    console.error("Token verification error:", err);
+    res.json({ valid: false });
+  }
+});
+
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({ error: "토큰이 필요합니다." });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    console.error("Token authentication error:", err);
+    res.status(403).json({ error: "유효하지 않은 토큰입니다." });
+  }
+
+  // jwt.verify(token, JWT_SECRET, (err, decoded) => {
+  //   if (err) {
+  //     console.error("토큰 검증 오류:", err);
+  //     return res.status(403).json({ error: "유효하지 않은 토큰입니다." });
+  //   }
+  //   req.user = user;
+  //   next();
+  // });
 };
 
+// 권한 검사 미들웨어 정의
+const authorizeRoles = (...allowedRoles) => {
+  return (req, res, next) => {
+    if (!allowedRoles.includes(req.user.authorityGroup)) {
+      return res.status(403).json({ error: "권한이 없습니다." });
+    }
+    next();
+  };
+};
+
+//정적 파일 서빙 설정
+app.use(express.static(path.join(__dirname, "public")));
+// {
+// 정적 파일 제공 옵션 설정
+// setHeaders: (res, filePath) => {
+// HTML 파일에 대한 적절한 헤더 설정
+//       if (filePath.endsWith(".html")) {
+//         res.setHeader("Content-Type", "text/html; charset=UTF-8");
+//         res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+//         res.setHeader("Pragma", "no-cache");
+//         res.setHeader("Expires", "0");
+//       }
+//     },
+//     maxAge: "1h",
+//   })
+// );
+// API 라우터 설정
+// router.post("/verify-token", authenticateToken, (req, res) => {
+//   res.json({
+//     valid: true,
+//     authorityGroup: req.user.authorityGroup,
+//   });
+// });
+
+// 라우터를  경로에 마운트
+// app.use("/api", router);
+
+// HTML 파일 전송을 위한 전용 미들웨어
+// const sendFileOptions = {
+//   root: path.join(__dirname, "public"),
+//   dotfiles: "deny",
+//   headers: {
+//     "Content-Type": "text/html; charset=UTF-8",
+//     "Cache-Control": "no-cache, no-store, must-revalidate",
+//     Pragma: "no-cache",
+//     Expires: "0",
+//   },
+// };
+
 // login.html 라우트 처리
-app.get("/login.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
-});
+// app.get("/login.html", (req, res) => {
+//   res.sendFile(path.join(__dirname, "public", "login.html"));
+// });
 
 // 기본 라우트
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
-});
+// app.get("/", (req, res) => {
+//   res.sendFile(path.join(__dirname, "public", "login.html"));
+// });
 
 // 인증된 페이지 라우트
-app.get(
-  "/car-list.html",
-  authenticateToken,
-  authorizeRoles("관리자"),
-  (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "pages", "car-list.html"));
-  }
-);
+// app.get(
+//   "/car-list.html",
+//   authenticateToken,
+//   authorizeRoles("관리자"),
+//   (req, res) => {
+//     res.sendFile(path.join(__dirname, "public", "pages", "car-list.html"));
+//   }
+// );
 
-app.get(
-  "/car-wash-history.html",
-  authenticateToken,
-  authorizeRoles("작업자"),
-  (req, res) => {
-    res.sendFile(
-      path.join(__dirname, "public", "pages", "car-wash-history.html")
-    );
-  }
-);
-
-// Catch-All 라우트는 라우터 마운트 이후에 정의
-// app.get("*.html", (req, res, next) => {
-//   const filePath = path.join(__dirname, "public", "req.path");
-//   res.sendFile(filePath, htmlFileOptions, (err) => {
-//     if (err) {
-//       console.error("파일 전송 오류(${req.path}):", err);
-//       console.error(`파일 전송 오류 (${req.path}):`, err);
-//       if (err.code === "ECONNABORTED") {
-//         return;
-//       }
-//       if (err.code === "ENOENT") {
-//         return res.redirect("/login.html");
-//       }
-//       next(err);
-//     }
-//   });
+// app.get(
+//   "/car-wash-history.html",
+//   authenticateToken,
+//   authorizeRoles("작업자"),
+//   (req, res) => {
+//     res.sendFile(
+//       path.join(__dirname, "public", "pages", "car-wash-history.html")
+//     );
+//   }
+// );
 
 // Catch-all 라우트
-app.get("*", (req, res) => {
-  if (!req.path.startsWith("/api")) {
-    res.redirect("/login.html");
-  } else {
-    res.status(404).json({ error: "Not Found" });
-  }
-});
+// app.get("*", (req, res) => {
+//   if (!req.path.startsWith("/api")) {
+//     res.redirect("/login.html");
+//   } else {
+//     res.status(404).json({ error: "Not Found" });
+//   }
+// });
 
 // console.log("Attempting to send file:", filePath);
 // try {
@@ -521,33 +570,34 @@ router.post("/login", async (req, res) => {
 });
 
 // 2. 인증 미들웨어 추가
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+// router.post("/verify-token", (req, res) => {
+//   const authHeader = req.headers["authorization"];
+//   const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
 
-  if (!token) {
-    return res.status(401).json({ error: "토큰이 필요합니다." });
-  }
+//   if (!token) {
+//     return res.json({ valid: false });
+//   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      console.error("토큰 검증 오류:", err);
-      return res.status(403).json({ error: "유효하지 않은 토큰입니다." });
-    }
-    req.user = user; // 토큰의 페이로드를 req.user에 저장
-    next();
-  });
-}
+//   jwt.verify(token, JWT_SECRET, (err, decoded) => {
+//     if (err) {
+//       return res.json({ valid: false });
+//     }
+//     res.json({
+//       valid: true,
+//       authorityGroup: decoded.authorityGroup,
+//     });
+//   });
+// });
 
 // 3. 권한 부여 미들웨어 추가
-function authorizeRoles(...allowedRoles) {
-  return (req, res, next) => {
-    if (!allowedRoles.includes(req.user.authorityGroup)) {
-      return res.status(403).json({ error: "권한이 없습니다." });
-    }
-    next();
-  };
-}
+// function authorizeRoles(...allowedRoles) {
+//   return (req, res, next) => {
+//     if (!allowedRoles.includes(req.user.authorityGroup)) {
+//       return res.status(403).json({ error: "권한이 없습니다." });
+//     }
+//     next();
+//   };
+// }
 
 router.get(
   "/car-registrations",
@@ -1289,11 +1339,9 @@ router.get("/car-location-register", (req, res) => {
 });
 
 // 토큰 유효성 검사 엔드포인트
-router.post("/verify-token", authenticateToken, (req, res) => {
-  // authenticateToken 미들웨어에서 토큰 검증이 완료되었으므로,
-  // 여기서는 단순히 성공 응답을 보냄
-  res.json({ valid: true });
-});
+// router.post("/verify-token", (req, res) => {
+//   res.json({ valid: true });
+// });
 
 // 1. 관리자 ID 중복 확인 엔드포인트
 router.get("/accounts/check-duplicate", async (req, res) => {
@@ -2242,6 +2290,37 @@ router.post(
   }
 );
 
+// login.html 라우트 처리
+app.get("/login.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
+});
+
+// 기본 라우트
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
+});
+
+// 인증된 페이지 라우트
+app.get(
+  "/car-list.html",
+  authenticateToken,
+  authorizeRoles("관리자"),
+  (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "pages", "car-list.html"));
+  }
+);
+
+app.get(
+  "/car-wash-history.html",
+  authenticateToken,
+  authorizeRoles("작업자"),
+  (req, res) => {
+    res.sendFile(
+      path.join(__dirname, "public", "pages", "car-wash-history.html")
+    );
+  }
+);
+
 // 에러 핸들링 미들웨어 (라우트 정의 후에 추가)
 app.use((err, req, res, next) => {
   console.error("서버 에러:", err);
@@ -2265,8 +2344,6 @@ app.use((err, req, res, next) => {
     res.redirect("/login.html");
   }
 });
-
-module.exports = app;
 
 // 서버 시작
 const PORT = process.env.PORT || 3000;

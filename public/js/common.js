@@ -28,52 +28,49 @@
 //   $(".pagination").html(paginationHtml);
 // }
 
-$(document).ready(function () {
-  // JWT 토큰 가져오기
-  const token = localStorage.getItem("token");
+// $(document).ready(function () {
+//   // JWT 토큰 가져오기
+//   const token = localStorage.getItem("token");
 
-  // 토큰이 없으면 로그인 페이지로 리디렉션
-  if (!token) {
-    window.location.href = "/login.html"; // 로그인 페이지 경로로 수정
-    return;
-  }
+//   if (!token) {
+//     window.location.href = "/login.html";
+//     return;
+//   }
 
-  try {
-    const decoded = jwt_decode(token);
-    const currentTime = Date.now() / 1000;
+//   try {
+//     const decoded = jwt_decode(token);
+//     const currentTime = Date.now() / 1000;
 
-    if (decoded.exp < currentTime) {
-      // 토큰이 만료된 경우
-      alert("세션이 만료되었습니다. 다시 로그인해주세요.");
-      localStorage.removeItem("token");
-      window.location.href = "/login.html";
-      return;
-    }
-  } catch (e) {
-    console.error("토큰 디코딩 오류:", e);
-    localStorage.removeItem("token");
-    window.location.href = "/login.html";
-    return;
-  }
+//     if (decoded.exp < currentTime) {
+//       alert("세션이 만료되었습니다. 다시 로그인해주세요.");
+//       localStorage.removeItem("token");
+//       window.location.href = "/login.html";
+//       return;
+//     }
+//   } catch (e) {
+//     console.error("토큰 디코딩 오류:", e);
+//     localStorage.removeItem("token");
+//     window.location.href = "/login.html";
+//     return;
+//   }
 
-  // 토큰이 있는 경우, 유효성 검사 (선택 사항)
-  $.ajax({
-    url: "/api/verify-token", // 토큰 유효성 검사 엔드포인트 (추가 필요)
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    success: function (response) {
-      // 토큰이 유효한 경우 아무 작업도 하지 않음
-    },
-    error: function (xhr, status, error) {
-      // 토큰이 유효하지 않거나 만료된 경우 로그인 페이지로 리디렉션
-      alert("세션이 만료되었습니다. 다시 로그인해주세요.");
-      localStorage.removeItem("token");
-      window.location.href = "/login.html"; // 로그인 페이지 경로로 수정
-    },
-  });
-});
+//   $.ajax({
+//     url: "/api/verify-token",
+//     method: "POST",
+//     headers: {
+//       Authorization: `Bearer ${token}`,
+//     },
+//     success: function (response) {
+
+//     },
+//     error: function (xhr, status, error) {
+
+//       alert("세션이 만료되었습니다. 다시 로그인해주세요.");
+//       localStorage.removeItem("token");
+//       window.location.href = "/login.html";
+//     },
+//   });
+// });
 
 // JWT 디코딩 함수
 function parseJwt(token) {
@@ -94,7 +91,6 @@ function parseJwt(token) {
   }
 }
 
-// 사용자 역할 가져오기
 function getUserRole() {
   const token = localStorage.getItem("token");
   if (token) {
@@ -104,7 +100,6 @@ function getUserRole() {
   return null;
 }
 
-// 사용자 ID 가져오기
 function getUserId() {
   const token = localStorage.getItem("token");
   if (token) {
@@ -114,12 +109,16 @@ function getUserId() {
   return null;
 }
 
-// 인증 확인 및 리디렉션
 function checkAuthentication(requiredRole = null) {
+  // const token = localStorage.getItem("token");
+  if (window.location.pathname === "/login.html") {
+    return true;
+  }
+
   const token = localStorage.getItem("token");
   if (!token) {
-    alert("로그인이 필요합니다.");
-    window.location.href = "login.html";
+    localStorage.clear(); // 모든 관련 데이터 삭제
+    window.location.href = "/login.html";
     return false;
   }
 
@@ -130,18 +129,31 @@ function checkAuthentication(requiredRole = null) {
     return false;
   }
 
-  const role = payload.authorityGroup;
+  // 토큰 만료 체크
+  const currentTime = Date.now() / 1000;
+  if (payload.exp < currentTime) {
+    localStorage.clear();
+    window.location.href = "/login.html";
+    return false;
+  }
+
   if (requiredRole && role !== requiredRole) {
-    alert("해당 페이지에 접근할 권한이 없습니다.");
-    window.location.href = "login.html";
+    alert(" 접근 권한이 없습니다.");
+    window.history.back();
     return false;
   }
 
   return true;
 }
 
-// 로그아웃 함수
 function logout() {
-  localStorage.removeItem("token");
-  window.location.href = "login.html";
+  localStorage.clear();
+  window.location.href = "/login.html";
 }
+
+// 페이지 로드 시 인증 체크 (로그인 페이지 제외)
+$(document).ready(function () {
+  if (window.location.pathname !== "/login.html") {
+    checkAuthentication();
+  }
+});

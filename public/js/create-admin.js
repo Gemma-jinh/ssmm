@@ -2,7 +2,7 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const Account = require("./models/Account"); // Account 모델의 실제 경로로 수정
-const Manager = require("./models/Manager"); // Manager 모델의 실제 경로로 수정
+const Manager = require("../../models/Manager"); // Manager 모델의 실제 경로로 수정
 
 const MONGO_URI =
   process.env.MONGO_URI || "mongodb://localhost:27017/car_registration"; // 환경 변수로 MONGO_URI 설정
