@@ -1,16 +1,41 @@
 $(document).ready(function () {
-  const API_BASE_URL = "http://localhost:5500/api"; // 백엔드 서버 URL
+  const API_BASE_URL = "/api"; // 백엔드 서버 URL
 
+  // JWT 토큰 가져오기
+  function getToken() {
+    return localStorage.getItem("token"); // 로그인 시 저장한 토큰
+  }
   // 차량 목록 로드 함수
   function loadCarList() {
     $.ajax({
       url: `${API_BASE_URL}/car-registrations`,
       method: "GET",
-      success: function (data) {
+      headers: {
+        Authorization: `Bearer ${getToken()}`, // JWT 토큰 추가
+      },
+      success: function (response) {
+        console.log("서버 응답:", response);
+
         const carList = $("#car-list");
         carList.empty(); // 기존 데이터 비우기
 
-        data.forEach((car) => {
+        // 데이터 구조에 따라 처리
+        const carsArray = Array.isArray(response)
+          ? response
+          : response.data
+          ? response.data
+          : response.cars
+          ? response.cars
+          : [];
+
+        if (carsArray.length === 0) {
+          carList.append(
+            '<tr><td colspan="7" class="text-center">등록된 차량이 없습니다.</td></tr>'
+          );
+          return;
+        }
+
+        carsArray.forEach((car) => {
           const row = `
               <tr>
                 <th><input class="form-check-input select-check-1" type="checkbox" value="${car._id}" /></th>
@@ -30,8 +55,14 @@ $(document).ready(function () {
         });
       },
       error: function (err) {
-        console.error("차량 목록 로드 실패:", err);
-        alert("차량 목록을 불러오는 데 실패했습니다.");
+        if (err.status === 401) {
+          alert("로그인이 필요합니다.");
+          // 로그인 페이지로 리다이렉트
+          window.location.href = "/pages/login.html";
+        } else {
+          console.error("차량 목록 로드 실패:", err);
+          alert("차량 목록을 불러오는 데 실패했습니다.");
+        }
       },
     });
   }
@@ -60,6 +91,9 @@ $(document).ready(function () {
     $.ajax({
       url: `${API_BASE_URL}/car-registrations`,
       method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${getToken()}`, // JWT 토큰 추가
+      },
       contentType: "application/json",
       data: JSON.stringify({ ids: selectedCars }),
       success: function () {
@@ -67,8 +101,13 @@ $(document).ready(function () {
         loadCarList(); // 목록 다시 로드
       },
       error: function (err) {
-        console.error("차량 삭제 실패:", err);
-        alert("차량 삭제에 실패했습니다.");
+        if (err.status === 401) {
+          alert("로그인이 필요합니다.");
+          window.location.href = "/pages/login.html";
+        } else {
+          console.error("차량 삭제 실패:", err);
+          alert("차량 삭제에 실패했습니다.");
+        }
       },
     });
   });

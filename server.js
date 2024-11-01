@@ -41,42 +41,62 @@ app.use(express.json());
 //API 라우터 마운트
 app.use("/api", router);
 
-router.post("/api/verify-token", (req, res) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
+// router.post("/api/verify-token", (req, res) => {
+//   const authHeader = req.headers["authorization"];
+//   const token = authHeader && authHeader.split(" ")[1];
 
-  if (!token) {
-    return res.json({ valid: false });
-  }
+//   if (!token) {
+//     return res.json({ valid: false });
+//   }
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    res.json({
-      valid: true,
-      authorityGroup: decoded.authorityGroup,
-      adminId: decoded.adminId,
-    });
-  } catch (err) {
-    console.error("Token verification error:", err);
-    res.json({ valid: false });
-  }
-});
+//   try {
+//     const decoded = jwt.verify(token, JWT_SECRET);
+//     res.json({
+//       valid: true,
+//       authorityGroup: decoded.authorityGroup,
+//       adminId: decoded.adminId,
+//     });
+//   } catch (err) {
+//     console.error("Token verification error:", err);
+//     res.json({ valid: false });
+//   }
+// });
+
+// const authenticateToken = (req, res, next) => {
+//   const authHeader = req.headers["authorization"];
+//   const token = authHeader && authHeader.split(" ")[1];
+
+//   if (!token) {
+//     return res.status(401).json({ error: "토큰이 필요합니다." });
+//   }
 
 const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+  console.log("인증 미들웨어 실행");
+  console.log("Headers:", req.headers);
 
-  if (!token) {
+  // Authorization 헤더에서 토큰 추출
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    console.log("Authorization 헤더 없음");
     return res.status(401).json({ error: "토큰이 필요합니다." });
   }
 
+  // Bearer 토큰 형식 확인
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    console.log("토큰 형식 잘못됨");
+    return res.status(401).json({ error: "올바른 토큰 형식이 아닙니다." });
+  }
+
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("토큰 검증 성공:", decoded);
     req.user = decoded;
     next();
   } catch (err) {
-    console.error("Token authentication error:", err);
-    res.status(403).json({ error: "유효하지 않은 토큰입니다." });
+    console.error("토큰 검증 실패:", err);
+    res.status(401).json({ error: "유효하지 않은 토큰입니다." });
   }
 
   // jwt.verify(token, JWT_SECRET, (err, decoded) => {
@@ -388,6 +408,7 @@ const PlaceSchema = new mongoose.Schema({
   name: { type: String, required: true },
   address: { type: String, required: true },
   order: { type: Number, default: 0 },
+  parkingSpot: [{ type: String }],
 });
 
 const Place = mongoose.model("Place", PlaceSchema);
@@ -440,6 +461,47 @@ async function insertInitialData() {
   }
 }
 
+// 장소별 주차 위치 초기 설정
+async function setInitialParkingSpots() {
+  const placeParkingSpots = {
+    삼성_수원: ["A", "B", "C"],
+    삼성_서초사옥: ["서초사옥", "서초사옥 A동", "태평로"],
+    에스원_서초사옥: ["서초사옥"],
+    "R&D캠퍼스_우면": ["DE tower", "F tower", "C tower"],
+    한국총괄_대륭: ["대륭", "358"],
+    전자판매_대륭: ["358"],
+    "202경비단": ["효창", "한남"],
+  };
+
+  try {
+    for (const [placeName, spots] of Object.entries(placeParkingSpots)) {
+      const place = await Place.findOne({ name: placeName });
+      if (place) {
+        if (!place.parkingSpots || !arrayEquals(place.parkingSpots, spots)) {
+          place.parkingSpots = spots;
+          await place.save();
+          console.log(`${placeName} 주차 위치 설정 완료:`, spots);
+        }
+      } else {
+        console.log(`${placeName} 장소를 찾을 수 없습니다.`);
+      }
+    }
+    console.log("모든 장소의 주차 위치 설정이 완료되었습니다.");
+  } catch (err) {
+    console.error("주차 위치 초기 설정 오류:", err);
+  }
+}
+
+// 배열 비교 헬퍼 함수
+function arrayEquals(a, b) {
+  return (
+    Array.isArray(a) &&
+    Array.isArray(b) &&
+    a.length === b.length &&
+    a.every((val, index) => val === b[index])
+  );
+}
+
 // DB 연결
 mongoose
   .connect(process.env.MONGO_URI)
@@ -474,9 +536,12 @@ mongoose
     // 초기 서비스 종류 및 금액 타입 데이터 삽입
     try {
       await insertInitialData();
+      await setInitialParkingSpots();
     } catch (err) {
       console.error("초기 데이터 삽입 실패:", err);
     }
+    // 초기 관리자 계정 생성
+    // await createInitialAdmin();
   })
   .catch((err) => console.error("MongoDB 연결 실패:", err));
 
@@ -696,24 +761,43 @@ router.get(
       const skip = (parseInt(page) - 1) * parseInt(limit);
       const total = await CarRegistration.countDocuments(filter);
       const carRegistrations = await CarRegistration.find(filter)
-        .populate("type") // CarType 정보 포함
-        .populate("model") // CarModel 정보 포함
-        .populate("customer") // Customer 정보 포함
-        // .populate("location.region")
-        // .populate("location.place")
-        .populate("location.region")
-        .populate("location.place")
-        .populate("manager")
-        .populate("team")
+        .populate("type", "name") // CarType 정보 포함
+        .populate("model", "name") // CarModel 정보 포함
+        .populate("customer", "name") // Customer 정보 포함
+        .populate("location.region", "name")
+        .populate("location.place", "name address")
+        .populate("manager", "name")
+        .populate("team", "name")
+        .populate("serviceType", "name")
+        .populate("serviceAmountType", "name")
         .skip(skip)
         .limit(parseInt(limit))
+        .lean() // JSON 객체 변환
         .exec();
+
+      // 응답 데이터 가공
+      const formattedCars = carRegistrations.map((car) => ({
+        ...car,
+        type: car.type?.name || "",
+        model: car.model?.name || "",
+        customer: car.customer?.name || "",
+        location: {
+          region: car.location?.region?.name || "",
+          place: car.location?.place?.name || "",
+          address: car.location?.place?.address || "",
+          parkingSpot: car.location?.parkingSpot || "",
+        },
+        manager: car.manager?.name || "",
+        team: car.team?.name || "",
+        serviceType: car.serviceType?.name || "",
+        serviceAmountType: car.serviceAmountType?.name || "",
+      }));
 
       res.json({
         total,
         page: parseInt(page),
         totalPages: Math.ceil(total / parseInt(limit)),
-        cars: carRegistrations,
+        cars: formattedCars,
       });
     } catch (err) {
       console.error("차량 목록 조회 오류:", err);
@@ -840,33 +924,36 @@ router.get("/regions/name/:regionName/places", async (req, res) => {
 // POST /car-locations 엔드포인트 정의
 router.post("/car-locations", async (req, res) => {
   try {
-    const { region, name, address } = req.body;
+    const { region: regionName, name, address } = req.body;
 
     // 필수 필드 검증
-    if (!region || !name || !address) {
+    if (!regionName || !name || !address) {
       return res.status(400).json({ error: "모든 필드를 입력해주세요." });
     }
 
     // 지역명으로 Region 문서 찾기
-    const regionDoc = await Region.findOne({ name: region });
+    const regionDoc = await Region.findOne({ name: regionName });
     if (!regionDoc) {
       return res
         .status(404)
-        .json({ error: `존재하지 않는 지역: ${region}`, row });
+        .json({ error: `존재하지 않는 지역: ${regionName}` });
     }
 
-    const placeDoc = await Place.findOne({
+    // const placeDoc = await Place.findOne({
+    //   name: name,
+    //   region: regionDoc._id,
+    // });
+    // if (!placeDoc) {
+    //   return res
+    //     .status(400)
+    //     .json({ error: `존재하지 않는 장소: ${name} (지역: ${region})`, row });
+    // }
+
+    // 중복된 장소명 확인 (선택 사항)
+    const existingPlace = await Place.findOne({
       name: name,
       region: regionDoc._id,
     });
-    if (!placeDoc) {
-      return res
-        .status(400)
-        .json({ error: `존재하지 않는 장소: ${name} (지역: ${region})`, row });
-    }
-
-    // 중복된 장소명 확인 (선택 사항)
-    const existingPlace = await Place.findOne({ name, region: regionDoc._id });
     if (existingPlace) {
       return res.status(400).json({ error: "이미 존재하는 장소명입니다." });
     }
@@ -874,8 +961,8 @@ router.post("/car-locations", async (req, res) => {
     // 새로운 장소 생성
     const newPlace = new Place({
       region: regionDoc._id,
-      name,
-      address,
+      name: name,
+      address: address,
     });
 
     await newPlace.save();
@@ -1331,6 +1418,35 @@ router.delete("/places/:id", async (req, res) => {
     res.json({ message: "장소가 성공적으로 삭제되었습니다." });
   } catch (err) {
     console.error("장소 삭제 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+router.get("/places/:placeId/parking-spots", async (req, res) => {
+  try {
+    const place = await Place.findById(req.params.placeId);
+    if (!place) {
+      return res.status(404).json({ error: "장소를 찾을 수 없습니다." });
+    }
+    res.json(place.parkingSpots);
+  } catch (err) {
+    console.error("주차 위치 조회 오류:", err);
+    res.status(500).json({ error: "서버 오류" });
+  }
+});
+
+router.put("/places/:placeId/parking-spots", async (req, res) => {
+  try {
+    const { parkingSpots } = req.body;
+    const place = await Place.findById(req.params.placeId);
+    if (!place) {
+      return res.status(404).json({ error: "장소를 찾을 수 없습니다." });
+    }
+    place.parkingSpots = parkingSpots;
+    await place.save();
+    res.json(place);
+  } catch (err) {
+    console.error("주차 위치 업데이트 오류:", err);
     res.status(500).json({ error: "서버 오류" });
   }
 });

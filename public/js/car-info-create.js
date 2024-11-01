@@ -146,6 +146,61 @@ $(document).ready(function () {
     }
   });
 
+  // 장소별 주차 위치 매핑
+  const PLACE_PARKING_SPOTS = {
+    삼성_수원: ["A", "B", "C"],
+    삼성_서초사옥: ["서초사옥", "서초사옥 A동", "태평로"],
+    에스원_서초사옥: ["서초사옥"],
+    "R&D캠퍼스_우면": ["DE tower", "F tower", "C tower"],
+    한국총괄_대륭: ["대륭", "358"],
+    전자판매_대륭: ["358"],
+    "202경비단": ["효창", "한남"],
+  };
+
+  // 장소 선택 변경 시 주차 위치 목록 로드
+  $("#place-select").on("change", function () {
+    const selectedPlace = $(this).val();
+    const selectedPlaceName = $(this).find("option:selected").text();
+    const parkingSpotSelect = $("#parking-spot-select");
+
+    if (selectedPlace) {
+      parkingSpotSelect.prop("disabled", false);
+      parkingSpotSelect.empty();
+      parkingSpotSelect.append(
+        '<option value="" selected>주차 위치 선택</option>'
+      );
+
+      // 미리 정의된 장소인 경우 해당하는 주차 위치 표시
+      if (PLACE_PARKING_SPOTS[selectedPlaceName]) {
+        PLACE_PARKING_SPOTS[selectedPlaceName].forEach((spot) => {
+          parkingSpotSelect.append(`<option value="${spot}">${spot}</option>`);
+        });
+      } else {
+        // 다른 장소의 경우 API에서 주차 위치 로드
+        $.ajax({
+          url: `${API_BASE_URL}/places/${selectedPlace}/parking-spots`,
+          method: "GET",
+          success: function (data) {
+            data.forEach((spot) => {
+              parkingSpotSelect.append(
+                `<option value="${spot}">${spot}</option>`
+              );
+            });
+          },
+          error: function (err) {
+            console.error("주차 위치 로드 실패:", err);
+            alert("주차 위치 목록을 불러오는 데 실패했습니다.");
+          },
+        });
+      }
+    } else {
+      parkingSpotSelect
+        .prop("disabled", true)
+        .empty()
+        .append('<option value="" selected>주차 위치 선택</option>');
+    }
+  });
+
   // 고객사 목록 로드 함수
   function loadCustomers() {
     $.ajax({

@@ -36,24 +36,30 @@ $(document).ready(function () {
       contentType: "application/json",
       data: JSON.stringify({ adminId, password }),
       success: function (data) {
-        localStorage.setItem("token", data.token);
-        const payload = parseJwt(data.token);
+        console.log("로그인 성공:", data);
+        if (data.token) {
+          localStorage.setItem("token", data.token);
+          console.log("저장된 토큰:", localStorage.getItem("token"));
+          //   const payload = parseJwt(data.token);
 
-        if (payload && payload.authorityGroup) {
-          const redirect =
-            payload.authorityGroup === "관리자"
-              ? "/car-list.html"
-              : "/car-wash-history.html";
-          window.location.replace(redirect);
+          // JWT 디코딩 및 권한 확인
+          const decoded = parseJwt(data.token);
+          console.log("디코딩된 토큰:", decoded);
+          if (decoded && decoded.authorityGroup) {
+            const redirect =
+              decoded.authorityGroup === "관리자"
+                ? "/car-list.html"
+                : "/car-wash-history.html";
+            window.location.href = redirect;
+          }
         } else {
-          $("#login-feedback").text("유효하지 않은 응답입니다.");
-          submitButton.prop("disabled", false);
+          $("#login-feedback").text("토큰이 없습니다.");
         }
       },
       error: function (xhr) {
+        console.error("로그인 에러:", xhr.responseText);
         const error = xhr.responseJSON?.error || "로그인 실패";
         $("#login-feedback").text(error);
-        submitButton.prop("disabled", false);
       },
     });
   });
