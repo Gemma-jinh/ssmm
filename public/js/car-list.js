@@ -1,49 +1,48 @@
-$(document).ready(function () {
-  const API_BASE_URL = "/api"; // 백엔드 서버 URL
+const API_BASE_URL = "/api"; // 백엔드 서버 URL
 
-  // JWT 토큰 가져오기
-  function getToken() {
-    return localStorage.getItem("token"); // 로그인 시 저장한 토큰
-  }
-  // 차량 목록 로드 함수
-  function loadCarList() {
-    $.ajax({
-      url: `${API_BASE_URL}/car-registrations`,
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${getToken()}`, // JWT 토큰 추가
-      },
-      success: function (response) {
-        console.log("서버 응답:", response);
+// JWT 토큰 가져오기
+function getToken() {
+  return localStorage.getItem("token"); // 로그인 시 저장한 토큰
+}
+// 차량 목록 로드 함수
+function loadCarList() {
+  $.ajax({
+    url: `${API_BASE_URL}/car-registrations`,
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${getToken()}`, // JWT 토큰 추가
+    },
+    success: function (response) {
+      console.log("서버 응답:", response);
 
-        const carList = $("#car-list");
-        carList.empty(); // 기존 데이터 비우기
+      const carList = $("#car-list");
+      carList.empty(); // 기존 데이터 비우기
 
-        // 데이터 구조에 따라 처리
-        const carsArray = Array.isArray(response)
-          ? response
-          : response.data
-          ? response.data
-          : response.cars
-          ? response.cars
-          : [];
+      // 데이터 구조에 따라 처리
+      const carsArray = Array.isArray(response)
+        ? response
+        : response.data
+        ? response.data
+        : response.cars
+        ? response.cars
+        : [];
 
-        if (carsArray.length === 0) {
-          carList.append(
-            '<tr><td colspan="7" class="text-center">등록된 차량이 없습니다.</td></tr>'
-          );
-          return;
-        }
+      if (carsArray.length === 0) {
+        carList.append(
+          '<tr><td colspan="7" class="text-center">등록된 차량이 없습니다.</td></tr>'
+        );
+        return;
+      }
 
-        carsArray.forEach((car) => {
-          const regionName = car.location?.region || "";
-          const placeName = car.location?.place || "";
-          const modelName = car.model || ""; // model이 이미 문자열로 변환되어 있음
-          const customerName = car.customer || ""; // customer가 이미 문자열로 변환되어 있음
-          const locationAddress = car.location?.address || "";
-          const parkingSpot = car.location?.parkingSpot || "";
+      carsArray.forEach((car) => {
+        const regionName = car.location?.region || "";
+        const placeName = car.location?.place || "";
+        const modelName = car.model || ""; // model이 이미 문자열로 변환되어 있음
+        const customerName = car.customer || ""; // customer가 이미 문자열로 변환되어 있음
+        const locationAddress = car.location?.address || "";
+        const parkingSpot = car.location?.parkingSpot || "";
 
-          const row = `
+        const row = `
               <tr>
                 <th><input class="form-check-input select-check-1" type="checkbox" value="${
                   car._id
@@ -61,23 +60,38 @@ $(document).ready(function () {
                 </td>
               </tr>
             `;
-          carList.append(row);
-        });
-      },
-      error: function (err) {
-        if (err.status === 401) {
-          alert("로그인이 필요합니다.");
-          // 로그인 페이지로 리다이렉트
-          window.location.href = "/pages/login.html";
-        } else {
-          console.error("차량 목록 로드 실패:", err);
-          alert("차량 목록을 불러오는 데 실패했습니다.");
-        }
-      },
-    });
+        carList.append(row);
+      });
+    },
+    error: function (err) {
+      if (err.status === 401) {
+        alert("로그인이 필요합니다.");
+        // 로그인 페이지로 리다이렉트
+        window.location.href = "/pages/login.html";
+      } else {
+        console.error("차량 목록 로드 실패:", err);
+        alert("차량 목록을 불러오는 데 실패했습니다.");
+      }
+    },
+  });
+}
+
+$(document).ready(function () {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    window.location.href = "/login.html";
+    return;
   }
 
-  loadCarList(); // 페이지 로드 시 차량 목록 로드
+  // API 호출 시 토큰 포함
+  $.ajaxSetup({
+    beforeSend: function (xhr) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    },
+  });
+
+  // 차량 목록 로드
+  loadCarList();
 
   // 추가: 차량 삭제 기능 구현 (선택된 차량 삭제)
   $("#delete-button").on("click", function () {
@@ -122,6 +136,22 @@ $(document).ready(function () {
     });
   });
 });
+
+// $(document).ready(function () {
+//   const token = localStorage.getItem("token");
+//   if (!token) {
+//     window.location.href = "/login.html";
+//     return;
+//   }
+
+//   $.ajaxSetup({
+//     beforeSend: function (xhr) {
+//       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+//     },
+//   });
+
+//   loadCarList();
+// });
 
 // 전체 선택 체크박스 기능 추가
 $("#select-all").on("change", function () {

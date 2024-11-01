@@ -1,25 +1,55 @@
 $(document).ready(function () {
   console.log("Login script loaded");
+  const API_BASE_URL = "/api";
 
-  // 토큰 체크 및 리다이렉션 함수
+  // 기존 토큰 확인
   const token = localStorage.getItem("token");
-  if (token) {
-    const decoded = parseJwt(token);
-    if (decoded && decoded.authorityGroup) {
-      const redirect =
-        decoded.authorityGroup === "관리자"
-          ? "/car-list.html"
-          : "/car-wash-history.html";
-      window.location.replace(redirect);
-      return;
-    }
+  if (token && window.location.pathname === "/login.html") {
+    // verifyAndRedirect(token);
+    $.ajax({
+      url: "/api/verify-token",
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((response) => {
+        if (response.success) {
+          const redirect =
+            response.user.authorityGroup === "관리자"
+              ? "/car-list.html"
+              : "/car-wash-history.html";
+          window.location.href = redirect;
+        } else {
+          localStorage.removeItem("token");
+          $("#login-feedback").text(
+            "토큰이 유효하지 않습니다. 다시 로그인해주세요."
+          );
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem("token");
+        window.location.href = "/login.html";
+      });
   }
+
+  // 모든 Ajax 요청에 대한 기본 설정
+  // $.ajaxSetup({
+  //   beforeSend: function (xhr) {
+  //     const token = localStorage.getItem("token");
+  //     if (token) {
+  //       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+  //     }
+  //   },
+  // });
+
   // 로그인 폼 제출 처리
   $("#login-form").on("submit", function (e) {
     e.preventDefault();
 
     const submitButton = $(this).find('button[type="submit"]');
     submitButton.prop("disabled", true);
+    $("#login-feedback").text("");
 
     const adminId = $("#admin-id").val().trim();
     const password = $("#password").val().trim();
@@ -31,36 +61,37 @@ $(document).ready(function () {
     }
 
     $.ajax({
-      url: "/api/login",
+      url: `${API_BASE_URL}/login`,
       method: "POST",
       contentType: "application/json",
       data: JSON.stringify({ adminId, password }),
-      success: function (data) {
-        console.log("로그인 성공:", data);
-        if (data.token) {
-          localStorage.setItem("token", data.token);
-          console.log("저장된 토큰:", localStorage.getItem("token"));
-          //   const payload = parseJwt(data.token);
-
-          // JWT 디코딩 및 권한 확인
-          const decoded = parseJwt(data.token);
-          console.log("디코딩된 토큰:", decoded);
-          if (decoded && decoded.authorityGroup) {
-            const redirect =
-              decoded.authorityGroup === "관리자"
-                ? "/car-list.html"
-                : "/car-wash-history.html";
-            window.location.href = redirect;
-          }
+    })
+      .then(function (response) {
+        if (response.success && response.token) {
+          localStorage.setItem("token", response.token);
+          // $.ajaxSetup({
+          //   headers: {
+          //     Authorization: `Bearer ${response.token}`,
+          //   },
+          // });
+          // redirectBasedOnRole(response.user.authorityGroup);
+          const redirect =
+            response.user.authorityGroup === "관리자"
+              ? "/car-list.html"
+              : "/car-wash-history.html";
+          window.location.href = redirect;
         } else {
-          $("#login-feedback").text("토큰이 없습니다.");
+          $("#login-feedback").text("로그인 처리 중 오류가 발생했습니다.");
         }
-      },
-      error: function (xhr) {
-        console.error("로그인 에러:", xhr.responseText);
-        const error = xhr.responseJSON?.error || "로그인 실패";
-        $("#login-feedback").text(error);
-      },
-    });
+      })
+      .catch(function (error) {
+        console.error("Login error:", error);
+        const errorMessage =
+          error.responseJSON?.error || "로그인에 실패했습니다.";
+        $("#login-feedback").text(errorMessage);
+      })
+      .always(function () {
+        submitButton.prop("disabled", false);
+      });
   });
 });

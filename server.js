@@ -38,8 +38,13 @@ app.set("timeout", 120000);
 // 미들웨어 설정
 app.use(cors());
 app.use(express.json());
-//API 라우터 마운트
-app.use("/api", router);
+
+app.use("/style", express.static(path.join(__dirname, "public", "style")));
+app.use("/js", express.static(path.join(__dirname, "public", "js")));
+app.use("/images", express.static(path.join(__dirname, "public", "images")));
+
+const PUBLIC_PATHS = ["/login.html", "/style", "/js", "/images", "/api/login"];
+// app.use(express.static(path.join(__dirname, "public")));
 
 // router.post("/api/verify-token", (req, res) => {
 //   const authHeader = req.headers["authorization"];
@@ -72,21 +77,43 @@ app.use("/api", router);
 
 const authenticateToken = (req, res, next) => {
   console.log("인증 미들웨어 실행");
+  console.log("Method:", req.method);
+  console.log("Path:", req.path);
   console.log("Headers:", req.headers);
 
-  // Authorization 헤더에서 토큰 추출
+  // if (
+  //   req.path === "/login.html" ||
+  //   req.path === "/api/login" ||
+  //   req.path.startsWith("/static/")
+  // ) {
+  //   return next();
+  // }
+
+  if (PUBLIC_PATHS.some((path) => req.path.startsWith(path))) {
+    return next();
+  }
+  // POST 요청의 body에서 토큰 확인
+  // const bodyToken = req.body?.token;
   const authHeader = req.headers.authorization;
+  // const headerToken = authHeader && authHeader.split(" ")[1];
 
   if (!authHeader) {
     console.log("Authorization 헤더 없음");
-    return res.status(401).json({ error: "토큰이 필요합니다." });
+    if (req.xhr || req.headers.accept.includes("application/json")) {
+      return res.status(401).json({ error: "토큰이 필요합니다." });
+    }
+    return res.redirect("/login.html"); // 인증 실패시 로그인 페이지로 리다이렉션
   }
+  // 토큰 우선순위: Authorization 헤더 > body
+  // const token = headerToken || bodyToken;
 
-  // Bearer 토큰 형식 확인
   const token = authHeader.split(" ")[1];
   if (!token) {
     console.log("토큰 형식 잘못됨");
-    return res.status(401).json({ error: "올바른 토큰 형식이 아닙니다." });
+    if (req.xhr || req.headers.accept.includes("application/json")) {
+      return res.status(401).json({ error: "올바른 토큰 형식이 아닙니다." });
+    }
+    return res.redirect("/login.html");
   }
 
   try {
@@ -96,17 +123,11 @@ const authenticateToken = (req, res, next) => {
     next();
   } catch (err) {
     console.error("토큰 검증 실패:", err);
-    res.status(401).json({ error: "유효하지 않은 토큰입니다." });
+    if (req.xhr || req.headers.accept.includes("application/json")) {
+      return res.status(401).json({ error: "유효하지 않은 토큰입니다." });
+    }
+    return res.redirect("/login.html");
   }
-
-  // jwt.verify(token, JWT_SECRET, (err, decoded) => {
-  //   if (err) {
-  //     console.error("토큰 검증 오류:", err);
-  //     return res.status(403).json({ error: "유효하지 않은 토큰입니다." });
-  //   }
-  //   req.user = user;
-  //   next();
-  // });
 };
 
 // 권한 검사 미들웨어 정의
@@ -119,105 +140,92 @@ const authorizeRoles = (...allowedRoles) => {
   };
 };
 
-//정적 파일 서빙 설정
-app.use(express.static(path.join(__dirname, "public")));
-// {
-// 정적 파일 제공 옵션 설정
-// setHeaders: (res, filePath) => {
-// HTML 파일에 대한 적절한 헤더 설정
-//       if (filePath.endsWith(".html")) {
-//         res.setHeader("Content-Type", "text/html; charset=UTF-8");
-//         res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-//         res.setHeader("Pragma", "no-cache");
-//         res.setHeader("Expires", "0");
-//       }
-//     },
-//     maxAge: "1h",
-//   })
-// );
-// API 라우터 설정
-// router.post("/verify-token", authenticateToken, (req, res) => {
-//   res.json({
-//     valid: true,
-//     authorityGroup: req.user.authorityGroup,
-//   });
-// });
+const apiRouter = express.Router();
 
-// 라우터를  경로에 마운트
-// app.use("/api", router);
+// 로그인 라우트
+apiRouter.post("/login", async (req, res) => {
+  const { adminId, password } = req.body;
 
-// HTML 파일 전송을 위한 전용 미들웨어
-// const sendFileOptions = {
-//   root: path.join(__dirname, "public"),
-//   dotfiles: "deny",
-//   headers: {
-//     "Content-Type": "text/html; charset=UTF-8",
-//     "Cache-Control": "no-cache, no-store, must-revalidate",
-//     Pragma: "no-cache",
-//     Expires: "0",
-//   },
-// };
+  // 입력값 검증
+  if (!adminId || !password) {
+    return res.status(400).json({
+      success: false,
+      error: "아이디와 비밀번호를 모두 입력해주세요.",
+    });
+  }
 
-// login.html 라우트 처리
-// app.get("/login.html", (req, res) => {
-//   res.sendFile(path.join(__dirname, "public", "login.html"));
-// });
+  // 계정 찾기
+  try {
+    const account = await Account.findOne({ adminId }).populate("customer");
 
-// 기본 라우트
-// app.get("/", (req, res) => {
-//   res.sendFile(path.join(__dirname, "public", "login.html"));
-// });
+    if (!account) {
+      return res.status(401).json({
+        success: false,
+        error: "존재하지 않는 아이디입니다.",
+      });
+    }
 
-// 인증된 페이지 라우트
-// app.get(
-//   "/car-list.html",
-//   authenticateToken,
-//   authorizeRoles("관리자"),
-//   (req, res) => {
-//     res.sendFile(path.join(__dirname, "public", "pages", "car-list.html"));
-//   }
-// );
+    // 비밀번호 확인
+    const isMatch = await bcryptjs.compare(password, account.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        error: "비밀번호가 일치하지 않습니다.",
+      });
+    }
 
-// app.get(
-//   "/car-wash-history.html",
-//   authenticateToken,
-//   authorizeRoles("작업자"),
-//   (req, res) => {
-//     res.sendFile(
-//       path.join(__dirname, "public", "pages", "car-wash-history.html")
-//     );
-//   }
-// );
+    // 토큰 생성
+    const token = jwt.sign(
+      {
+        id: account._id,
+        adminId: account.adminId,
+        adminName: account.adminName,
+        authorityGroup: account.authorityGroup,
+        customer: account.customer?._id,
+      },
+      JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+    console.log("로그인 성공:", {
+      adminId,
+      authorityGroup: account.authorityGroup,
+    });
+    // 성공 응답
+    res.json({
+      success: true,
+      token,
+      user: {
+        adminId: account.adminId,
+        adminName: account.adminName,
+        authorityGroup: account.authorityGroup,
+      },
+    });
+  } catch (err) {
+    console.error("로그인 처리 중 오류:", err);
+    res.status(500).json({
+      success: false,
+      error: "서버 오류가 발생했습니다.",
+    });
+  }
+});
 
-// Catch-all 라우트
-// app.get("*", (req, res) => {
-//   if (!req.path.startsWith("/api")) {
-//     res.redirect("/login.html");
-//   } else {
-//     res.status(404).json({ error: "Not Found" });
-//   }
-// });
-
-// console.log("Attempting to send file:", filePath);
-// try {
-//   await fs.access(filePath, fs.constants.R_OK);
-//   res.sendFile(filePath);
-//   console.log("File sent successfully:", filePath);
-// } catch (err) {
-//   console.error("File not found or inaccessible:", filePath, err);
-//   res.status(500).send("로그인 페이지를 찾을 수 없습니다.");
-// }
-// });
-
-// 로그인 페이지 라우트
-// app.get("/", (req, res) => {
-//   res.sendFile(path.join(__dirname, "../public", "login.html"));
-// });
-
-// 모든 기타 라우트는 로그인 페이지로 리디렉션 (SPA 용)
-// app.get("*", (req, res) => {
-//   res.sendFile(path.join(__dirname, "../public", "pages", "login.html"));
-// });
+// 토큰 검증 라우트
+apiRouter.post("/verify-token", authenticateToken, (req, res) => {
+  if (req.user) {
+    res.json({
+      success: true,
+      user: {
+        adminId: req.user.adminId,
+        adminName: req.user.adminName,
+        authorityGroup: req.user.authorityGroup,
+      },
+    });
+  } else {
+    res
+      .status(401)
+      .json({ success: false, error: "유효하지 않은 토큰입니다." });
+  }
+});
 
 // 파일 저장 경로 설정 및 폴더 생성
 const uploadDir = path.join(__dirname, "uploads");
@@ -501,6 +509,27 @@ async function setInitialParkingSpots() {
   }
 }
 
+// 초기 관리자 계정 생성 함수
+async function createInitialAdmin() {
+  try {
+    const existingAdmin = await Account.findOne({ authorityGroup: "관리자" });
+    if (!existingAdmin) {
+      const hashedPassword = await bcryptjs.hash("1234", 10);
+      const adminAccount = new Account({
+        adminId: "admin",
+        adminName: "관리자",
+        password: hashedPassword,
+        authorityGroup: "관리자",
+        customer: null,
+      });
+      await adminAccount.save();
+      console.log("초기 관리자 계정이 생성되었습니다.");
+    }
+  } catch (err) {
+    console.error("초기 관리자 계정 생성 실패:", err);
+  }
+}
+
 // 배열 비교 헬퍼 함수
 function arrayEquals(a, b) {
   return (
@@ -603,53 +632,6 @@ const filePath = path.join(__dirname, "public", "login.html");
 //   });
 // });
 
-// 로그인 엔드포인트 추가
-router.post("/login", async (req, res) => {
-  const { adminId, password } = req.body;
-  console.log("Received adminId:", adminId);
-
-  if (!adminId || !password) {
-    return res
-      .status(400)
-      .json({ error: "adminId와 비밀번호를 입력해주세요." });
-  }
-  try {
-    // 전체 accounts 컬렉션을 확인
-    const allAccounts = await Account.find({});
-    console.log("All accounts in DB:", allAccounts);
-    const account = await Account.findOne({ adminId });
-    console.log("Found account:", account);
-    // .populate("customer")
-    // .exec();
-    if (!account) {
-      return res.status(400).json({ error: "존재하지 않는 관리자 ID입니다." });
-    }
-
-    const isMatch = await bcryptjs.compare(password, account.password);
-    if (!isMatch) {
-      return res.status(400).json({ error: "비밀번호가 일치하지 않습니다." });
-    }
-
-    // JWT 토큰 생성
-    const token = jwt.sign(
-      {
-        id: account._id,
-        adminId: account.adminId,
-        adminName: account.adminName,
-        authorityGroup: account.authorityGroup,
-        customer: account.customer, // 필요에 따라 추가 정보 포함
-      },
-      JWT_SECRET,
-      { expiresIn: "24h" } // 토큰 유효 기간 설정
-    );
-
-    res.json({ token });
-  } catch (err) {
-    console.error("로그인 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
-
 // 2. 인증 미들웨어 추가
 // router.post("/verify-token", (req, res) => {
 //   const authHeader = req.headers["authorization"];
@@ -680,7 +662,7 @@ router.post("/login", async (req, res) => {
 //   };
 // }
 
-router.get(
+apiRouter.get(
   "/car-registrations",
   authenticateToken,
   authorizeRoles("관리자", "작업자"),
@@ -816,7 +798,7 @@ router.get(
 );
 
 // 예시: 관리자 전용 엔드포인트 보호
-router.get(
+apiRouter.get(
   "/admin-only", //admin-dashboard
   authenticateToken,
   authorizeRoles("관리자"),
@@ -826,7 +808,7 @@ router.get(
 );
 
 // 예시: 관리자와 작업자 모두 접근 가능한 엔드포인트
-router.get(
+apiRouter.get(
   "/worker-and-admin",
   authenticateToken,
   authorizeRoles("관리자", "작업자"),
@@ -836,7 +818,7 @@ router.get(
 );
 
 // car-list.html 라우트 추가
-router.get(
+apiRouter.get(
   "/car-list.html",
   authenticateToken,
   authorizeRoles("관리자"),
@@ -869,7 +851,7 @@ router.get(
 // });
 
 // 작업자 페이지 라우트 추가 (필요 시)
-router.get(
+apiRouter.get(
   "/pages/car-wash-history.html",
   authenticateToken,
   authorizeRoles("작업자"),
@@ -889,7 +871,7 @@ router.get(
   }
 );
 
-router.get("/regions/name/:regionName", async (req, res) => {
+apiRouter.get("/regions/name/:regionName", async (req, res) => {
   const { regionName } = req.params;
 
   if (!regionName) {
@@ -909,7 +891,7 @@ router.get("/regions/name/:regionName", async (req, res) => {
   }
 });
 
-router.get("/regions/name/:regionName/places", async (req, res) => {
+apiRouter.get("/regions/name/:regionName/places", async (req, res) => {
   const { regionName } = req.params;
   console.log("Requested region name:", regionName);
   // if (!regionName) {
@@ -994,7 +976,7 @@ router.get("/regions/name/:regionName/places", async (req, res) => {
 // });
 
 // GET /regions - 지역 리스트 조회
-router.get("/regions", async (req, res) => {
+apiRouter.get("/regions", async (req, res) => {
   try {
     const regions = await Region.find().sort({ order: 1 });
     res.json(regions);
@@ -1005,7 +987,7 @@ router.get("/regions", async (req, res) => {
 });
 
 // POST /regions - 새로운 지역 등록
-router.post("/regions", async (req, res) => {
+apiRouter.post("/regions", async (req, res) => {
   const { regions } = req.body;
 
   // 필수 필드 검증
@@ -1052,7 +1034,7 @@ router.post("/regions", async (req, res) => {
 });
 
 // 서비스 종류 목록 조회
-router.get("/service-types", async (req, res) => {
+apiRouter.get("/service-types", async (req, res) => {
   try {
     const serviceTypes = await ServiceType.find().sort({ name: 1 });
     res.json(serviceTypes);
@@ -1063,7 +1045,7 @@ router.get("/service-types", async (req, res) => {
 });
 
 // 새로운 서비스 종류 추가 (필요한 경우)
-router.post("/service-types", async (req, res) => {
+apiRouter.post("/service-types", async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) {
@@ -1088,7 +1070,7 @@ router.post("/service-types", async (req, res) => {
 });
 
 // 서비스 금액 타입 목록 조회
-router.get("/service-amount-types", async (req, res) => {
+apiRouter.get("/service-amount-types", async (req, res) => {
   try {
     const amountTypes = await ServiceAmountType.find().sort({ name: 1 });
     res.json(amountTypes);
@@ -1099,7 +1081,7 @@ router.get("/service-amount-types", async (req, res) => {
 });
 
 // 새로운 서비스 금액 타입 추가 (필요한 경우)
-router.post("/service-amount-types", async (req, res) => {
+apiRouter.post("/service-amount-types", async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) {
@@ -1126,7 +1108,7 @@ router.post("/service-amount-types", async (req, res) => {
 });
 
 // PUT /regions/:id - 특정 지역 수정
-router.put("/regions/:id", async (req, res) => {
+apiRouter.put("/regions/:id", async (req, res) => {
   const { id } = req.params;
   const { name, order } = req.body;
 
@@ -1166,7 +1148,7 @@ router.put("/regions/:id", async (req, res) => {
 });
 
 // DELETE /regions/:id - 특정 지역 삭제
-router.delete("/regions/:id", async (req, res) => {
+apiRouter.delete("/regions/:id", async (req, res) => {
   const { id } = req.params;
 
   // 유효한 MongoDB ObjectId인지 확인
@@ -1196,7 +1178,7 @@ router.delete("/regions/:id", async (req, res) => {
 });
 
 // GET /regions/:regionId 엔드포인트 정의
-router.get("/regions/:regionId", async (req, res) => {
+apiRouter.get("/regions/:regionId", async (req, res) => {
   const { regionId } = req.params;
 
   // 유효한 MongoDB ObjectId인지 확인
@@ -1218,7 +1200,7 @@ router.get("/regions/:regionId", async (req, res) => {
 });
 
 // GET /regions/:regionId/places - 특정 지역의 장소 리스트 조회
-router.get("/regions/:regionId/places", async (req, res) => {
+apiRouter.get("/regions/:regionId/places", async (req, res) => {
   const { regionId } = req.params;
 
   // 유효한 MongoDB ObjectId인지 확인
@@ -1235,41 +1217,44 @@ router.get("/regions/:regionId/places", async (req, res) => {
   }
 });
 
-router.delete("/regions/name/:regionName/places/:placeId", async (req, res) => {
-  const { regionName, placeId } = req.params;
+apiRouter.delete(
+  "/regions/name/:regionName/places/:placeId",
+  async (req, res) => {
+    const { regionName, placeId } = req.params;
 
-  if (!regionName) {
-    return res.status(400).json({ error: "지역명이 필요합니다." });
-  }
-
-  if (!mongoose.Types.ObjectId.isValid(placeId)) {
-    return res.status(400).json({ error: "유효하지 않은 장소 ID입니다." });
-  }
-
-  try {
-    const region = await Region.findOne({ name: regionName });
-    if (!region) {
-      return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+    if (!regionName) {
+      return res.status(400).json({ error: "지역명이 필요합니다." });
     }
 
-    const deletedPlace = await Place.findOneAndDelete({
-      _id: placeId,
-      region: region._id,
-    });
-
-    if (!deletedPlace) {
-      return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
+    if (!mongoose.Types.ObjectId.isValid(placeId)) {
+      return res.status(400).json({ error: "유효하지 않은 장소 ID입니다." });
     }
 
-    res.json({ message: "장소가 성공적으로 삭제되었습니다." });
-  } catch (err) {
-    console.error("장소 삭제 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
+    try {
+      const region = await Region.findOne({ name: regionName });
+      if (!region) {
+        return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
+      }
+
+      const deletedPlace = await Place.findOneAndDelete({
+        _id: placeId,
+        region: region._id,
+      });
+
+      if (!deletedPlace) {
+        return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
+      }
+
+      res.json({ message: "장소가 성공적으로 삭제되었습니다." });
+    } catch (err) {
+      console.error("장소 삭제 오류:", err);
+      res.status(500).json({ error: "서버 오류" });
+    }
   }
-});
+);
 
 // DELETE /regions/:regionId/places/:placeId 엔드포인트 정의
-router.delete("/regions/:regionId/places/:placeId", async (req, res) => {
+apiRouter.delete("/regions/:regionId/places/:placeId", async (req, res) => {
   const { regionId, placeId } = req.params;
 
   // 유효한 MongoDB ObjectId인지 확인
@@ -1304,7 +1289,7 @@ router.delete("/regions/:regionId/places/:placeId", async (req, res) => {
   }
 });
 
-router.post("/regions/name/:regionName/places", async (req, res) => {
+apiRouter.post("/regions/name/:regionName/places", async (req, res) => {
   const { regionName } = req.params;
   const { name, address, order } = req.body;
   console.log("Creating place:", { regionName, name, address, order });
@@ -1344,7 +1329,7 @@ router.post("/regions/name/:regionName/places", async (req, res) => {
 });
 
 // POST /regions/:regionId/places - 특정 지역에 새로운 장소 등록
-router.post("/regions/:regionId/places", async (req, res) => {
+apiRouter.post("/regions/:regionId/places", async (req, res) => {
   const { regionId } = req.params;
   const { name, address, order } = req.body;
 
@@ -1379,7 +1364,7 @@ router.post("/regions/:regionId/places", async (req, res) => {
 });
 
 // PUT /places/:id - 특정 장소 수정
-router.put("/places/:id", async (req, res) => {
+apiRouter.put("/places/:id", async (req, res) => {
   const { id } = req.params;
   const { name, address, order } = req.body;
 
@@ -1410,7 +1395,7 @@ router.put("/places/:id", async (req, res) => {
 });
 
 // DELETE /places/:id - 특정 장소 삭제
-router.delete("/places/:id", async (req, res) => {
+apiRouter.delete("/places/:id", async (req, res) => {
   const { id } = req.params;
 
   // 유효한 MongoDB ObjectId인지 확인
@@ -1431,7 +1416,7 @@ router.delete("/places/:id", async (req, res) => {
   }
 });
 
-router.get("/places/:placeId/parking-spots", async (req, res) => {
+apiRouter.get("/places/:placeId/parking-spots", async (req, res) => {
   try {
     const place = await Place.findById(req.params.placeId);
     if (!place) {
@@ -1444,7 +1429,7 @@ router.get("/places/:placeId/parking-spots", async (req, res) => {
   }
 });
 
-router.put("/places/:placeId/parking-spots", async (req, res) => {
+apiRouter.put("/places/:placeId/parking-spots", async (req, res) => {
   try {
     const { parkingSpots } = req.body;
     const place = await Place.findById(req.params.placeId);
@@ -1476,7 +1461,7 @@ router.put("/places/:placeId/parking-spots", async (req, res) => {
 // });
 
 // 1. 관리자 ID 중복 확인 엔드포인트
-router.get("/accounts/check-duplicate", async (req, res) => {
+apiRouter.get("/accounts/check-duplicate", async (req, res) => {
   const { adminId } = req.query;
   if (!adminId) {
     return res.status(400).json({ error: "관리자 ID가 필요합니다." });
@@ -1495,7 +1480,7 @@ router.get("/accounts/check-duplicate", async (req, res) => {
 });
 
 // 2. 계정 등록 엔드포인트
-router.post(
+apiRouter.post(
   "/accounts",
   authenticateToken,
   authorizeRoles("관리자"),
@@ -1559,7 +1544,7 @@ router.post(
 );
 
 // 관리자 계정 생성 예시
-router.post("/register-admin", async (req, res) => {
+apiRouter.post("/register-admin", async (req, res) => {
   const { adminId, adminName, password, authorityGroup } = req.body;
 
   if (!adminId || !adminName || !password || !authorityGroup) {
@@ -1583,7 +1568,7 @@ router.post("/register-admin", async (req, res) => {
 });
 
 // 3. 계정 목록 조회 엔드포인트
-router.get(
+apiRouter.get(
   "/accounts",
   authenticateToken,
   authorizeRoles("관리자"),
@@ -1622,7 +1607,7 @@ router.get(
 );
 
 // 5. 계정 삭제 엔드포인트
-router.delete(
+apiRouter.delete(
   "/accounts/:id",
   authenticateToken,
   authorizeRoles("관리자"),
@@ -1650,7 +1635,7 @@ router.delete(
 );
 
 // 계정 수정 엔드포인트
-router.put(
+apiRouter.put(
   "/accounts/:id",
   authenticateToken,
   authorizeRoles("관리자"),
@@ -1718,7 +1703,7 @@ router.put(
 );
 
 // 1. 차종 목록 조회
-router.get(
+apiRouter.get(
   "/car-types",
   authenticateToken,
   authorizeRoles("관리자", "작업자"),
@@ -1733,7 +1718,7 @@ router.get(
 );
 
 // 2. 특정 차종의 차량 모델 목록 조회
-router.get("/car-types/:typeId/models", async (req, res) => {
+apiRouter.get("/car-types/:typeId/models", async (req, res) => {
   try {
     const { typeId } = req.params;
     const carModels = await CarModel.find({ type: typeId });
@@ -1744,7 +1729,7 @@ router.get("/car-types/:typeId/models", async (req, res) => {
 });
 
 // 3. 새로운 차종 추가
-router.post("/car-types", async (req, res) => {
+apiRouter.post("/car-types", async (req, res) => {
   try {
     const { name } = req.body;
     const newCarType = new CarType({ name });
@@ -1756,7 +1741,7 @@ router.post("/car-types", async (req, res) => {
 });
 
 // 4. 새로운 차량 모델 추가
-router.post("/car-types/:typeId/models", async (req, res) => {
+apiRouter.post("/car-types/:typeId/models", async (req, res) => {
   try {
     const { typeId } = req.params;
     const { name } = req.body;
@@ -1769,7 +1754,7 @@ router.post("/car-types/:typeId/models", async (req, res) => {
 });
 
 // 5. 차량 등록
-router.post("/car-registrations", async (req, res) => {
+apiRouter.post("/car-registrations", async (req, res) => {
   try {
     const {
       typeId,
@@ -1845,7 +1830,7 @@ router.post("/car-registrations", async (req, res) => {
 // 6. 차량 목록 조회
 
 // 6-1. 특정 차량 정보 조회
-router.get("/car-registrations/:id", async (req, res) => {
+apiRouter.get("/car-registrations/:id", async (req, res) => {
   try {
     const carRegistration = await CarRegistration.findById(req.params.id)
       .populate("type") // CarType 정보 포함
@@ -1867,7 +1852,7 @@ router.get("/car-registrations/:id", async (req, res) => {
 });
 
 // 7. 차량 삭제
-router.delete("/car-registrations", async (req, res) => {
+apiRouter.delete("/car-registrations", async (req, res) => {
   try {
     const { ids } = req.body; // 배열 형태로 전달된 차량 ID들
 
@@ -1884,7 +1869,7 @@ router.delete("/car-registrations", async (req, res) => {
 });
 
 // 8. 특정 차량 정보 수정
-router.put("/car-registrations/:id", async (req, res) => {
+apiRouter.put("/car-registrations/:id", async (req, res) => {
   try {
     const {
       typeId,
@@ -1995,7 +1980,7 @@ router.put("/car-registrations/:id", async (req, res) => {
 });
 
 // 배정 변경 엔드포인트
-router.put("/car-registrations/:id/assign", async (req, res) => {
+apiRouter.put("/car-registrations/:id/assign", async (req, res) => {
   try {
     const { managerId, teamId } = req.body;
     const carId = req.params.id;
@@ -2047,7 +2032,7 @@ router.put("/car-registrations/:id/assign", async (req, res) => {
 
 // 라우터를 통해 API 엔드포인트 정의
 // 고객사 목록 조회
-router.get("/customers", async (req, res) => {
+apiRouter.get("/customers", async (req, res) => {
   try {
     const customers = await Customer.find().sort({ name: 1 });
     res.json(customers);
@@ -2058,7 +2043,7 @@ router.get("/customers", async (req, res) => {
 });
 
 // 담당자 목록 조회
-router.get("/managers", async (req, res) => {
+apiRouter.get("/managers", async (req, res) => {
   try {
     const managers = await Manager.find();
     res.json(managers);
@@ -2069,7 +2054,7 @@ router.get("/managers", async (req, res) => {
 });
 
 // 팀 목록 조회
-router.get("/teams", async (req, res) => {
+apiRouter.get("/teams", async (req, res) => {
   try {
     const teams = await Team.find();
     res.json(teams);
@@ -2079,7 +2064,7 @@ router.get("/teams", async (req, res) => {
   }
 });
 // 차량 배정 엔드포인트
-router.put("/car-registrations/assign", async (req, res) => {
+apiRouter.put("/car-registrations/assign", async (req, res) => {
   try {
     const { carIds, managerId, teamId } = req.body;
 
@@ -2123,7 +2108,7 @@ router.put("/car-registrations/assign", async (req, res) => {
 });
 
 // 10. 고객사 목록 조회
-router.get("/customers", async (req, res) => {
+apiRouter.get("/customers", async (req, res) => {
   console.log("Received GET request for /customers");
   try {
     const customers = await Customer.find().sort({ name: 1 }); //이름순 정렬
@@ -2135,7 +2120,7 @@ router.get("/customers", async (req, res) => {
 });
 
 // 11. 새로운 고객사 추가
-router.post("/customers", async (req, res) => {
+apiRouter.post("/customers", async (req, res) => {
   try {
     const { name, display } = req.body;
     if (!name) {
@@ -2160,7 +2145,7 @@ router.post("/customers", async (req, res) => {
   }
 });
 // 특정 고객사 조회
-router.get("/customers/:id", async (req, res) => {
+apiRouter.get("/customers/:id", async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id);
     if (!customer) {
@@ -2174,7 +2159,7 @@ router.get("/customers/:id", async (req, res) => {
 });
 
 // 12. 특정 고객사 정보 수정
-router.put("/customers/:id", async (req, res) => {
+apiRouter.put("/customers/:id", async (req, res) => {
   try {
     const { name, display } = req.body;
     if (!name) {
@@ -2199,7 +2184,7 @@ router.put("/customers/:id", async (req, res) => {
 });
 
 // GET /managers 담당자 목록
-router.get("/managers", async (req, res) => {
+apiRouter.get("/managers", async (req, res) => {
   try {
     const managers = await Manager.find(); // Manager 모델을 정의해야 함
     res.json(managers);
@@ -2212,7 +2197,7 @@ router.get("/managers", async (req, res) => {
 });
 
 // GET /teams 팀 목록
-router.get("/teams", async (req, res) => {
+apiRouter.get("/teams", async (req, res) => {
   try {
     const teams = await Team.find(); // Team 모델을 정의해야 함
     res.json(teams);
@@ -2223,7 +2208,7 @@ router.get("/teams", async (req, res) => {
 });
 
 // POST /car-registrations/assign 차량 배정
-router.post(
+apiRouter.post(
   "/car-registrations/assign",
   authenticateToken,
   authorizeRoles("관리자"),
@@ -2262,7 +2247,7 @@ router.post(
 );
 
 // 엑셀 업로드 (차량 대량 등록)
-router.post(
+apiRouter.post(
   "/bulk-upload",
   (req, res, next) => {
     console.log("Received upload request");
@@ -2423,29 +2408,53 @@ router.post(
 );
 
 // login.html 라우트 처리
-app.get("/login.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
-});
+// app.get("/login.html", (req, res) => {
+//   res.sendFile(path.join(__dirname, "public", "login.html"));
+// });
+
+app.use("/api", apiRouter);
 
 // 기본 라우트
 app.get("/", (req, res) => {
+  // res.sendFile(path.join(__dirname, "public", "login.html"));
+  res.redirect("/login.html");
+});
+
+app.get("/login.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
 // 인증된 페이지 라우트
 app.get(
   "/car-list.html",
-  authenticateToken,
-  authorizeRoles("관리자"),
+  // (req, res, next) => {
+  //   if (req.method === "OPTIONS") {
+  //     return res.sendStatus(200);
+  //   }
+  //   next();
+  // },
+  // authenticateToken,
+  // authorizeRoles("관리자"),
   (req, res) => {
     res.sendFile(path.join(__dirname, "public", "pages", "car-list.html"));
   }
 );
 
 app.get(
+  "/pages/account-manage.html",
+  // authenticateToken,
+  // authorizeRoles("관리자"),
+  (req, res) => {
+    res.sendFile(
+      path.join(__dirname, "public", "pages", "account-manage.html")
+    );
+  }
+);
+
+app.get(
   "/car-wash-history.html",
-  authenticateToken,
-  authorizeRoles("작업자"),
+  // authenticateToken,
+  // authorizeRoles("작업자"),
   (req, res) => {
     res.sendFile(
       path.join(__dirname, "public", "pages", "car-wash-history.html")
@@ -2463,18 +2472,34 @@ app.use((err, req, res, next) => {
   // }
 
   // ECONNABORTED 에러 특별 처리
-  if (err.code === "ECONNABORTED") {
-    return;
+  // if (err.code === "ECONNABORTED") {
+  //   return;
+  // }
+  // if (req.xhr || req.headers.accept.includes("application/json")) {
+  //   res.status(500).json({
+  //     error: "Internal Server Error",
+  //     message: process.env.NODE_ENV === "development" ? err.message : undefined,
+  //   });
+  // } else {
+  // 일반 웹 요청에 대한 에러 처리
+  // 인증 관련 에러 처리
+  if (err.name === "UnauthorizedError" || err.status === 401) {
+    return res.redirect("/login.html");
   }
+
+  // Multer 에러 처리
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ error: err.message });
+  }
+
+  // AJAX 요청에 대한 에러 처리
   if (req.xhr || req.headers.accept.includes("application/json")) {
-    res.status(500).json({
-      error: "Internal Server Error",
+    return res.status(500).json({
+      error: "내부 서버 오류",
       message: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
-  } else {
-    // 일반 웹 요청에 대한 에러 처리
-    res.redirect("/login.html");
   }
+  res.status(500).send("서버 내부 오류가 발생했습니다.");
 });
 
 // 서버 시작
