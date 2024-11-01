@@ -111,28 +111,31 @@ $(document).ready(function () {
       $("#error-message").hide();
     }
 
-    const dataToSend = { region, name, address };
+    const dataToSend = { name, address, order: 0 };
     console.log("전송 데이터:", dataToSend);
     // AJAX 요청으로 장소 등록
     $.ajax({
-      url: `${API_BASE_URL}/car-locations`,
+      url: `${API_BASE_URL}/regions/name/${encodeURIComponent(region)}/places`,
       method: "POST",
       contentType: "application/json",
       data: JSON.stringify(dataToSend),
       success: function (response) {
-        if ($("#success-message").length === 0) {
-          $("body").prepend(
-            '<div id="success-message" class="alert alert-success" style="display: none;"></div>'
-          );
-        }
+        // if ($("#success-message").length === 0) {
+        //   $("body").prepend(
+        //     '<div id="success-message" class="alert alert-success" style="display: none;"></div>'
+        //   );
+        // }
+        console.log("장소 등록 성공:", response);
         $("#success-message").text("장소가 성공적으로 등록되었습니다.").show();
         // 폼 초기화
-        $("#create-location-form")[0].reset();
-        $("#region-name").val(region); // 지역명 다시 설정
+        // $("#create-location-form")[0].reset();
+        // $("#region-name").val(region);
         // 장소 리스트 페이지로 리디렉션
-        window.location.href = `./car-location-detail.html?region=${encodeURIComponent(
-          region
-        )}`;
+        setTimeout(() => {
+          window.location.href = `./car-location-detail.html?region=${encodeURIComponent(
+            region
+          )}`;
+        }, 1000);
       },
       error: function (xhr, status, error) {
         console.error("장소 등록 실패:", xhr.responseText);

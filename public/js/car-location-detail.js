@@ -33,7 +33,15 @@ $(document).ready(function () {
     url: `${API_BASE_URL}/regions/name/${encodeURIComponent(region)}`,
     method: "GET",
     success: function (regionData) {
-      $("#detail-heading").text(`${regionData.name} 작업 장소 관리`);
+      console.log("Region data received:", regionData);
+      if (regionData && regionData.name) {
+        $("#detail-heading").text(`${regionData.name} 작업 장소 관리`);
+      } else {
+        console.error("Region name not found in response:", regionData);
+        $("#error-message")
+          .text("지역 정보를 불러오는 데 실패했습니다.")
+          .show();
+      }
     },
     error: function (err) {
       console.error("지역 정보 로드 실패:", err);
@@ -43,35 +51,47 @@ $(document).ready(function () {
 
   // 1. 지역 상세 정보 로드 함수
   function loadPlaces(region) {
+    console.log("Loading places for region:", region);
+
     $.ajax({
       url: `${API_BASE_URL}/regions/name/${encodeURIComponent(region)}/places`,
       method: "GET",
       success: function (data) {
+        console.log("Received places data:", data);
+
         const placeDetailList = $("#place-detail-list");
         placeDetailList.empty(); // 기존 데이터 비우기
+        // data가 배열인지 확인
+        const placesArray = Array.isArray(data) ? data : [];
 
-        if (data.length === 0) {
+        if (placesArray.length === 0) {
           placeDetailList.append(
             '<tr><td colspan="3" class="text-center">등록된 장소가 없습니다.</td></tr>'
           );
           return;
         }
 
-        data.forEach((place) => {
+        placesArray.forEach((place) => {
           const row = `
               <tr>
-                <td>${place.name}</td>
-                <td>${place.address}</td>
+                <td>${place.name || ""}</td>
+                <td>${place.address || ""}</td>
                 <td style="text-align: center;">
-                <button type="button" class="btn btn-outline-primary btn-sm delete-btn" data-id="${place._id}">삭제</button>
+                <button type="button" class="btn btn-outline-primary btn-sm delete-btn" data-id="${
+                  place._id
+                }">삭제</button>
                 </td>
               </tr>
             `;
           placeDetailList.append(row);
         });
       },
-      error: function (err) {
-        console.error("장소 목록 로드 실패:", err);
+      error: function (xhr, status, err) {
+        console.error("장소 목록 로드 실패:", {
+          status: xhr.status,
+          error: error,
+          response: xhr.responseText,
+        });
         $("#error-message")
           .text("장소 목록을 불러오는 데 실패했습니다.")
           .show();

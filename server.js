@@ -434,7 +434,16 @@ const ServiceAmountType = mongoose.model(
 async function insertInitialData() {
   try {
     // 서비스 종류 초기 데이터
-    const serviceTypes = ["주1회", "주2회", "주3회", "주4회", "주5회"];
+    const serviceTypes = [
+      "주1회",
+      "주2회",
+      "주3회",
+      "주4회",
+      "주5회",
+      "일세차",
+      "월세차 8회",
+      "월세차 12회",
+    ];
     for (const name of serviceTypes) {
       const existing = await ServiceType.findOne({ name });
       if (!existing) {
@@ -902,19 +911,22 @@ router.get("/regions/name/:regionName", async (req, res) => {
 
 router.get("/regions/name/:regionName/places", async (req, res) => {
   const { regionName } = req.params;
-
-  if (!regionName) {
-    return res.status(400).json({ error: "지역명이 필요합니다." });
-  }
+  console.log("Requested region name:", regionName);
+  // if (!regionName) {
+  //   return res.status(400).json({ error: "지역명이 필요합니다." });
+  // }
 
   try {
     const region = await Region.findOne({ name: regionName });
+    console.log("Found region:", region);
     if (!region) {
       return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
     }
 
     const places = await Place.find({ region: region._id }).sort({ order: 1 });
-    res.json(places);
+    console.log("Found places:", places);
+
+    res.json(places || []);
   } catch (err) {
     console.error("장소 목록 조회 오류:", err);
     res.status(500).json({ error: "서버 오류" });
@@ -922,78 +934,64 @@ router.get("/regions/name/:regionName/places", async (req, res) => {
 });
 
 // POST /car-locations 엔드포인트 정의
-router.post("/car-locations", async (req, res) => {
-  try {
-    const { region: regionName, name, address } = req.body;
+// router.post("/car-locations", async (req, res) => {
+//   try {
+//     const { region: regionName, name, address } = req.body;
 
-    // 필수 필드 검증
-    if (!regionName || !name || !address) {
-      return res.status(400).json({ error: "모든 필드를 입력해주세요." });
-    }
+//     if (!regionName || !name || !address) {
+//       return res.status(400).json({ error: "모든 필드를 입력해주세요." });
+//     }
 
-    // 지역명으로 Region 문서 찾기
-    const regionDoc = await Region.findOne({ name: regionName });
-    if (!regionDoc) {
-      return res
-        .status(404)
-        .json({ error: `존재하지 않는 지역: ${regionName}` });
-    }
+//     const regionDoc = await Region.findOne({ name: regionName });
+//     if (!regionDoc) {
+//       return res
+//         .status(404)
+//         .json({ error: `존재하지 않는 지역: ${regionName}` });
+//     }
 
-    // const placeDoc = await Place.findOne({
-    //   name: name,
-    //   region: regionDoc._id,
-    // });
-    // if (!placeDoc) {
-    //   return res
-    //     .status(400)
-    //     .json({ error: `존재하지 않는 장소: ${name} (지역: ${region})`, row });
-    // }
+//     const existingPlace = await Place.findOne({
+//       name: name,
+//       region: regionDoc._id,
+//     });
+//     if (existingPlace) {
+//       return res.status(400).json({ error: "이미 존재하는 장소명입니다." });
+//     }
 
-    // 중복된 장소명 확인 (선택 사항)
-    const existingPlace = await Place.findOne({
-      name: name,
-      region: regionDoc._id,
-    });
-    if (existingPlace) {
-      return res.status(400).json({ error: "이미 존재하는 장소명입니다." });
-    }
+//     const newPlace = new Place({
+//       region: regionDoc._id,
+//       name: name,
+//       address: address,
+//     });
 
-    // 새로운 장소 생성
-    const newPlace = new Place({
-      region: regionDoc._id,
-      name: name,
-      address: address,
-    });
+//     await newPlace.save();
 
-    await newPlace.save();
-
-    res.status(201).json({
-      message: "장소가 성공적으로 등록되었습니다.",
-      place: newPlace,
-    });
-  } catch (err) {
-    console.error("장소 등록 오류:", err);
-    res.status(500).json({ error: "서버 오류" });
-  }
-});
+//     res.status(201).json({
+//       message: "장소가 성공적으로 등록되었습니다.",
+//       place: newPlace,
+//     });
+//   } catch (err) {
+//     console.error("장소 등록 오류:", err);
+//     res.status(500).json({ error: "서버 오류" });
+//   }
+// });
 
 // DELETE /car-locations/:id 엔드포인트 정의
-router.delete("/car-locations/:id", async (req, res) => {
-  const { id } = req.params;
+// router.delete("/car-locations/:id", async (req, res) => {
+//   const { id } = req.params;
 
-  try {
-    const deletedPlace = await CarLocation.findByIdAndDelete(id);
-    if (!deletedPlace) {
-      return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
-    }
-    res.json({ message: "장소가 성공적으로 삭제되었습니다." });
-  } catch (err) {
-    console.error("장소 삭제 오류:", err);
-    res
-      .status(500)
-      .json({ error: "서버 오류로 인해 장소 삭제에 실패했습니다." });
-  }
-});
+//   try {
+//     const deletedPlace = await CarLocation.findByIdAndDelete(id);
+//     if (!deletedPlace) {
+//       return res.status(404).json({ error: "해당 장소를 찾을 수 없습니다." });
+//     }
+//     res.json({ message: "장소가 성공적으로 삭제되었습니다." });
+//   } catch (err) {
+//     console.error("장소 삭제 오류:", err);
+//     res
+//       .status(500)
+//       .json({ error: "서버 오류로 인해 장소 삭제에 실패했습니다." });
+//   }
+// });
 
 // GET /regions - 지역 리스트 조회
 router.get("/regions", async (req, res) => {
@@ -1309,21 +1307,32 @@ router.delete("/regions/:regionId/places/:placeId", async (req, res) => {
 router.post("/regions/name/:regionName/places", async (req, res) => {
   const { regionName } = req.params;
   const { name, address, order } = req.body;
+  console.log("Creating place:", { regionName, name, address, order });
+  // const { name, address, order } = req.body;
 
-  if (!name || !address || typeof order !== "number") {
-    return res
-      .status(400)
-      .json({ error: "장소명, 주소, 순서를 모두 입력해주세요." });
-  }
+  // if (!name || !address || typeof order !== "number") {
+  //   return res
+  //     .status(400)
+  //     .json({ error: "장소명, 주소, 순서를 모두 입력해주세요." });
+  // }
 
   try {
     const region = await Region.findOne({ name: regionName });
+    console.log("Found region:", region);
+
     if (!region) {
+      console.log("Region not found for name:", regionName);
       return res.status(404).json({ error: "해당 지역을 찾을 수 없습니다." });
     }
 
-    const newPlace = new Place({ region: region._id, name, address, order });
+    const newPlace = new Place({
+      region: region._id,
+      name,
+      address,
+      order: order || 0,
+    });
     await newPlace.save();
+    console.log("Place created:", newPlace);
     res.status(201).json({
       message: "장소가 성공적으로 등록되었습니다.",
       place: newPlace,
@@ -1451,15 +1460,15 @@ router.put("/places/:placeId/parking-spots", async (req, res) => {
   }
 });
 
-router.get("/car-location-register", (req, res) => {
-  const region = req.query.region;
+// router.get("/car-location-register", (req, res) => {
+//   const region = req.query.region;
 
-  if (!region) {
-    return res.status(400).send("지역 정보가 제공되지 않았습니다.");
-  }
+//   if (!region) {
+//     return res.status(400).send("지역 정보가 제공되지 않았습니다.");
+//   }
 
-  res.render("car-location-register", { region });
-});
+//   res.render("car-location-register", { region });
+// });
 
 // 토큰 유효성 검사 엔드포인트
 // router.post("/verify-token", (req, res) => {

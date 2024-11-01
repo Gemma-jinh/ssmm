@@ -36,14 +36,24 @@ $(document).ready(function () {
         }
 
         carsArray.forEach((car) => {
+          const regionName = car.location?.region || "";
+          const placeName = car.location?.place || "";
+          const modelName = car.model || ""; // model이 이미 문자열로 변환되어 있음
+          const customerName = car.customer || ""; // customer가 이미 문자열로 변환되어 있음
+          const locationAddress = car.location?.address || "";
+          const parkingSpot = car.location?.parkingSpot || "";
+
           const row = `
               <tr>
-                <th><input class="form-check-input select-check-1" type="checkbox" value="${car._id}" /></th>
-                <td>${car.location.region}_${car.location.place}</td>
-                <td>${car.location.place}</td>
-                <td>${car.model.name}</td>
-                <td>${car.licensePlate}</td>
-                <td>${car.customer}</td>
+                <th><input class="form-check-input select-check-1" type="checkbox" value="${
+                  car._id
+                }" /></th>
+                <td>${regionName}_${placeName}</td>
+                <td>${locationAddress}</td>
+                <td>${modelName}</td>
+                <td>${car.licensePlate || ""}</td>
+                <td>${customerName}</td>
+                <td>${parkingSpot}</td>
                 <td>
                   <a href="./car-info-modify.html?id=${car._id}">
                     <button type="button" class="btn btn-light btn-sm">수정</button>
@@ -111,4 +121,16 @@ $(document).ready(function () {
       },
     });
   });
+});
+
+// 전체 선택 체크박스 기능 추가
+$("#select-all").on("change", function () {
+  $(".select-check-1").prop("checked", $(this).is(":checked"));
+});
+
+// 개별 체크박스 변경 시 전체 선택 체크박스 상태 업데이트
+$(document).on("change", ".select-check-1", function () {
+  const totalCheckboxes = $(".select-check-1").length;
+  const checkedCheckboxes = $(".select-check-1:checked").length;
+  $("#select-all").prop("checked", totalCheckboxes === checkedCheckboxes);
 });
