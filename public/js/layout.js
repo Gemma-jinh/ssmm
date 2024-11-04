@@ -72,6 +72,17 @@ const MENU_LIST = [
   },
 ];
 
+const logout = () => {
+  // 로그아웃 시 필요한 작업 수행
+  localStorage.removeItem("token"); // 토큰 제거
+
+  // 기타 로그인 관련 데이터가 있다면 제거
+  // localStorage.removeItem("userData"); 등
+
+  // 로그인 페이지로 리다이렉트
+  window.location.href = "./login.html";
+};
+
 const renderSideNav = () => {
   const $sideNav = $("#sideNav");
 
@@ -170,7 +181,6 @@ const renderHeader = () => {
 
 function detectMobileDevice() {
   const minWidth = 768;
-
   return window.innerWidth <= minWidth;
 }
 
