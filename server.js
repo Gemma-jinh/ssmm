@@ -2572,6 +2572,10 @@ app.get("/car-wash-create.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "pages", "car-wash-create.html"));
 });
 
+app.get("/car-wash-modify.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "pages", "car-wash-modify.html"));
+});
+
 app.get("/account-manage.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "pages", "account-manage.html"));
 });
