@@ -36,7 +36,13 @@ const router = express.Router();
 
 app.set("timeout", 120000);
 // 미들웨어 설정
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
+app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
 app.use("/style", express.static(path.join(__dirname, "public", "style")));
