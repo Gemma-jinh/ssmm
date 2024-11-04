@@ -248,7 +248,4 @@ $.ajaxSetup({
       window.location.href = "/login.html";
     }
   },
-  xhrFields: {
-    withCredentials: true,
-  },
 });

@@ -42,7 +42,6 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
 app.use("/style", express.static(path.join(__dirname, "public", "style")));
@@ -843,7 +842,8 @@ apiRouter.get(
         return {
           _id: car._id,
           type: car.type || "N/A",
-          model: car.model || "N/A",
+          // model: car.model || "N/A",
+          model: car.model ? car.model.name : "N/A",
           licensePlate: car.licensePlate || "N/A",
           location: {
             // region: car.location?.region?.name || "N/A",
@@ -853,7 +853,8 @@ apiRouter.get(
             },
             parkingSpot: car.location?.parkingSpot || "N/A",
           },
-          customer: car.customer || "N/A",
+          // customer: car.customer || "N/A",
+          customer: car.customer ? car.customer.name : "N/A",
           manager: car.manager || "N/A",
           team: car.team || "N/A",
           serviceType: car.serviceType || "",
