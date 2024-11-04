@@ -182,6 +182,7 @@ apiRouter.post("/login", async (req, res) => {
         adminName: account.adminName,
         authorityGroup: account.authorityGroup,
         customer: account.customer?._id,
+        managerId: account.manager ? account.manager.toString() : null,
       },
       JWT_SECRET,
       { expiresIn: "24h" }
@@ -668,14 +669,18 @@ apiRouter.get(
   authorizeRoles("관리자", "작업자"),
   async (req, res) => {
     try {
+      console.log(
+        "Received /api/car-registrations request from user:",
+        req.user
+      );
       const {
-        carType, // 차량 종류 ID
-        carModel, // 차량 모델 ID
-        licensePlate, // 차량 번호 (부분 일치)
-        region, // 지역 ID
-        place, // 장소 ID
-        customer, // 고객사 ID
-        manager, // 담당자 이름 (부분 일치)
+        carType,
+        carModel,
+        licensePlate,
+        region,
+        place,
+        customer,
+        manager,
         page = 1,
         limit = 10,
       } = req.query;
@@ -704,7 +709,6 @@ apiRouter.get(
       }
 
       if (licensePlate) {
-        // 부분 일치 검색 (대소문자 구분 없음)
         filter.licensePlate = { $regex: licensePlate, $options: "i" };
       }
 
@@ -739,50 +743,117 @@ apiRouter.get(
       }
 
       if (manager) {
-        // 부분 일치 검색 (대소문자 구분 없음)
         filter.manager = { $regex: manager, $options: "i" };
       }
 
       // 역할에 따른 필터링
       if (req.user.authorityGroup === "작업자") {
         // 작업자는 자신에게 배정된 차량만 조회
-        filter.manager = req.user.id; // 또는 req.user.managerId 등 실제 필드에 맞게 조정
+        if (req.user.managerId) {
+          filter.manager = req.user.id; // 또는 req.user.managerId 등 실제 필드에 맞게 조정
+        } else {
+          return res.status(403).json({ error: "권한이 없습니다." });
+        }
       }
 
       const skip = (parseInt(page) - 1) * parseInt(limit);
       const total = await CarRegistration.countDocuments(filter);
-      const carRegistrations = await CarRegistration.find(filter)
-        .populate("type", "name") // CarType 정보 포함
-        .populate("model", "name") // CarModel 정보 포함
-        .populate("customer", "name") // Customer 정보 포함
-        .populate("location.region", "name")
-        .populate("location.place", "name address")
-        .populate("manager", "name")
-        .populate("team", "name")
-        .populate("serviceType", "name")
-        .populate("serviceAmountType", "name")
+      const cars = await CarRegistration.find(filter)
+        // .populate("type", "name")
+        // .populate("model", "name")
+        // .populate("customer", "name")
+        // .populate("location.region", "name")
+        // .populate({
+        //   path: "location.place",
+        //   select: "name address",
+        // })
+        // .populate("manager", "name")
+        // .populate("team", "name")
+        // .populate("serviceType", "name")
+        // .populate("serviceAmountType", "name")
+        // .populate({
+        //   path: "type",
+        //   select: "name",
+        // })
+        // .populate({
+        //   path: "model",
+        //   select: "name",
+        // })
+        // .populate({
+        //   path: "customer",
+        //   select: "name",
+        // })
+        // .populate({
+        //   path: "location.region",
+        //   select: "name",
+        // })
+        // .populate({
+        //   path: "location.place",
+        //   select: "name address",
+        // })
+        // .populate({
+        //   path: "manager",
+        //   select: "name",
+        // })
+        // .populate({
+        //   path: "team",
+        //   select: "name",
+        // })
+        .populate("model")
+        .populate("type")
+        .populate("customer")
+        .populate("location.region")
+        .populate("location.place")
+        .populate("manager")
+        .populate("team")
+        // .populate({
+        //   path: "type",
+        //   select: "name",
+        // })
+        // .populate({
+        //   path: "model",
+        //   select: "name",
+        // })
+        // .populate({
+        //   path: "customer",
+        //   select: "name",
+        // })
+        // .populate({
+        //   path: "location.region",
+        //   select: "name",
+        // })
+        // .populate({
+        //   path: "location.place",
+        //   select: "name address",
+        // })
         .skip(skip)
         .limit(parseInt(limit))
-        .lean() // JSON 객체 변환
+        .lean()
         .exec();
 
       // 응답 데이터 가공
-      const formattedCars = carRegistrations.map((car) => ({
-        ...car,
-        type: car.type?.name || "",
-        model: car.model?.name || "",
-        customer: car.customer?.name || "",
-        location: {
-          region: car.location?.region?.name || "",
-          place: car.location?.place?.name || "",
-          address: car.location?.place?.address || "",
-          parkingSpot: car.location?.parkingSpot || "",
-        },
-        manager: car.manager?.name || "",
-        team: car.team?.name || "",
-        serviceType: car.serviceType?.name || "",
-        serviceAmountType: car.serviceAmountType?.name || "",
-      }));
+      const formattedCars = cars.map((car) => {
+        // ...car,
+        return {
+          _id: car._id,
+          type: car.type || "N/A",
+          model: car.model || "N/A",
+          licensePlate: car.licensePlate || "N/A",
+          location: {
+            // region: car.location?.region?.name || "N/A",
+            place: {
+              name: car.location?.place?.name || "N/A",
+              address: car.location?.place?.address || "N/A",
+            },
+            parkingSpot: car.location?.parkingSpot || "N/A",
+          },
+          customer: car.customer || "N/A",
+          manager: car.manager || "N/A",
+          team: car.team || "N/A",
+          serviceType: car.serviceType || "",
+          serviceAmountType: car.serviceAmountType || "",
+        };
+      });
 
       res.json({
         total,
@@ -2461,6 +2532,86 @@ app.get(
     );
   }
 );
+
+app.get("/car-location.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "pages", "car-location.html"));
+});
+
+app.get("/car-location-detail.html", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "pages", "car-location-detail.html")
+  );
+});
+
+app.get("/car-location-create.html", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "pages", "car-location-create.html")
+  );
+});
+
+app.get("/car-location-modify.html", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "pages", "car-location-modify.html")
+  );
+});
+
+app.get("/car-wash-history-admin.html", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "pages", "car-wash-history-admin.html")
+  );
+});
+
+app.get("/account-manage.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "pages", "account-manage.html"));
+});
+
+app.get("/account-create.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "pages", "account-create.html"));
+});
+
+app.get("/account-withdrawal.html", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "pages", "account-withdrawal.html")
+  );
+});
+
+app.get("/customer-manage.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "pages", "customer-manage.html"));
+});
+
+app.get("/customer-create.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "pages", "customer-create.html"));
+});
+
+app.get("/car-wash-report-weekly.html", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "pages", "car-wash-report-weekly.html")
+  );
+});
+
+app.get("/car-wash-report-monthly.html", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "pages", "car-wash-report-monthly.html")
+  );
+});
+
+app.get("/car-info-create.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "pages", "car-info-create.html"));
+});
+
+app.get("/car-info-modify.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "pages", "car-info-modify.html"));
+});
+
+app.get("/car-allocation.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "pages", "car-allocation.html"));
+});
+
+app.get("/car-allocation-modify.html", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "pages", "car-allocation-modify.html")
+  );
+});
 
 // 에러 핸들링 미들웨어 (라우트 정의 후에 추가)
 app.use((err, req, res, next) => {
