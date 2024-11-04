@@ -1,5 +1,5 @@
 $(document).ready(function () {
-  const API_BASE_URL = "http://localhost:5500/api"; // 백엔드 서버 URL
+  const API_BASE_URL = "/api"; // 백엔드 서버 URL
 
   // URL에서 차량 ID 추출
   function getQueryParam(param) {
