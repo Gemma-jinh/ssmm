@@ -80,7 +80,7 @@ const logout = () => {
   // localStorage.removeItem("userData"); 등
 
   // 로그인 페이지로 리다이렉트
-  window.location.href = "./login.html";
+  window.location.href = "/login.html";
 };
 
 const renderSideNav = () => {

@@ -413,30 +413,38 @@ function loadCarList(searchParams = {}, page = 1, limit = 10) {
 
       data.cars.forEach((car) => {
         // 디버깅: 문제 되는 차량 객체 로그 출력
-        if (!car.customer) {
-          console.warn(`차량 ID ${car._id}에 고객사 정보가 없습니다.`);
-        }
-        if (!car.model) {
-          console.warn(`차량 ID ${car._id}에 차량 모델 정보가 없습니다.`);
-        }
-        const customerName = car.customer ? car.customer.name : "N/A";
-        const modelName = car.model ? car.model.name : "N/A";
-        const placeName = car.location.place ? car.location.place.name : "N/A";
-        const address =
-          car.location.place && car.location.place.address
-            ? car.location.place.address
-            : "N/A";
+        // if (!car.customer) {
+        //   console.warn(`차량 ID ${car._id}에 고객사 정보가 없습니다.`);
+        // }
+        // if (!car.model) {
+        //   console.warn(`차량 ID ${car._id}에 차량 모델 정보가 없습니다.`);
+        // }
+        // const customerName = car.customer ? car.customer.name : "N/A";
+        // const modelName = car.model ? car.model.name : "N/A";
+        // const placeName = car.location.place ? car.location.place.name : "N/A";
+        // const address =
+        //   car.location.place && car.location.place.address
+        //     ? car.location.place.address
+        //     : "N/A";
+        const modelName = car.model || "N/A";
+        const customerName = car.customer || "N/A";
+        const placeName = car.location?.place?.name || "N/A";
+        const address = car.location?.place?.address || "N/A";
 
         const row = `
           <tr>
-            <th><input class="form-check-input select-check-1" type="checkbox" value="${car._id}" /></th>
+            <th><input class="form-check-input select-check-1" type="checkbox" value="${
+              car._id
+            }" /></th>
             <td>${placeName}</td>
             <td>${address}</td>
             <td>${modelName}</td>
-            <td>${car.licensePlate}</td>
+            <td>${car.licensePlate || "N/A"}</td>
             <td>${customerName}</td>
              <td>
-              <button type="button" class="btn btn-secondary btn-sm change-assignment-button" data-car-id="${car._id}">
+              <button type="button" class="btn btn-secondary btn-sm change-assignment-button" data-car-id="${
+                car._id
+              }">
                 배정 변경
               </button>
             </td>
@@ -502,7 +510,7 @@ function renderPagination(currentPage, totalPages) {
   // 다음 버튼
   if (currentPage < totalPages) {
     pagination.append(`
-      <li class="page-item">
+      <li class="page-item ">
         <a class="page-link" href="#" data-page="${
           currentPage + 1
         }" aria-label="Next">
