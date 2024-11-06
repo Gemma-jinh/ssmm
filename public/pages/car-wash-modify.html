@@ -21,13 +21,13 @@
           <div class="content-container">
             <div class="content-title">차량 번호</div>
             <div class="content-list">
-              <div>05하2099</div>
+              <div id="license-plate"></div>
             </div>
           </div>
           <div class="content-container">
             <div class="content-title">고객사</div>
             <div class="content-list">
-              <div>삼성_수원</div>
+              <div id="license-plate"></div>
             </div>
           </div>
           <div class="content-container">
@@ -37,10 +37,11 @@
                 <input
                   id="camera-click-btn2"
                   type="file"
-                  accept="image/*, video/*"
+                  accept="image/*"
                   capture
                 />
                 <label for="camera-click-btn2">사진 촬영하기</label>
+                <div id="external-photo-preview" class="photo-preview"></div>
               </div>
             </div>
           </div>
@@ -51,10 +52,11 @@
                 <input
                   id="camera-click-btn1"
                   type="file"
-                  accept="image/*, video/*"
+                  accept="image/*"
                   capture
                 />
                 <label for="camera-click-btn1">사진 촬영하기</label>
+                <div id="internal-photo-preview" class="photo-preview"></div>
               </div>
             </div>
           </div>
@@ -67,7 +69,13 @@
         </div>
 
         <div class="d-flex justify-content-center">
-          <button type="button" class="btn btn-primary btn-lg">보고하기</button>
+          <button
+            type="button"
+            class="btn btn-primary btn-lg"
+            id="report-button"
+          >
+            보고하기
+          </button>
         </div>
       </div>
     </div>
@@ -77,5 +85,6 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="../js/common.js"></script>
     <script src="../js/layout.js"></script>
+    <script src="../js/car-wash-modify.js"></script>
   </body>
 </html>

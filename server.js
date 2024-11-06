@@ -48,7 +48,6 @@ app.use(express.json());
 // app.use("/js", express.static(path.join(__dirname, "public", "js")));
 // app.use("/images", express.static(path.join(__dirname, "public", "images")));
 app.use(express.static(path.join(__dirname, "public")));
-
 const PUBLIC_PATHS = ["/login.html", "/style", "/js", "/images", "/api/login"];
 // app.use(express.static(path.join(__dirname, "public")));
 
@@ -306,9 +305,14 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
   storage: storage,
-  fileFilter: fileFilter,
   limits: {
     fileSize: 10 * 1024 * 1024,
+  },
+  fileFilter: function (req, file, cb) {
+    if (!file.mimetype.startsWith("image/")) {
+      return cb(new Error("이미지 파일만 업로드할 수 있습니다."), false);
+    }
+    cb(null, true);
   },
 });
 
@@ -380,6 +384,11 @@ const CarRegistrationSchema = new mongoose.Schema({
     enum: ["emergency", "complete", "pending"],
     default: "pending",
   },
+
+  // 사진 필드 추가
+  externalPhoto: { type: String, default: "" },
+  internalPhoto: { type: String, default: "" },
+
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -2134,6 +2143,11 @@ apiRouter.put("/car-registrations/:id", async (req, res) => {
   }
 });
 
+const uploadFields = upload.fields([
+  { name: "externalPhoto", maxCount: 1 },
+  { name: "internalPhoto", maxCount: 1 },
+]);
+
 apiRouter.put(
   "/car-registrations/:id/report",
   authenticateToken,
@@ -2168,6 +2182,23 @@ apiRouter.put(
       // 세차날짜와 상태 자동 업데이트
       car.workDate = new Date();
       car.status = "complete"; // 또는 다른 상태로 설정 가능
+
+      // 메모 업데이트
+      if (req.body.notes) {
+        car.notes = req.body.notes;
+      }
+
+      // 외부세차 사진 업로드
+      if (req.files["externalPhoto"]) {
+        const externalPhotoPath = req.files["externalPhoto"][0].path;
+        car.externalPhoto = externalPhotoPath;
+      }
+
+      // 내부세차 사진 업로드
+      if (req.files["internalPhoto"]) {
+        const internalPhotoPath = req.files["internalPhoto"][0].path;
+        car.internalPhoto = internalPhotoPath;
+      }
 
       await car.save();
 
