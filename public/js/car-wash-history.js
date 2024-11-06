@@ -17,7 +17,10 @@ $(document).ready(function () {
 
   try {
     const decoded = jwt_decode(token);
-    if (decoded.authorityGroup !== "작업자") {
+    if (
+      decoded.authorityGroup !== "작업자" &&
+      decoded.authorityGroup !== "관리자"
+    ) {
       alert("작업자 권한이 필요합니다.");
       window.location.href = "/login.html";
       return;
@@ -38,10 +41,15 @@ $(document).ready(function () {
   });
 
   // 검색 버튼 클릭 이벤트
-  $(".btn-primary").on("click", function () {
-    loadCarWashHistory();
+  // $(".btn-primary").on("click", function () {
+  //   loadCarWashHistory();
+  // });
+  $("#search-button").on("click", function () {
+    performSearch();
   });
 });
+
+let currentSearchParams = {};
 
 function getStatusFilter() {
   if ($("#car-wash-status-emergency").prop("checked")) {
@@ -52,18 +60,42 @@ function getStatusFilter() {
   return "all";
 }
 
-function loadCarWashHistory(page = 1) {
-  const status = getStatusFilter();
+// function performSearch() {
+//   const searchParams = {
+//     status: getStatusFilter(),
+//     workDate: $("#work-date").val(), // 추가된 부분
+//     page: 1, // 검색 시 페이지를 1로 초기화
+//     limit: 10,
+//   };
+
+//   Object.keys(searchParams).forEach((key) => {
+//     if (!searchParams[key]) {
+//       delete searchParams[key];
+//     }
+//   });
+
+//   console.log("Search params:", searchParams);
+//   currentSearchParams = searchParams;
+//   loadCarWashHistory(searchParams.page, searchParams.limit, searchParams);
+// }
+
+function loadCarWashHistory(page = 1, limit = 10, searchParams = {}) {
+  // const status = getStatusFilter();
   //   const token = localStorage.getItem("token");
+  const params = {
+    page: page,
+    limit: limit,
+    ...searchParams,
+  };
 
   $.ajax({
     url: "/api/car-registrations",
     method: "GET",
-    data: {
-      page: page,
-      limit: 10,
-      status: status,
-    },
+    data:
+      // page: page,
+      // limit: 10,
+      // status: status,
+      params,
     success: function (response) {
       console.log("Received response:", response);
       const tbody = $("#car-wash-list");
@@ -72,7 +104,7 @@ function loadCarWashHistory(page = 1) {
       if (!response.cars || response.cars.length === 0) {
         tbody.append(`
             <tr>
-              <td colspan="5" class="text-center">등록된 세차 내역이 없습니다.</td>
+              <td colspan="7" class="text-center">등록된 세차 내역이 없습니다.</td>
             </tr>
           `);
         $(".pagination").empty();
@@ -84,18 +116,24 @@ function loadCarWashHistory(page = 1) {
         const modelName = car.model?.name || "N/A";
         const placeName = car.location?.place?.name || "N/A";
         const customerName = car.customer?.name || "N/A";
+        const workDate = car.workDate
+          ? new Date(car.workDate).toLocaleDateString()
+          : "N/A";
+        const status = car.status || "N/A";
 
         const row = `
-            <tr>
+            <tr style="${getStatusStyle(status)}">
               <td>
                 <a href="./car-wash-modify.html?id=${car._id}">
                   <button type="button" class="btn btn-light btn-sm">보고</button>
                 </a>
               </td>
-              <td>${licensePlate || "N/A"}</td>
-              <td>${modelName || "N/A"}</td>
-              <td>${placeName || "N/A"}</td>
-              <td>${customerName || "N/A"}</td>
+              <td>${licensePlate}</td>
+              <td>${modelName}</td>
+              <td>${placeName}</td>
+              <td>${customerName}</td>
+              <td>${workDate}</td>
+               <td>${status}</td>
             </tr>
           `;
         tbody.append(row);
@@ -151,9 +189,30 @@ function updatePagination(currentPage, totalPages) {
     e.preventDefault();
     const page = $(this).data("page");
     if (page) {
-      loadCarWashHistory(page);
+      loadCarWashHistory(page, 10, currentSearchParams);
     }
   });
+}
+
+function performSearch() {
+  const workDate = $("#work-date").val();
+  const searchParams = {
+    status: getStatusFilter(),
+    workDate: workDate,
+    page: 1,
+    limit: 10,
+  };
+
+  // 빈 값 제거
+  Object.keys(searchParams).forEach((key) => {
+    if (!searchParams[key]) {
+      delete searchParams[key];
+    }
+  });
+
+  console.log("Search params:", searchParams);
+  currentSearchParams = searchParams;
+  loadCarWashHistory(searchParams.page, searchParams.limit, searchParams);
 }
 
 function getUserInfo() {

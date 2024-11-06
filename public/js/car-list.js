@@ -245,63 +245,44 @@ function initializeSearchFields() {
   // 차종 선택 시 모델 로드
   $("#car-type").on("change", function () {
     const selectedTypeId = $(this).val();
-    const carModelSelect = $("#car-model");
-    if (!selectedTypeId) {
-      // loadCarModels(selectedTypeId);
-      // $("#car-model").prop("disabled", false);
-      carModelSelect
-        .prop("disabled", true)
+    if (selectedTypeId) {
+      loadCarModels(selectedTypeId);
+    } else {
+      $("#car-model")
         .empty()
-        .append('<option value="" selected>차량 모델 선택</option>');
-      // $("#custom-car-model").prop("disabled", true).val("");
-      return;
+        .append('<option value="" selected>차량 모델 선택</option>')
+        .prop("disabled", true);
     }
-    // carModelSelect.prop("disabled", false);
-    // $("#custom-car-model").prop("disabled", false);
-
-    $.ajax({
-      url: `${API_BASE_URL}/car-types/${selectedTypeId}/models`,
-      method: "GET",
-      // beforeSend: function (xhr) {
-      //   const token = localStorage.getItem("token");
-      //   if (token) {
-      //     xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-      //   }
-      // },
-      success: function (data) {
-        // console.log("Loaded models:", data);
-        // const modelSelect = $("#car-model");
-        // modelSelect
-        //   .empty()
-        //   .append('<option value="" selected>차량 모델 선택</option>');
-
-        carModelSelect.empty();
-        carModelSelect.append(
-          '<option value="" selected>차량 모델 선택</option>'
-        );
-        data.forEach((model) => {
-          carModelSelect.append(
-            `<option value="${model._id}">${model.name}</option>`
-          );
-        });
-        carModelSelect.prop("disabled", false);
-      },
-      error: function (err) {
-        console.error("차량 모델 로드 실패:", err);
-        alert("차량 모델을 불러오는데 실패했습니다.");
-        carModelSelect
-          .prop("disabled", true)
-          .empty()
-          .append('<option value="" selected>차량 모델 선택</option>');
-      },
-    });
-    // } else {
-    //   $("#car-model")
-    //     .empty()
-    //     .append('<option value="" selected>차량 모델 선택</option>')
-    //     .prop("disabled", true);
-    // }
+    // $.ajax({
+    //   url: `${API_BASE_URL}/car-types/${selectedTypeId}/models`,
+    //   method: "GET",
+    //   success: function (data) {
+    //     carModelSelect.empty();
+    //     carModelSelect.append(
+    //       '<option value="" selected>차량 모델 선택</option>'
+    //     );
+    //     data.forEach((model) => {
+    //       carModelSelect.append(
+    //         `<option value="${model._id}">${model.name}</option>`
+    //       );
+    //     });
+    //     carModelSelect.prop("disabled", false);
+    //   },
+    //   error: function (err) {
+    //     console.error("차량 모델 로드 실패:", err);
+    //     alert("차량 모델을 불러오는데 실패했습니다.");
+    //     carModelSelect
+    //       .prop("disabled", true)
+    //       .empty()
+    //       .append('<option value="" selected>차량 모델 선택</option>');
+    //   },
   });
+  // } else {
+  //   $("#car-model")
+  //     .empty()
+  //     .append('<option value="" selected>차량 모델 선택</option>')
+  //     .prop("disabled", true);
+  // }
 
   // 지역 선택 시 장소 로드
   $("#region-select").on("change", function () {
@@ -526,10 +507,12 @@ function loadRegions() {
 }
 
 function loadCarModels(typeId) {
+  console.log("Loading car models for typeId:", typeId);
   $.ajax({
     url: `${API_BASE_URL}/car-types/${typeId}/models`,
     method: "GET",
     success: function (data) {
+      console.log("Received car models data:", data);
       const select = $("#car-model");
       select
         .empty()

@@ -326,6 +326,8 @@ const CarModelSchema = new mongoose.Schema({
   name: { type: String, required: true },
 });
 
+CarModelSchema.index({ type: 1, name: 1 }, { unique: true });
+
 const CarRegistrationSchema = new mongoose.Schema({
   type: {
     type: mongoose.Schema.Types.ObjectId,
@@ -372,6 +374,12 @@ const CarRegistrationSchema = new mongoose.Schema({
   },
   serviceAmount: { type: Number, default: 0 },
   notes: { type: String, default: "" },
+  workDate: { type: Date },
+  status: {
+    type: String,
+    enum: ["emergency", "complete", "pending"],
+    default: "pending",
+  },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -698,6 +706,8 @@ apiRouter.get(
         "location.place": place,
         customer,
         manager,
+        workDate,
+        status,
         page = 1,
         limit = 10,
       } = req.query;
@@ -776,6 +786,18 @@ apiRouter.get(
       if (place) filter["location.place"] = mongoose.Types.ObjectId(place);
       if (customer) filter.customer = mongoose.Types.ObjectId(customer);
       if (manager) filter.manager = mongoose.Types.ObjectId(manager);
+
+      if (status && status !== "all") {
+        filter.status = status;
+      }
+
+      if (workDate) {
+        const start = new Date(workDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(workDate);
+        end.setHours(23, 59, 59, 999);
+        filter.workDate = { $gte: start, $lte: end };
+      }
 
       // 역할에 따른 필터링
       if (req.user.authorityGroup === "작업자") {
@@ -873,32 +895,33 @@ apiRouter.get(
         .exec();
 
       // 응답 데이터 가공
-      const formattedCars = cars.map((car) => {
+      const formattedCars = cars.map((car) => ({
         // ...car,
-        return {
-          _id: car._id,
-          type: car.type ? car.type.name : "N/A",
-          // model: car.model || "N/A",
-          model: car.model?.name || "N/A",
-          licensePlate: car.licensePlate || "N/A",
-          location: {
-            // region: car.location?.region?.name || "N/A",
-            place: {
-              name: car.location?.place?.name || "N/A",
-              address: car.location?.place?.address || "N/A",
-            },
-            parkingSpot: car.location?.parkingSpot || "N/A",
+
+        _id: car._id,
+        type: car.type ? car.type.name : "N/A",
+        // model: car.model || "N/A",
+        model: car.model?.name || "N/A",
+        licensePlate: car.licensePlate || "N/A",
+        location: {
+          // region: car.location?.region?.name || "N/A",
+          place: {
+            name: car.location?.place?.name || "N/A",
+            address: car.location?.place?.address || "N/A",
           },
-          // customer: car.customer || "N/A",
-          customer: car.customer ? car.customer.name : "N/A",
-          manager: car.manager ? car.manager.name : "N/A",
-          team: car.team ? car.team.name : "N/A",
-          serviceType: car.serviceType ? car.serviceType.name : "",
-          serviceAmountType: car.serviceAmountType
-            ? car.serviceAmountType.name
-            : "",
-        };
-      });
+          parkingSpot: car.location?.parkingSpot || "N/A",
+        },
+        // customer: car.customer || "N/A",
+        customer: car.customer ? car.customer.name : "N/A",
+        manager: car.manager ? car.manager.name : "N/A",
+        team: car.team ? car.team.name : "N/A",
+        serviceType: car.serviceType ? car.serviceType.name : "",
+        serviceAmountType: car.serviceAmountType
+          ? car.serviceAmountType.name
+          : "",
+        workDate: car.workDate || null,
+        status: car.status || "N/A",
+      }));
 
       res.json({
         total,
@@ -1837,6 +1860,7 @@ apiRouter.get(
 apiRouter.get(
   "/car-types/:typeId/models",
   authenticateToken,
+  authorizeRoles("관리자", "작업자"),
   async (req, res) => {
     try {
       const { typeId } = req.params;
@@ -1889,6 +1913,8 @@ apiRouter.post("/car-registrations", async (req, res) => {
       serviceAmount,
       serviceAmountType,
       notes,
+      workDate,
+      status,
     } = req.body;
 
     // 필수 필드 검증
@@ -1941,6 +1967,8 @@ apiRouter.post("/car-registrations", async (req, res) => {
       serviceAmountType: serviceAmountType || null,
       serviceAmount: serviceAmount || 0,
       notes: notes || "",
+      workDate: new Date(workDate),
+      status: status || "pending",
     });
 
     await newCarRegistration.save();
@@ -2005,6 +2033,8 @@ apiRouter.put("/car-registrations/:id", async (req, res) => {
       serviceAmount,
       serviceAmountType,
       notes,
+      workDate,
+      status,
     } = req.body;
 
     // location.region과 location.place의 유효성 검사
@@ -2077,6 +2107,8 @@ apiRouter.put("/car-registrations/:id", async (req, res) => {
       serviceAmountType: serviceAmountType || null,
       serviceAmount: serviceAmount || 0,
       notes: notes || "",
+      workDate: workDate ? new Date(workDate) : undefined,
+      status: status || undefined,
     };
 
     const updatedCar = await CarRegistration.findByIdAndUpdate(
@@ -2101,6 +2133,51 @@ apiRouter.put("/car-registrations/:id", async (req, res) => {
     res.status(400).json({ error: "차량 수정에 실패했습니다." });
   }
 });
+
+apiRouter.put(
+  "/car-registrations/:id/report",
+  authenticateToken,
+  authorizeRoles("작업자", "관리자"), // 작업자와 관리자 모두 접근 가능
+  async (req, res) => {
+    const { id } = req.params;
+
+    // 유효한 MongoDB ObjectId인지 확인
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "유효하지 않은 차량 ID입니다." });
+    }
+
+    try {
+      const car = await CarRegistration.findById(id);
+      if (!car) {
+        return res.status(404).json({ error: "차량을 찾을 수 없습니다." });
+      }
+
+      // 작업자의 경우, 자신의 매니저와 배정된 차량인지 확인
+      if (req.user.authorityGroup === "작업자") {
+        const account = await Account.findById(req.user.id);
+        if (!account || !account.manager) {
+          return res.status(403).json({ error: "권한이 없습니다." });
+        }
+        if (!car.manager.equals(account.manager)) {
+          return res
+            .status(403)
+            .json({ error: "이 차량에 대한 권한이 없습니다." });
+        }
+      }
+
+      // 세차날짜와 상태 자동 업데이트
+      car.workDate = new Date();
+      car.status = "complete"; // 또는 다른 상태로 설정 가능
+
+      await car.save();
+
+      res.json({ message: "세차 내역이 성공적으로 보고되었습니다.", car });
+    } catch (err) {
+      console.error("세차 내역 보고 오류:", err);
+      res.status(500).json({ error: "세차 내역 보고에 실패했습니다." });
+    }
+  }
+);
 
 // 배정 변경 엔드포인트
 apiRouter.put("/car-registrations/:id/assign", async (req, res) => {
