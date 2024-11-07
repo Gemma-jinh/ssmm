@@ -722,11 +722,11 @@ apiRouter.get(
         req.user
       );
       const {
-        carType,
-        carModel,
+        type,
+        model,
         licensePlate,
-        region,
-        place,
+        "location.region": region,
+        "location.place": place,
         "location.parkingSpot": locationParkingSpot,
         customer,
         manager,
@@ -750,8 +750,8 @@ apiRouter.get(
       // if (customer) filter.customer = new mongoose.Types.ObjectId(customer);
       // if (manager) filter.manager = new mongoose.Types.ObjectId(manager);
 
-      if (carType) filter.type = new mongoose.Types.ObjectId(carType);
-      if (carModel) filter.model = new mongoose.Types.ObjectId(carModel);
+      if (type) filter.type = new mongoose.Types.ObjectId(type);
+      if (model) filter.model = new mongoose.Types.ObjectId(model);
       if (region)
         filter["location.region"] = new mongoose.Types.ObjectId(region);
       if (place) filter["location.place"] = new mongoose.Types.ObjectId(place);
@@ -859,6 +859,7 @@ apiRouter.get(
         // type: car.type ? car.type.name : "N/A",
         // model: car.model || "N/A",
         model: car.model?.name || "N/A",
+        type: car.type?.name || "N/A",
         licensePlate: car.licensePlate || "N/A",
         location: {
           // region: car.location?.region?.name || "N/A",

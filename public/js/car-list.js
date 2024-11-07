@@ -19,11 +19,11 @@ $(document).ready(function () {
   });
 
   // 필드 변경 시 자동 검색 (선택적)
-  $(
-    "#car-type, #car-model, #region-select, #place-select, #parking-spot-select, #customer-select, #manager-select"
-  ).on("change", function () {
-    performSearch();
-  });
+  // $(
+  //   "#car-type, #car-model, #region-select, #place-select, #parking-spot-select, #customer-select, #manager-select"
+  // ).on("change", function () {
+  //   performSearch();
+  // });
 
   // 차량 번호 입력 시 타이핑 완료 후 검색
   let searchTimeout;
@@ -56,14 +56,39 @@ $(document).ready(function () {
   function getToken() {
     return localStorage.getItem("token"); // 로그인 시 저장한 토큰
   }
+
+  // 검색 수행 함수
+  function performSearch() {
+    const searchParams = {
+      type: $("#car-type").val(),
+      model: $("#car-model").val(),
+      licensePlate: $("#license-plate").val().trim(),
+      "location.region": $("#region-select").val(),
+      "location.place": $("#place-select").val(),
+      "location.parkingSpot": $("#parking-spot-select").val(),
+      customer: $("#customer-select").val(),
+      manager: $("#manager-select").val(),
+    };
+
+    // 빈 값 제거
+    Object.keys(searchParams).forEach((key) => {
+      if (!searchParams[key]) {
+        delete searchParams[key];
+      }
+    });
+
+    console.log("Search params:", searchParams);
+    currentSearchParams = searchParams;
+    loadCarList(searchParams, 1, 10);
+  }
+
   // 차량 목록 로드 함수
   function loadCarList(searchParams = {}, page = 1, limit = 10) {
     // searchParams.page = page;
     // searchParams.limit = limit;
     const params = {
       ...searchParams,
-      page: page,
-      limit,
+      page,
       limit,
     };
 
@@ -87,65 +112,8 @@ $(document).ready(function () {
           return;
         }
 
-        // 데이터 구조에 따라 처리
-        // const carsArray = Array.isArray(response)
-        //   ? response
-        //   : response.data
-        //   ? response.data
-        //   : response.cars
-        //   ? response.cars
-        //   : [];
-
-        // if (cars.length === 0) {
-        //   carList.html(
-        //     '<tr><td colspan="8" class="text-center">등록된 차량이 없습니다.</td></tr>'
-        //   );
-        //   return;
-        // }
-
         data.cars.forEach((car) => {
           console.log("Processing car data:", car);
-          // if (!car.customer) {
-          //   console.warn(`차량 ID ${car._id}에 고객사 정보가 없습니다.`);
-          // }
-          // if (!car.model) {
-          //   console.warn(`차량 ID ${car._id}에 차량 모델 정보가 없습니다.`);
-          // }
-
-          // const address =
-          //   car.location.place && car.location.place.address
-          //     ? car.location.place.address
-          //     : "N/A";
-          // const placeName = car.location.place
-          //   ? car.location.place.name
-          //   : "N/A";
-          // const modelName = car.model ? car.model.name : "N/A";
-          // const customerName = car.customer ? car.customer.name : "N/A";
-          // const parkingSpot = car.location.parkingSpot || "";
-
-          // const modelName = car.model?.name || "N/A";
-          // const customerName = car.customer?.name || "N/A";
-          // const placeName = car.location?.place?.name || "N/A";
-          // const address = car.location?.place?.address || "N/A";
-          // const parkingSpot = car.location?.parkingSpot || "N/A";
-          // const licensePlate = car.licensePlate || "N/A";
-
-          // console.log("Extracted data:", {
-          //   modelName,
-          //   customerName,
-          //   placeName,
-          //   address,
-          //   parkingSpot,
-          //   licensePlate,
-          // });
-
-          // const customerName = car.customer || "N/A";
-          // const modelName = car.model || "N/A";
-          // const placeName = car.location?.place?.name || "N/A";
-          // const address = car.location?.place?.address || "N/A";
-          // const parkingSpot = car.location?.parkingSpot || "N/A";
-          // const managerName = car.manager?.name || "N/A";
-
           const row = `
               <tr>
                 <td><input class="form-check-input select-check-1" type="checkbox" value="${
@@ -186,30 +154,6 @@ $(document).ready(function () {
         }
       },
     });
-  }
-  // 검색 수행 함수
-  function performSearch() {
-    const searchParams = {
-      type: $("#car-type").val(),
-      model: $("#car-model").val(),
-      licensePlate: $("#license-plate").val().trim(),
-      region: $("#region-select").val(),
-      place: $("#place-select").val(),
-      "location.parkingSpot": $("#parking-spot-select").val(),
-      customer: $("#customer-select").val(),
-      manager: $("#manager-select").val(),
-    };
-
-    // 빈 값 제거
-    Object.keys(searchParams).forEach((key) => {
-      if (!searchParams[key]) {
-        delete searchParams[key];
-      }
-    });
-
-    console.log("Search params:", searchParams);
-    currentSearchParams = searchParams;
-    loadCarList(searchParams, 1, 10);
   }
   // 추가: 차량 삭제 기능 구현 (선택된 차량 삭제)
   $("#delete-button").on("click", function () {
