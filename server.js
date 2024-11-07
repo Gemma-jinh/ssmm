@@ -239,24 +239,33 @@ const uploadDir = path.join(__dirname, "uploads");
 console.log("Upload directory:", uploadDir);
 
 // 디렉토리 생성 함수
-async function ensureDir(dirpath) {
+// async function ensureDir(dirpath) {
+//   try {
+//     await fs.mkdir(dirpath, { recursive: true });
+//     console.log(`Directory created or already exists: ${dirpath}`);
+//     const stats = await fs.stat(dirpath);
+//     console.log(`Directory permissions: ${stats.mode}`);
+//   } catch (err) {
+//     console.error(`Error creating/checking directory ${dirpath}:`, err);
+//     throw err;
+//   }
+// }
+async function ensureUploadDirectory() {
   try {
-    await fs.mkdir(dirpath, { recursive: true });
-    console.log(`Directory created or already exists: ${dirpath}`);
-    // 디렉토리 권한 확인
-    const stats = await fs.stat(dirpath);
-    console.log(`Directory permissions: ${stats.mode}`);
+    await fs.mkdir("uploads", { recursive: true });
+    console.log("Upload directory created or already exists");
   } catch (err) {
-    console.error(`Error creating/checking directory ${dirpath}:`, err);
+    console.error("Error creating upload directory:", err);
     throw err;
   }
 }
 
 // 서버 시작 시 업로드 디렉토리 생성 확인
-ensureDir(uploadDir).catch((err) => {
-  console.error("Failed to create upload directory:", err);
-  process.exit(1);
-});
+// ensureDir(uploadDir).catch((err) => {
+//   console.error("Failed to create upload directory:", err);
+//   process.exit(1);
+// });
+ensureUploadDirectory();
 
 // 파일 저장 경로 설정
 const storage = multer.diskStorage({
@@ -265,7 +274,7 @@ const storage = multer.diskStorage({
       "Multer destination function called. Upload directory:",
       uploadDir
     );
-    cb(null, uploadDir);
+    cb(null, "uploads/");
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -311,9 +320,10 @@ const upload = multer({
   },
   fileFilter: function (req, file, cb) {
     if (!file.mimetype.startsWith("image/")) {
-      return cb(new Error("이미지 파일만 업로드할 수 있습니다."), false);
+      cb(null, true);
+    } else {
+      cb(new Error("이미지 파일만 업로드 가능"));
     }
-    cb(null, true);
   },
 });
 
@@ -719,20 +729,21 @@ apiRouter.get(
     try {
       console.log(
         "Received /api/car-registrations request from user:",
-        req.user
+        req.query
       );
       const {
-        type,
-        model,
-        licensePlate,
-        "location.region": region,
-        "location.place": place,
-        "location.parkingSpot": locationParkingSpot,
-        customer,
-        manager,
-        // workDate,
-        // assignDate,
-        // status,
+        // type,
+        // model,
+        // licensePlate,
+        // "location.region": region,
+        // "location.place": place,
+        // "location.parkingSpot": locationParkingSpot,
+        // customer,
+        // manager,
+        // page = 1,
+        // limit = 10,
+        status,
+        workDate,
         page = 1,
         limit = 10,
       } = req.query;
@@ -750,30 +761,46 @@ apiRouter.get(
       // if (customer) filter.customer = new mongoose.Types.ObjectId(customer);
       // if (manager) filter.manager = new mongoose.Types.ObjectId(manager);
 
-      if (type) filter.type = new mongoose.Types.ObjectId(type);
-      if (model) filter.model = new mongoose.Types.ObjectId(model);
-      if (region)
-        filter["location.region"] = new mongoose.Types.ObjectId(region);
-      if (place) filter["location.place"] = new mongoose.Types.ObjectId(place);
-      if (customer) filter.customer = new mongoose.Types.ObjectId(customer);
-      if (manager) filter.manager = new mongoose.Types.ObjectId(manager);
+      // if (type) filter.type = new mongoose.Types.ObjectId(type);
+      // if (model) filter.model = new mongoose.Types.ObjectId(model);
+      // if (region)
+      //   filter["location.region"] = new mongoose.Types.ObjectId(region);
+      // if (place) filter["location.place"] = new mongoose.Types.ObjectId(place);
+      // if (customer) filter.customer = new mongoose.Types.ObjectId(customer);
+      // if (manager) filter.manager = new mongoose.Types.ObjectId(manager);
 
-      // 문자열 필터
-      if (licensePlate) {
-        filter.licensePlate = { $regex: licensePlate, $options: "i" };
-      }
-      if (locationParkingSpot) {
-        filter["location.parkingSpot"] = { $regex: parkingSpot, $options: "i" };
+      // if (licensePlate) {
+      //   filter.licensePlate = { $regex: licensePlate, $options: "i" };
+      // }
+      // if (locationParkingSpot) {
+      //   filter["location.parkingSpot"] = { $regex: parkingSpot, $options: "i" };
+      // }
+
+      // if (req.user.authorityGroup === "작업자") {
+      //   const account = await Account.findById(req.user.id).populate("manager");
+      //   if (!account || !account.manager) {
+      //     return res
+      //       .status(403)
+      //       .json({ error: "작업자 정보를 찾을 수 없습니다." });
+      //   }
+      //   filter.manager = account.manager._id;
+      // }
+
+      if (status && status !== "all") {
+        filter.status = status;
       }
 
-      if (req.user.authorityGroup === "작업자") {
-        const account = await Account.findById(req.user.id).populate("manager");
-        if (!account || !account.manager) {
-          return res
-            .status(403)
-            .json({ error: "작업자 정보를 찾을 수 없습니다." });
-        }
-        filter.manager = account.manager._id;
+      // 작업일자 필터 적용
+      if (workDate) {
+        const startDate = new Date(workDate);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(workDate);
+        endDate.setHours(23, 59, 59, 999);
+
+        filter.workDate = {
+          $gte: startDate,
+          $lte: endDate,
+        };
       }
 
       const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -879,6 +906,8 @@ apiRouter.get(
         //   : "",
         // workDate: car.workDate || null,
         // status: car.status || "N/A",
+        workDate: car.workDate,
+        status: car.status || "pending",
       }));
 
       res.json({
@@ -2114,9 +2143,11 @@ const uploadFields = upload.fields([
 apiRouter.put(
   "/car-registrations/:id/report",
   authenticateToken,
-  authorizeRoles("작업자", "관리자"), // 작업자와 관리자 모두 접근 가능
+  // authorizeRoles("작업자", "관리자"),
+  uploadFields,
   async (req, res) => {
     const { id } = req.params;
+    const { notes } = req.body;
 
     // 유효한 MongoDB ObjectId인지 확인
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -2135,7 +2166,7 @@ apiRouter.put(
         if (!account || !account.manager) {
           return res.status(403).json({ error: "권한이 없습니다." });
         }
-        if (!car.manager.equals(account.manager)) {
+        if (!car.manager || !car.manager.equals(account.manager)) {
           return res
             .status(403)
             .json({ error: "이 차량에 대한 권한이 없습니다." });
@@ -2143,29 +2174,47 @@ apiRouter.put(
       }
 
       // 세차날짜와 상태 자동 업데이트
-      car.workDate = new Date();
-      car.status = "complete"; // 또는 다른 상태로 설정 가능
-
+      const updateData = {
+        workDate: new Date(),
+        status: "complete",
+        notes: notes || "",
+      };
       // 메모 업데이트
-      if (req.body.notes) {
-        car.notes = req.body.notes;
-      }
+      // if (req.body.notes) {
+      //   car.notes = req.body.notes;
+      // }
 
-      // 외부세차 사진 업로드
-      if (req.files["externalPhoto"]) {
-        const externalPhotoPath = req.files["externalPhoto"][0].path;
-        car.externalPhoto = externalPhotoPath;
+      //파일 업로드
+      if (req.files) {
+        if (req.files.externalPhoto) {
+          updateData.externalPhoto = req.files.externalPhoto[0].path;
+        }
+        if (req.files.internalPhoto) {
+          updateData.internalPhoto = req.files.internalPhoto[0].path;
+        }
       }
-
       // 내부세차 사진 업로드
-      if (req.files["internalPhoto"]) {
-        const internalPhotoPath = req.files["internalPhoto"][0].path;
-        car.internalPhoto = internalPhotoPath;
+      // if (req.files["internalPhoto"]) {
+      //   const internalPhotoPath = req.files["internalPhoto"][0].path;
+      //   car.internalPhoto = internalPhotoPath;
+      // }
+
+      // await car.save();
+
+      const updatedCar = await CarRegistration.findByIdAndUpdate(
+        id,
+        { $set: updateData },
+        { new: true }
+      ).populate("type model customer location.region location.place");
+
+      if (!updatedCar) {
+        return res.status(404).json({ error: "차량 업데이트 실패" });
       }
 
-      await car.save();
-
-      res.json({ message: "세차 내역이 성공적으로 보고되었습니다.", car });
+      res.json({
+        message: "세차 내역이 성공적으로 보고되었습니다.",
+        car: updatedCar,
+      });
     } catch (err) {
       console.error("세차 내역 보고 오류:", err);
       res.status(500).json({ error: "세차 내역 보고에 실패했습니다." });
@@ -2633,6 +2682,7 @@ apiRouter.post(
 // });
 
 app.use("/api", apiRouter);
+app.use("/uploads", express.static("uploads"));
 
 // 기본 라우트
 app.get("/", (req, res) => {
@@ -2738,6 +2788,10 @@ app.get("/customer-manage.html", (req, res) => {
 
 app.get("/customer-create.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "pages", "customer-create.html"));
+});
+
+app.get("/customer-modify.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "pages", "customer-modify.html"));
 });
 
 app.get("/car-wash-report-weekly.html", (req, res) => {

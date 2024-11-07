@@ -308,33 +308,61 @@ function loadPlaces(regionId) {
 }
 
 // 주차 위치 목록 로드 (예시)
+// function loadParkingSpots(placeId) {
+//   if (!placeId) {
+//     $("#parking-spot-select")
+//       .empty()
+//       .append('<option value="" selected>주차 위치 선택</option>')
+//       .prop("disabled", true);
+//     return;
+//   }
+
+//   const parkingSpots = ["A-1", "A-2", "B-1", "B-2"];
+
+//   const parkingSpotSelect = $("#parking-spot-select");
+//   parkingSpotSelect
+//     .empty()
+//     .append('<option value="" selected>주차 위치 선택</option>');
+//   parkingSpots.forEach((spot) => {
+//     const option = `<option value="${spot}">${spot}</option>`;
+//     parkingSpotSelect.append(option);
+//   });
+//   parkingSpotSelect.prop("disabled", false);
+// }
 function loadParkingSpots(placeId) {
   if (!placeId) {
-    $("#parking-spot-select")
-      .empty()
-      .append('<option value="" selected>주차 위치 선택</option>')
-      .prop("disabled", true);
+    const select = $("#parking-spot-select");
+    select.empty().append('<option value="" selected>주차 위치 선택</option>');
+    select.prop("disabled", true);
     return;
   }
-
-  // 주차 위치 목록을 동적으로 로드하려면 백엔드 API가 필요합니다.
-  // 예를 들어, /api/places/:placeId/parking-spots 엔드포인트를 추가해야 합니다.
-  // 여기서는 예시로 고정된 값을 사용하겠습니다.
-
-  // 예시 주차 위치 목록
-  const parkingSpots = ["A-1", "A-2", "B-1", "B-2"];
-
-  const parkingSpotSelect = $("#parking-spot-select");
-  parkingSpotSelect
-    .empty()
-    .append('<option value="" selected>주차 위치 선택</option>');
-  parkingSpots.forEach((spot) => {
-    const option = `<option value="${spot}">${spot}</option>`;
-    parkingSpotSelect.append(option);
+  $.ajax({
+    url: `${API_BASE_URL}/places/${placeId}/parking-spots`,
+    method: "GET",
+    success: function (data) {
+      const select = $("#parking-spot-select");
+      select
+        .empty()
+        .append('<option value="" selected>주차 위치 선택</option>');
+      if (Array.isArray(data)) {
+        data.forEach((spot) => {
+          select.append(`<option value="${spot}">${spot}</option>`);
+        });
+        select.prop("disabled", false);
+      } else {
+        select.prop("disabled", true);
+      }
+    },
+    error: function (err) {
+      console.error("주차 위치 로드 실패:", err);
+      const select = $("#parking-spot-select");
+      select
+        .empty()
+        .append('<option value="" selected>주차 위치 선택</option>');
+      select.prop("disabled", true);
+    },
   });
-  parkingSpotSelect.prop("disabled", false);
 }
-
 // 담당자 목록 로드
 function loadManagers() {
   $.ajax({

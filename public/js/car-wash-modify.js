@@ -28,7 +28,7 @@ $(document).ready(function () {
 
   if (!carId) {
     alert("차량 ID가 제공되지 않았습니다.");
-    window.location.href = "/car-list.html";
+    // window.location.href = "/car-list.html";
     return;
   }
 
@@ -61,15 +61,13 @@ function loadCarDetails(carId) {
     success: function (response) {
       console.log("차량 상세 정보:", response);
       $("#license-plate").text(response.licensePlate || "N/A");
-      $("#customer-name").text(
-        response.customer ? response.customer.name : "N/A"
-      );
+      $("#customer-name").text(response.customer?.name || "N/A");
       $("#work-date").text(
         response.workDate
           ? new Date(response.workDate).toLocaleDateString()
           : "N/A"
       );
-      $("#status").text(response.status || "N/A");
+      $("#status").text(getStatusText(response.status));
       // 추가적으로 필요한 필드
 
       if (response.externalPhoto) {
@@ -78,7 +76,7 @@ function loadCarDetails(carId) {
           .attr("alt", "외부세차 사진")
           .addClass("img-thumbnail")
           .css({ maxWidth: "100%", height: "auto", marginTop: "10px" });
-        $("#external-photo-preview").append(externalImg);
+        $("#external-photo-preview").empty().append(externalImg);
       }
 
       if (response.internalPhoto) {
@@ -86,8 +84,8 @@ function loadCarDetails(carId) {
           .attr("src", `/${response.internalPhoto}`)
           .attr("alt", "내부세차 사진")
           .addClass("img-thumbnail")
-          .css({ width: "150px", height: "auto", marginTop: "10px" });
-        $("#internal-photo-preview").append(internalImg);
+          .css({ maxWidth: "100%", height: "auto", marginTop: "10px" });
+        $("#internal-photo-preview").empty().append(internalImg);
       }
     },
     error: function (err) {
@@ -98,6 +96,17 @@ function loadCarDetails(carId) {
   });
 }
 
+function getStatusText(status) {
+  switch (status) {
+    case "emergency":
+      return "긴급세차요청";
+    case "complete":
+      return "세차완료";
+    default:
+      return "대기중";
+  }
+}
+
 // "보고하기" 버튼 클릭 시 세차 내역 보고 함수
 function reportCarWash(carId) {
   const notes = $("#car-wash-note").val();
@@ -105,6 +114,8 @@ function reportCarWash(carId) {
   // 파일 업로드를 위한 FormData 생성
   const formData = new FormData();
   formData.append("notes", notes);
+  formData.append("status", "complete");
+  formData.append("workDate", new Date().toISOString());
 
   const externalPhoto = $("#camera-click-btn2")[0].files[0];
   const internalPhoto = $("#camera-click-btn1")[0].files[0];
@@ -124,9 +135,12 @@ function reportCarWash(carId) {
     processData: false,
     contentType: false,
     success: function (response) {
+      console.log("Report response:", response);
+      if (response.car) {
+        $("#status").text(getStatusText(response.car.status));
+      }
       alert(response.message);
-      // 보고 후 페이지를 차량 목록으로 이동하거나, 다른 페이지로 이동할 수 있습니다.
-      window.location.href = "/car-list.html";
+      window.location.href = "/car-wash-history.html";
     },
     error: function (err) {
       console.error("보고하기 실패:", err);
