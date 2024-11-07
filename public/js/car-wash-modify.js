@@ -77,7 +77,7 @@ function loadCarDetails(carId) {
           .attr("src", `/${response.externalPhoto}`)
           .attr("alt", "외부세차 사진")
           .addClass("img-thumbnail")
-          .css({ width: "150px", height: "auto", marginTop: "10px" });
+          .css({ maxWidth: "100%", height: "auto", marginTop: "10px" });
         $("#external-photo-preview").append(externalImg);
       }
 
@@ -149,7 +149,7 @@ function previewPhoto(input, previewSelector) {
         .attr("src", e.target.result)
         .attr("alt", "세차 사진")
         .addClass("img-thumbnail")
-        .css({ width: "150px", height: "auto", marginTop: "10px" });
+        .css({ width: "100%", height: "auto", marginTop: "10px" });
       preview.append(img);
     };
 

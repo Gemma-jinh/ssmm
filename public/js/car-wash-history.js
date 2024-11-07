@@ -33,11 +33,13 @@ $(document).ready(function () {
 
   // 초기 세팅
   $("#car-wash-status-all").prop("checked", true);
-  loadCarWashHistory();
+  $("#work-date").val(new Date().toISOString().substring(0, 10));
+
+  performSearch();
 
   // 라디오 버튼 변경 이벤트
   $('input[name="flexRadioDefault"]').on("change", function () {
-    loadCarWashHistory();
+    performSearch();
   });
 
   // 검색 버튼 클릭 이벤트
@@ -196,9 +198,11 @@ function updatePagination(currentPage, totalPages) {
 
 function performSearch() {
   const workDate = $("#work-date").val();
+  const assignDate = $("#assign-date").val();
   const searchParams = {
     status: getStatusFilter(),
     workDate: workDate,
+    assignDate: assignDate,
     page: 1,
     limit: 10,
   };

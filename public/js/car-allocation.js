@@ -39,6 +39,7 @@ $(document).ready(function () {
     const selectedCars = getSelectedCars();
     const managerId = $("#assign-manager").val();
     const teamId = $("#assign-team").val();
+    const assignDate = $("#assign-date").val();
 
     if (selectedCars.length === 0) {
       alert("배정할 차량을 선택해주세요.");
@@ -54,8 +55,13 @@ $(document).ready(function () {
       alert("배정할 팀을 선택해주세요.");
       return;
     }
+
+    if (!assignDate) {
+      alert("날짜를 선택해주세요.");
+      return;
+    }
     // 배정 요청 보내기
-    assignCars(selectedCars, managerId, teamId);
+    assignCars(selectedCars, managerId, teamId, assignDate);
   });
 });
 
@@ -539,9 +545,15 @@ function performSearch() {
   const place = $("#place-select").val(); // 장소
   const parkingSpot = $("#parking-spot-select").val(); // 주차 위치
   const customer = $("#customer-select").val(); // 고객사
+  const workDate = $("#work-date").val();
 
   // 검색 파라미터 객체 생성
-  const searchParams = {};
+  const searchParams = {
+    // status: getStatusFilter(),
+    // workDate: workDate,
+    // page: 1,
+    // limit: 10,
+  };
 
   if (carType) searchParams.carType = carType;
   if (carModel) searchParams.carModel = carModel;
@@ -550,7 +562,7 @@ function performSearch() {
   if (place) searchParams["location.place"] = place;
   if (parkingSpot) searchParams["location.parkingSpot"] = parkingSpot;
   if (customer) searchParams.customer = customer;
-
+  if (workDate) searchParams.workDate = workDate;
   loadCarList(searchParams, 1, 10); // 첫 페이지 로드
 }
 
@@ -607,7 +619,12 @@ function getSelectedCars() {
 // }
 
 // 배정 요청 보내기
-function assignCars(carIds, managerId, teamId) {
+function assignCars(carIds, managerId, teamId, assignDate) {
+  // const assignDate = $("#assign-date").val();
+  // if (!assignDate) {
+  //   alert("날짜를 선택해주세요.");
+  //   return;
+  // }
   $.ajax({
     url: `${API_BASE_URL}/car-registrations/assign`,
     method: "POST",
@@ -616,12 +633,14 @@ function assignCars(carIds, managerId, teamId) {
       carIds: carIds,
       managerId: managerId,
       teamId: teamId,
+      assignDate: assignDate,
     }),
     success: function () {
       alert("선택된 차량이 배정되었습니다.");
       loadCarList(); // 목록 다시 로드
       // 전체 선택 체크박스 해제
       $("#flexCheckDefault").prop("checked", false);
+      $("#assign-date").val("");
     },
     error: function (err) {
       console.error("차량 배정 실패:", err);

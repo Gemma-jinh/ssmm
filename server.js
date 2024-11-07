@@ -14,6 +14,7 @@ const Region = require("./models/Region");
 const Manager = require("./models/Manager"); // 담당자 모델
 const Team = require("./models/Team"); // 팀 모델
 const jwt = require("jsonwebtoken");
+const { Console } = require("console");
 // const Place = require("./models/Place");
 
 // Promisify fs functions
@@ -378,6 +379,7 @@ const CarRegistrationSchema = new mongoose.Schema({
   },
   serviceAmount: { type: Number, default: 0 },
   notes: { type: String, default: "" },
+  assignDate: { type: Date },
   workDate: { type: Date },
   status: {
     type: String,
@@ -518,8 +520,8 @@ async function setInitialParkingSpots() {
     for (const [placeName, spots] of Object.entries(placeParkingSpots)) {
       const place = await Place.findOne({ name: placeName });
       if (place) {
-        if (!place.parkingSpots || !arrayEquals(place.parkingSpots, spots)) {
-          place.parkingSpots = spots;
+        if (!place.parkingSpot || !arrayEquals(place.parkingSpot, spots)) {
+          place.parkingSpot = spots;
           await place.save();
           console.log(`${placeName} 주차 위치 설정 완료:`, spots);
         }
@@ -573,28 +575,40 @@ mongoose
 
     try {
       // 기존 데이터 모두 삭제
-      await CarType.deleteMany({});
-      console.log("기존 차종 데이터 삭제 완료");
+      //   await CarType.deleteMany({});
+      //   console.log("기존 차종 데이터 삭제 완료");
 
-      // 새로운 데이터 추가
-      await CarType.insertMany(defaultCarTypes.map((name) => ({ name })));
-      console.log("새로운 차종이 추가되었습니다.");
+      for (const typeName of defaultCarTypes) {
+        const existingType = await CarType.findOne({ name: typeName });
+        if (!existingType) {
+          const newCarType = new CarType({ name: typeName });
+          await newCarType.save();
+          console.log(`차종 ${typeName} 생성 완료`);
+        }
+      }
+
+      console.log("차종 초기화 완료");
     } catch (err) {
       console.error("차종 데이터 초기화 오류:", err);
     }
-    // CarType 모델이 정의된 후에 실행.
-    CarType.find()
-      .then((existingTypes) => {
-        if (existingTypes.length === 0) {
-          return CarType.insertMany(defaultCarTypes.map((name) => ({ name })));
-        }
-      })
-      .then(() => {
-        console.log("기본 차종이 추가되었습니다.");
-      })
-      .catch((err) => {
-        console.error("기본 차종 추가 오류:", err);
-      });
+
+    //   await CarType.insertMany(defaultCarTypes.map((name) => ({ name })));
+    //   console.log("새로운 차종이 추가되었습니다.");
+    // } catch (err) {
+    //   console.error("차종 데이터 초기화 오류:", err);
+    // }
+    // CarType.find()
+    //   .then((existingTypes) => {
+    //     if (existingTypes.length === 0) {
+    //       return CarType.insertMany(defaultCarTypes.map((name) => ({ name })));
+    //     }
+    //   })
+    //   .then(() => {
+    //     console.log("기본 차종이 추가되었습니다.");
+    //   })
+    //   .catch((err) => {
+    //     console.error("기본 차종 추가 오류:", err);
+    //  });
 
     // 기본 팀 설정
     const defaultTeams = ["A팀", "B팀", "C팀"];
@@ -700,7 +714,7 @@ const filePath = path.join(__dirname, "public", "login.html");
 apiRouter.get(
   "/car-registrations",
   authenticateToken,
-  authorizeRoles("관리자", "작업자"),
+  // authorizeRoles("관리자", "작업자"),
   async (req, res) => {
     try {
       console.log(
@@ -708,15 +722,17 @@ apiRouter.get(
         req.user
       );
       const {
-        type,
-        model,
+        carType,
+        carModel,
         licensePlate,
-        "location.region": region,
-        "location.place": place,
+        region,
+        place,
+        "location.parkingSpot": locationParkingSpot,
         customer,
         manager,
-        workDate,
-        status,
+        // workDate,
+        // assignDate,
+        // status,
         page = 1,
         limit = 10,
       } = req.query;
@@ -724,108 +740,40 @@ apiRouter.get(
       // 필터 객체 초기화
       let filter = {};
 
-      // if (carType) {
-      //   if (mongoose.Types.ObjectId.isValid(carType)) {
-      //     filter.type = carType;
-      //   } else {
-      //     return res
-      //       .status(400)
-      //       .json({ error: "유효하지 않은 차량 종류 ID입니다." });
-      //   }
-      // }
-
-      // if (carModel) {
-      //   if (mongoose.Types.ObjectId.isValid(carModel)) {
-      //     filter.model = carModel;
-      //   } else {
-      //     return res
-      //       .status(400)
-      //       .json({ error: "유효하지 않은 차량 모델 ID입니다." });
-      //   }
-      // }
-
-      // if (licensePlate) {
+      // if (type) filter.type = new mongoose.Types.ObjectId(type);
+      // if (model) filter.model = new mongoose.Types.ObjectId(model);
+      // if (licensePlate)
       //   filter.licensePlate = { $regex: licensePlate, $options: "i" };
-      // }
+      // if (region)
+      //   filter["location.region"] = new mongoose.Types.ObjectId(region);
+      // if (place) filter["location.place"] = new mongoose.Types.ObjectId(place);
+      // if (customer) filter.customer = new mongoose.Types.ObjectId(customer);
+      // if (manager) filter.manager = new mongoose.Types.ObjectId(manager);
 
-      // if (region) {
-      //   if (mongoose.Types.ObjectId.isValid(region)) {
-      //     filter["location.region"] = region;
-      //   } else {
-      //     return res
-      //       .status(400)
-      //       .json({ error: "유효하지 않은 지역 ID입니다." });
-      //   }
-      // }
+      if (carType) filter.type = new mongoose.Types.ObjectId(carType);
+      if (carModel) filter.model = new mongoose.Types.ObjectId(carModel);
+      if (region)
+        filter["location.region"] = new mongoose.Types.ObjectId(region);
+      if (place) filter["location.place"] = new mongoose.Types.ObjectId(place);
+      if (customer) filter.customer = new mongoose.Types.ObjectId(customer);
+      if (manager) filter.manager = new mongoose.Types.ObjectId(manager);
 
-      // if (place) {
-      //   if (mongoose.Types.ObjectId.isValid(place)) {
-      //     filter["location.place"] = place;
-      //   } else {
-      //     return res
-      //       .status(400)
-      //       .json({ error: "유효하지 않은 장소 ID입니다." });
-      //   }
-      // }
-
-      // if (customer) {
-      //   if (mongoose.Types.ObjectId.isValid(customer)) {
-      //     filter.customer = customer;
-      //   } else {
-      //     return res
-      //       .status(400)
-      //       .json({ error: "유효하지 않은 고객사 ID입니다." });
-      //   }
-      // }
-
-      // if (manager) {
-      //   if (mongoose.Types.ObjectId.isValid(manager)) {
-      //     filter.manager = manager;
-      //   } else {
-      //     return res
-      //       .status(400)
-      //       .json({ error: "유효하지 않은 매니저 ID입니다." });
-      //   }
-      // }
-      if (type) filter.type = mongoose.Types.ObjectId(type);
-      if (model) filter.model = mongoose.Types.ObjectId(model);
-      if (licensePlate)
+      // 문자열 필터
+      if (licensePlate) {
         filter.licensePlate = { $regex: licensePlate, $options: "i" };
-      if (region) filter["location.region"] = mongoose.Types.ObjectId(region);
-      if (place) filter["location.place"] = mongoose.Types.ObjectId(place);
-      if (customer) filter.customer = mongoose.Types.ObjectId(customer);
-      if (manager) filter.manager = mongoose.Types.ObjectId(manager);
-
-      if (status && status !== "all") {
-        filter.status = status;
+      }
+      if (locationParkingSpot) {
+        filter["location.parkingSpot"] = { $regex: parkingSpot, $options: "i" };
       }
 
-      if (workDate) {
-        const start = new Date(workDate);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(workDate);
-        end.setHours(23, 59, 59, 999);
-        filter.workDate = { $gte: start, $lte: end };
-      }
-
-      // 역할에 따른 필터링
       if (req.user.authorityGroup === "작업자") {
-        const account = await Account.findById(req.user.id);
-        // if (!account) {
-        //   return res.status(404).json({ error: "계정을 찾을 수 없습니다." });
-        // }
-        // if (account.manager) {
-        //   if (account.manager) {
-        //     filter.manager = account.manager;
-        //   } else {
-        //     return res
-        //       .status(400)
-        //       .json({ error: "유효하지 않은 매니저 ID입니다." });
-        //   }
-        // }
-        if (account && account.manager) {
-          filter.manager = account.manager;
+        const account = await Account.findById(req.user.id).populate("manager");
+        if (!account || !account.manager) {
+          return res
+            .status(403)
+            .json({ error: "작업자 정보를 찾을 수 없습니다." });
         }
+        filter.manager = account.manager._id;
       }
 
       const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -877,7 +825,7 @@ apiRouter.get(
         .populate("location.region")
         .populate("location.place")
         .populate("manager")
-        .populate("team")
+        // .populate("team")
         // .populate({
         //   path: "type",
         //   select: "name",
@@ -908,7 +856,7 @@ apiRouter.get(
         // ...car,
 
         _id: car._id,
-        type: car.type ? car.type.name : "N/A",
+        // type: car.type ? car.type.name : "N/A",
         // model: car.model || "N/A",
         model: car.model?.name || "N/A",
         licensePlate: car.licensePlate || "N/A",
@@ -921,15 +869,15 @@ apiRouter.get(
           parkingSpot: car.location?.parkingSpot || "N/A",
         },
         // customer: car.customer || "N/A",
-        customer: car.customer ? car.customer.name : "N/A",
-        manager: car.manager ? car.manager.name : "N/A",
-        team: car.team ? car.team.name : "N/A",
-        serviceType: car.serviceType ? car.serviceType.name : "",
-        serviceAmountType: car.serviceAmountType
-          ? car.serviceAmountType.name
-          : "",
-        workDate: car.workDate || null,
-        status: car.status || "N/A",
+        customer: car.customer?.name || "N/A",
+        manager: car.manager?.name || "N/A",
+        // team: car.team ? car.team.name : "N/A",
+        // serviceType: car.serviceType ? car.serviceType.name : "",
+        // serviceAmountType: car.serviceAmountType
+        //   ? car.serviceAmountType.name
+        //   : "",
+        // workDate: car.workDate || null,
+        // status: car.status || "N/A",
       }));
 
       res.json({
@@ -1570,7 +1518,7 @@ apiRouter.get("/places/:placeId/parking-spots", async (req, res) => {
     if (!place) {
       return res.status(404).json({ error: "장소를 찾을 수 없습니다." });
     }
-    res.json(place.parkingSpots);
+    res.json(place.parkingSpot || []);
   } catch (err) {
     console.error("주차 위치 조회 오류:", err);
     res.status(500).json({ error: "서버 오류" });
@@ -1579,14 +1527,17 @@ apiRouter.get("/places/:placeId/parking-spots", async (req, res) => {
 
 apiRouter.put("/places/:placeId/parking-spots", async (req, res) => {
   try {
-    const { parkingSpots } = req.body;
+    const { parkingSpot } = req.body;
     const place = await Place.findById(req.params.placeId);
     if (!place) {
       return res.status(404).json({ error: "장소를 찾을 수 없습니다." });
     }
-    place.parkingSpots = parkingSpots;
+    place.parkingSpot = parkingSpot;
     await place.save();
-    res.json(place);
+    res.json({
+      message: "주차 위치 업데이트",
+      parkingSpot: place.parkingSpot,
+    });
   } catch (err) {
     console.error("주차 위치 업데이트 오류:", err);
     res.status(500).json({ error: "서버 오류" });
@@ -1910,82 +1861,93 @@ apiRouter.post("/car-types/:typeId/models", async (req, res) => {
 });
 
 // 5. 차량 등록
-apiRouter.post("/car-registrations", async (req, res) => {
-  try {
-    const {
-      typeId,
-      modelId,
-      licensePlate,
-      location,
-      customerId,
-      serviceType,
-      serviceAmount,
-      serviceAmountType,
-      notes,
-      workDate,
-      status,
-    } = req.body;
+apiRouter.post(
+  "/car-registrations",
+  authenticateToken,
+  authorizeRoles("관리자", "작업자"),
+  async (req, res) => {
+    try {
+      const {
+        typeId,
+        modelId,
+        licensePlate,
+        location,
+        customerId,
+        serviceType,
+        serviceAmount,
+        serviceAmountType,
+        notes,
+        workDate,
+        status,
+      } = req.body;
 
-    // 필수 필드 검증
-    if (
-      !typeId ||
-      !modelId ||
-      !licensePlate ||
-      !customerId ||
-      !location ||
-      !location.region ||
-      !location.place
-    ) {
-      return res.status(400).json({ error: "필수 정보를 모두 입력해주세요." });
-    }
+      // 필수 필드 검증
+      if (
+        !typeId ||
+        !modelId ||
+        !licensePlate ||
+        !customerId ||
+        !location ||
+        !location.region ||
+        !location.place
+      ) {
+        return res
+          .status(400)
+          .json({ error: "필수 정보를 모두 입력해주세요." });
+      }
 
-    // regionDoc 조회
-    const regionDoc = await Region.findById(location.region);
-    if (!regionDoc) {
-      return res.status(400).json({ error: "존재하지 않는 region ID입니다." });
-    }
+      // regionDoc 조회
+      const regionDoc = await Region.findById(location.region);
+      if (!regionDoc) {
+        return res
+          .status(400)
+          .json({ error: "존재하지 않는 region ID입니다." });
+      }
 
-    // placeDoc 조회
-    const placeDoc = await Place.findOne({
-      _id: location.place,
-      region: regionDoc._id,
-    });
-    if (!placeDoc) {
-      return res.status(400).json({ error: "존재하지 않는 place ID입니다." });
-    }
-
-    // 차량 번호 중복 확인
-    const existingCar = await CarRegistration.findOne({
-      licensePlate: licensePlate,
-    });
-    if (existingCar) {
-      return res.status(400).json({ error: `차량 번호 중복: ${licensePlate}` });
-    }
-
-    const newCarRegistration = new CarRegistration({
-      type: typeId,
-      model: modelId,
-      licensePlate,
-      location: {
+      // placeDoc 조회
+      const placeDoc = await Place.findOne({
+        _id: location.place,
         region: regionDoc._id,
-        place: placeDoc._id,
-        parkingSpot: location.parkingSpot || "",
-      },
-      customer: customerId,
-      serviceType: serviceType || null,
-      serviceAmountType: serviceAmountType || null,
-      serviceAmount: serviceAmount || 0,
-      notes: notes || "",
-      workDate: new Date(workDate),
-      status: status || "pending",
-    });
+      });
+      if (!placeDoc) {
+        return res.status(400).json({ error: "존재하지 않는 place ID입니다." });
+      }
 
-    await newCarRegistration.save();
-    res.status(201).json(newCarRegistration);
-  } catch (err) {
-    res.status(400).json({ error: "차량 등록 실패" });
+      // 차량 번호 중복 확인
+      const existingCar = await CarRegistration.findOne({
+        licensePlate: licensePlate,
+      });
+      if (existingCar) {
+        return res
+          .status(400)
+          .json({ error: `차량 번호 중복: ${licensePlate}` });
+      }
+
+      const newCarRegistration = new CarRegistration({
+        type: typeId,
+        model: modelId,
+        licensePlate,
+        location: {
+          region: regionDoc._id,
+          place: placeDoc._id,
+          parkingSpot: location.parkingSpot || "",
+        },
+        customer: customerId,
+        serviceType: serviceType || null,
+        serviceAmountType: serviceAmountType || null,
+        serviceAmount: serviceAmount || 0,
+        notes: notes || "",
+        workDate: workDate ? new Date(workDate) : undefined,
+        status: status || "pending",
+      });
+
+      await newCarRegistration.save();
+      res.status(201).json(newCarRegistration);
+    } catch (err) {
+      res.status(400).json({ error: "차량 등록 실패" });
+    }
   }
-});
+);
 
 // 6. 차량 목록 조회
 
@@ -2297,7 +2259,7 @@ apiRouter.get("/teams", async (req, res) => {
 // 차량 배정 엔드포인트
 apiRouter.put("/car-registrations/assign", async (req, res) => {
   try {
-    const { carIds, managerId, teamId } = req.body;
+    const { carIds, managerId, teamId, assignDate } = req.body;
 
     // 필수 필드 확인
     if (!carIds || !Array.isArray(carIds) || carIds.length === 0) {
@@ -2323,10 +2285,26 @@ apiRouter.put("/car-registrations/assign", async (req, res) => {
       return res.status(404).json({ error: "팀을 찾을 수 없습니다." });
     }
 
+    let updatedAssignDate = new Date();
+    if (assignDate) {
+      updatedAssignDate = new Date(assignDate);
+      if (isNaN(updatedAssignDate)) {
+        return res
+          .status(400)
+          .json({ error: "유효하지 않은 날짜 형식입니다." });
+      }
+    }
+
     // 차량 배정 업데이트
     await CarRegistration.updateMany(
       { _id: { $in: carIds } },
-      { $set: { manager: managerId, team: teamId } }
+      {
+        $set: {
+          manager: managerId,
+          team: teamId,
+          assignDate: updatedAssignDate,
+        },
+      }
     );
 
     res.json({ message: "차량이 성공적으로 배정되었습니다." });
@@ -2441,8 +2419,8 @@ apiRouter.get("/teams", async (req, res) => {
 // POST /car-registrations/assign 차량 배정
 apiRouter.post(
   "/car-registrations/assign",
-  authenticateToken,
-  authorizeRoles("관리자"),
+  // authenticateToken,
+  // authorizeRoles("관리자"),
   async (req, res) => {
     try {
       const { carIds, managerId, teamId } = req.body;
@@ -2459,14 +2437,24 @@ apiRouter.post(
           .json({ error: "담당자 ID 또는 팀 ID 중 하나가 필요합니다." });
       }
 
+      const manager = await Manager.findById(managerId);
+      if (!manager) {
+        return res.status(404).json({ error: "담당자를 찾을 수 없습니다." });
+      }
+
+      const team = await Team.findById(teamId);
+      if (!team) {
+        return res.status(404).json({ error: "팀을 찾을 수 없습니다." });
+      }
+
       // 차량 업데이트
-      const updateData = {};
-      if (managerId) updateData.manager = managerId;
-      if (teamId) updateData.team = teamId;
+      // const updateData = {};
+      // if (managerId) updateData.manager = managerId;
+      // if (teamId) updateData.team = teamId;
 
       await CarRegistration.updateMany(
         { _id: { $in: carIds } },
-        { $set: updateData }
+        { $set: { manager: managerId, team: teamId } }
       );
 
       res.json({ message: "차량이 성공적으로 배정되었습니다." });

@@ -317,12 +317,23 @@ button:focus:not(:focus-visible) {
 .camera-click-btn input {
   display: none;
 }
+.camera-click-btn input[type="file"] {
+  display: none; /* 실제 파일 입력은 숨기고, 레이블을 버튼처럼 사용 */
+}
 .camera-click-btn label {
-  width: 100%;
+  /* width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: center; */
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: #0d6efd;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
 }
 
 .car-location-table {
@@ -337,8 +348,30 @@ button:focus:not(:focus-visible) {
   }
 }
 
+.camera-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
 .photo-preview img {
   max-width: 100%;
   height: auto;
-  margin-top: 10px;
+  border-radius: 5px;
+}
+@media (max-width: 600px) {
+  .camera-section {
+    align-items: center;
+  }
+
+  .camera-click-btn label {
+    width: 100%;
+    text-align: center;
+  }
+
+  .photo-preview img {
+    width: 100%;
+    height: auto;
+  }
 }
