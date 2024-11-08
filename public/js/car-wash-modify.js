@@ -62,9 +62,9 @@ function loadCarDetails(carId) {
       console.log("차량 상세 정보:", response);
       $("#license-plate").text(response.licensePlate || "N/A");
       $("#customer-name").text(response.customer?.name || "N/A");
-      $("#work-date").text(
-        response.workDate
-          ? new Date(response.workDate).toLocaleDateString()
+      $("#assign-date").text(
+        response.assignDate
+          ? new Date(response.assignDate).toLocaleDateString()
           : "N/A"
       );
       $("#status").text(getStatusText(response.status));
@@ -115,7 +115,7 @@ function reportCarWash(carId) {
   const formData = new FormData();
   formData.append("notes", notes);
   formData.append("status", "complete");
-  formData.append("workDate", new Date().toISOString());
+  formData.append("assignDate", new Date().toISOString());
 
   const externalPhoto = $("#camera-click-btn2")[0].files[0];
   const internalPhoto = $("#camera-click-btn1")[0].files[0];

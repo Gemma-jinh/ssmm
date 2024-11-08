@@ -35,7 +35,7 @@ $(document).ready(function () {
   $("#car-wash-status-all").prop("checked", true);
   // $("#work-date").val(new Date().toISOString().substring(0, 10));
   const today = new Date().toISOString().split("T")[0];
-  $("#work-date").val(today);
+  $("#assign-date").val(today);
 
   performSearch();
 
@@ -51,9 +51,9 @@ $(document).ready(function () {
   //   loadCarWashHistory();
   // });
 
-  $("#work-date").on("change", function () {
-    performSearch();
-  });
+  // $("#work-date").on("change", function () {
+  //   performSearch();
+  // });
 
   $("#search-button").on("click", function () {
     performSearch();
@@ -72,7 +72,7 @@ function scheduleNextDayUpdate() {
   const timeUntilMidnight = tomorrow - now;
 
   setTimeout(() => {
-    $("#work-date").val(tomorrow.toISOString().split("T")[0]);
+    $("#assign-date").val(tomorrow.toISOString().split("T")[0]);
     performSearch();
     scheduleNextDayUpdate(); // 다음 날을 위해 재귀적으로 호출
   }, timeUntilMidnight);
@@ -83,30 +83,39 @@ function getStatusFilter() {
     return "emergency";
   } else if ($("#car-wash-status-complete").prop("checked")) {
     return "complete";
+  } else if ($("#car-wash-status-all").prop("checked")) {
+    return "all";
   }
   return "all";
 }
 
 function performSearch() {
+  const status = getStatusFilter();
+  const assignDate = $("#assign-date").val();
   const searchParams = {
-    status: getStatusFilter(),
-    workDate: $("#work-date").val(), // 추가된 부분
+    status: status,
+    assignDate: assignDate,
     page: 1, // 검색 시 페이지를 1로 초기화
     limit: 10,
   };
 
   Object.keys(searchParams).forEach((key) => {
-    if (!searchParams[key]) {
+    if (
+      key !== "status" &&
+      key !== "assignDate" &&
+      (searchParams[key] === undefined || searchParams[key] === "")
+    ) {
       delete searchParams[key];
     }
   });
 
   console.log("Search params:", searchParams);
   currentSearchParams = searchParams;
-  loadCarWashHistory(searchParams.page, searchParams.limit, searchParams);
+  // loadCarWashHistory(searchParams.page, searchParams.limit, searchParams);
+  loadCarList(1, 10, searchParams);
 }
 
-function loadCarWashHistory(page = 1, limit = 10, searchParams = {}) {
+function loadCarList(page = 1, limit = 10, searchParams = {}) {
   // const status = getStatusFilter();
   //   const token = localStorage.getItem("token");
   const params = {
@@ -139,7 +148,7 @@ function loadCarWashHistory(page = 1, limit = 10, searchParams = {}) {
       }
 
       response.cars.forEach((car) => {
-        const status = car.status || "pending";
+        // const status = car.status || "pending";
         // const licensePlate = car.licensePlate || "N/A";
         // const modelName = car.model?.name || "N/A";
         // const placeName = car.location?.place?.name || "N/A";
@@ -150,22 +159,22 @@ function loadCarWashHistory(page = 1, limit = 10, searchParams = {}) {
         // const status = car.status || "N/A";
 
         const row = `
-            <tr style="${getStatusStyle(status)}">
+            <tr style="${getStatusStyle(car.status)}">
               <td>
                 <a href="./car-wash-modify.html?id=${car._id}">
                   <button type="button" class="btn btn-light btn-sm">보고</button>
                 </a>
               </td>
               <td>${car.licensePlate}</td>
-              <td>${car.modelName}</td>
+              <td>${car.model}</td>
               <td>${car.location.place.name}</td>
               <td>${car.customer}</td>
               <td>${
-                car.workDate
-                  ? new Date(car.workDate).toLocaleDateString()
+                car.assignDate
+                  ? new Date(car.assignDate).toLocaleDateString()
                   : "N/A"
               }</td>
-               <td>${getStatusText(status)}</td>
+               <td>${getStatusText(car.status)}</td>
             </tr>
           `;
         tbody.append(row);
@@ -184,9 +193,9 @@ function loadCarWashHistory(page = 1, limit = 10, searchParams = {}) {
 function getStatusStyle(status) {
   switch (status) {
     case "emergency":
-      return "background-color: #ffebee;"; // 긴급 - 연한 빨강
+      return "background-color: #ffebee;"; //  연한 빨강
     case "complete":
-      return "background-color: #e8f5e9;"; // 완료 - 연한 초록
+      return "background-color: #e8f5e9;"; // 연한 초록
     default:
       return "";
   }
@@ -243,7 +252,7 @@ function updatePagination(currentPage, totalPages) {
     e.preventDefault();
     const page = $(this).data("page");
     if (page) {
-      loadCarWashHistory(page, 10, currentSearchParams);
+      loadCarList(page, 10, currentSearchParams);
     }
   });
 }

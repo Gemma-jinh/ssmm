@@ -576,11 +576,34 @@ function arrayEquals(a, b) {
   );
 }
 
+async function migrateCarStatus() {
+  try {
+    console.log("Starting car status migration...");
+
+    // status 필드가 없거나 null인 차량 찾기
+    const result = await CarRegistration.updateMany(
+      {
+        $or: [{ status: { $exists: false } }, { status: null }],
+      },
+      {
+        $set: { status: "pending" },
+      }
+    );
+
+    console.log(
+      `Car status migration completed: ${result.modifiedCount} documents updated`
+    );
+  } catch (err) {
+    console.error("Car status migration failed:", err);
+  }
+}
+
 // DB 연결
 mongoose
   .connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("MongoDB 연결 성공");
+    await migrateCarStatus();
     const defaultCarTypes = ["승용", "승합", "기타"];
 
     try {
@@ -639,6 +662,21 @@ mongoose
     }
     // 초기 관리자 계정 생성
     // await createInitialAdmin();
+
+    // const carsWithoutAssignDate = await CarRegistration.find({
+    //   assignDate: { $exists: false },
+    // });
+
+    // console.log(
+    //   `assignDate가 없는 차량 문서 수: ${carsWithoutAssignDate.length}`
+    // );
+
+    // 각 문서에 assignDate 추가 (예: createdAt과 동일하게 설정)
+    // for (let car of carsWithoutAssignDate) {
+    //   car.assignDate = car.createdAt;
+    //   await car.save();
+    //   console.log(`차량 ID ${car._id}에 assignDate 추가 완료.`);
+    // }
   })
   .catch((err) => console.error("MongoDB 연결 실패:", err));
 
@@ -724,13 +762,10 @@ const filePath = path.join(__dirname, "public", "login.html");
 apiRouter.get(
   "/car-registrations",
   authenticateToken,
-  // authorizeRoles("관리자", "작업자"),
+  authorizeRoles("관리자", "작업자"),
   async (req, res) => {
     try {
-      console.log(
-        "Received /api/car-registrations request from user:",
-        req.query
-      );
+      console.log("Request query:", req.query);
       const {
         // type,
         // model,
@@ -743,7 +778,7 @@ apiRouter.get(
         // page = 1,
         // limit = 10,
         status,
-        workDate,
+        assignDate,
         page = 1,
         limit = 10,
       } = req.query;
@@ -786,23 +821,73 @@ apiRouter.get(
       //   filter.manager = account.manager._id;
       // }
 
+      // if (status && status !== "all") {
+      //   filter.status = status;
+      // }
+
+      // if (status) {
+      //   if (status === "all") {
+      //     filter.status = { $in: ["pending", "complete", "emergency"] };
+      //   } else {
+      //     filter.status = status;
+      //   }
+      // }
+
+      // if (status) {
+      //   if (status === "all") {
+      //     filter.status = { $in: ["pending", "complete", "emergency"] };
+      //   } else {
+      //     filter.status = status;
+      //   }
+      // } else {
+      //   filter.status = { $in: ["pending", "complete", "emergency"] };
+      // }
+
       if (status && status !== "all") {
         filter.status = status;
+        // } else {
+        //   const statusConditions = [
+        //     { status: { $in: ["pending", "complete", "emergency"] } },
+        //     { status: { $exists: false } },
+        //     { status: null },
+        //   ];
+
+        //   if (Object.keys(filter).length > 0) {
+        //     filter = {
+        //       $and: [filter, { $or: statusConditions }],
+        //     };
+      } else {
+        // filter.$or = statusConditions;
+        filter.$or = [
+          { status: { $in: ["pending", "complete", "emergency"] } },
+          { status: { $exists: false } },
+          { status: null },
+        ];
       }
-
+      // }
       // 작업일자 필터 적용
-      if (workDate) {
-        const startDate = new Date(workDate);
-        startDate.setHours(0, 0, 0, 0);
-        const endDate = new Date(workDate);
-        endDate.setHours(23, 59, 59, 999);
 
-        filter.workDate = {
-          $gte: startDate,
-          $lte: endDate,
+      if (assignDate) {
+        const startAssignDate = new Date(assignDate);
+        startAssignDate.setHours(0, 0, 0, 0);
+        const endAssignDate = new Date(assignDate);
+        endAssignDate.setHours(23, 59, 59, 999);
+
+        filter.assignDate = {
+          $gte: startAssignDate,
+          $lte: endAssignDate,
         };
       }
 
+      if (req.user.authorityGroup === "작업자") {
+        const account = await Account.findById(req.user.id).populate("manager");
+        if (!account || !account.manager) {
+          return res
+            .status(403)
+            .json({ error: "작업자 정보를 찾을 수 없습니다." });
+        }
+        filter.manager = account.manager._id;
+      }
       const skip = (parseInt(page) - 1) * parseInt(limit);
       const total = await CarRegistration.countDocuments(filter);
       const cars = await CarRegistration.find(filter)
@@ -907,8 +992,20 @@ apiRouter.get(
         // workDate: car.workDate || null,
         // status: car.status || "N/A",
         workDate: car.workDate,
+        assignDate: car.assignDate,
         status: car.status || "pending",
       }));
+
+      console.log("Response data:", {
+        total,
+        page: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        carsCount: formattedCars.length,
+        statusDistribution: formattedCars.reduce((acc, car) => {
+          acc[car.status] = (acc[car.status] || 0) + 1;
+          return acc;
+        }, {}),
+      });
 
       res.json({
         total,
@@ -1908,7 +2005,7 @@ apiRouter.post(
         serviceAmountType,
         notes,
         workDate,
-        status,
+        status = "pending",
       } = req.body;
 
       // 필수 필드 검증
@@ -1968,7 +2065,7 @@ apiRouter.post(
         serviceAmount: serviceAmount || 0,
         notes: notes || "",
         workDate: workDate ? new Date(workDate) : undefined,
-        status: status || "pending",
+        status: status,
       });
 
       await newCarRegistration.save();
@@ -2161,17 +2258,18 @@ apiRouter.put(
       }
 
       // 작업자의 경우, 자신의 매니저와 배정된 차량인지 확인
-      if (req.user.authorityGroup === "작업자") {
-        const account = await Account.findById(req.user.id);
-        if (!account || !account.manager) {
-          return res.status(403).json({ error: "권한이 없습니다." });
-        }
-        if (!car.manager || !car.manager.equals(account.manager)) {
-          return res
-            .status(403)
-            .json({ error: "이 차량에 대한 권한이 없습니다." });
-        }
-      }
+      // if (req.user.authorityGroup === "작업자") {
+      //   const account = await Account.findById(req.user.id);
+      //   if (!account || !account.manager) {
+      //     return res.status(403).json({ error: "권한이 없습니다." });
+      //   }
+      // if (!car.manager || !car.manager.equals(account._id)) {
+      //   return res
+      //     .status(403)
+      //     .json({ error: "이 차량에 대한 권한이 없습니다." });
+      // }
+      //   filter.manager = account.manager._id;
+      // }
 
       // 세차날짜와 상태 자동 업데이트
       const updateData = {
@@ -2225,7 +2323,7 @@ apiRouter.put(
 // 배정 변경 엔드포인트
 apiRouter.put("/car-registrations/:id/assign", async (req, res) => {
   try {
-    const { managerId, teamId } = req.body;
+    const { managerId, teamId, assignDate } = req.body;
     const carId = req.params.id;
 
     // 차량 존재 여부 확인
@@ -2238,6 +2336,9 @@ apiRouter.put("/car-registrations/:id/assign", async (req, res) => {
     if (managerId && !mongoose.Types.ObjectId.isValid(managerId)) {
       return res.status(400).json({ error: "유효하지 않은 담당자 ID입니다." });
     }
+    if (teamId && !mongoose.Types.ObjectId.isValid(teamId)) {
+      return res.status(400).json({ error: "유효하지 않은 팀 ID입니다." });
+    }
 
     if (managerId) {
       const manager = await Manager.findById(managerId);
@@ -2249,11 +2350,6 @@ apiRouter.put("/car-registrations/:id/assign", async (req, res) => {
       car.manager = null; // 담당자 해제
     }
 
-    // teamId 유효성 검사
-    if (teamId && !mongoose.Types.ObjectId.isValid(teamId)) {
-      return res.status(400).json({ error: "유효하지 않은 팀 ID입니다." });
-    }
-
     if (teamId) {
       const team = await Team.findById(teamId);
       if (!team) {
@@ -2262,6 +2358,16 @@ apiRouter.put("/car-registrations/:id/assign", async (req, res) => {
       car.team = teamId;
     } else {
       car.team = null; // 팀 해제
+    }
+
+    if (assignDate) {
+      const parsedDate = new Date(assignDate);
+      if (isNaN(parsedDate)) {
+        return res
+          .status(400)
+          .json({ error: "유효하지 않은 배정 날짜입니다." });
+      }
+      car.assignDate = parsedDate;
     }
 
     await car.save();
@@ -2323,6 +2429,9 @@ apiRouter.put("/car-registrations/assign", async (req, res) => {
     if (!teamId) {
       return res.status(400).json({ error: "팀 ID가 필요합니다." });
     }
+    if (!assignDate) {
+      return res.status(400).json({ error: "배정 날짜가 필요합니다." });
+    }
 
     // 담당자 및 팀 존재 여부 확인
     const manager = await Manager.findById(managerId);
@@ -2335,14 +2444,20 @@ apiRouter.put("/car-registrations/assign", async (req, res) => {
       return res.status(404).json({ error: "팀을 찾을 수 없습니다." });
     }
 
-    let updatedAssignDate = new Date();
-    if (assignDate) {
-      updatedAssignDate = new Date(assignDate);
-      if (isNaN(updatedAssignDate)) {
-        return res
-          .status(400)
-          .json({ error: "유효하지 않은 날짜 형식입니다." });
-      }
+    // let updatedAssignDate = new Date();
+    // if (assignDate) {
+    //   updatedAssignDate = new Date(assignDate);
+    //   if (isNaN(updatedAssignDate)) {
+    //     return res
+    //       .status(400)
+    //       .json({ error: "유효하지 않은 날짜 형식입니다." });
+    //   }
+    // }
+
+    // assignDate 유효성 검사
+    const formattedAssignDate = new Date(assignDate);
+    if (isNaN(formattedAssignDate)) {
+      return res.status(400).json({ error: "유효하지 않은 배정 날짜입니다." });
     }
 
     // 차량 배정 업데이트
