@@ -53,6 +53,23 @@ $(document).ready(function () {
   });
 });
 
+$(document).on("click", ".delete-photo-btn", function () {
+  const previewContainer = $(this).parent();
+  previewContainer.empty();
+  previewContainer.hide();
+  // 해당 카메라 버튼 레이블 다시 표시
+  // const inputId =
+  //   previewContainer.attr("id") === "external-photo-preview"
+  //     ? "#camera-click-btn2"
+  //     : "#camera-click-btn1";
+  // $(inputId).siblings("label").show();
+  if (previewContainer.attr("id") === "external-photo-preview") {
+    $("#camera-click-btn2").parent(".camera-click-btn").show();
+  } else if (previewContainer.attr("id") === "internal-photo-preview") {
+    $("#camera-click-btn1").parent(".camera-click-btn").show();
+  }
+});
+
 // 차량 상세 정보 로드 함수
 function loadCarDetails(carId) {
   $.ajax({
@@ -74,18 +91,34 @@ function loadCarDetails(carId) {
         const externalImg = $("<img>")
           .attr("src", `/${response.externalPhoto}`)
           .attr("alt", "외부세차 사진")
-          .addClass("img-thumbnail")
+          // .addClass("img-thumbnail")
           .css({ maxWidth: "100%", height: "auto", marginTop: "10px" });
-        $("#external-photo-preview").empty().append(externalImg);
+        $("#external-photo-preview")
+          .empty()
+          .append(externalImg)
+          .append(createDeleteButton())
+          .show();
+        $("#camera-click-btn2")
+          .parent(".camera-click-btn")
+          .addClass("hidden")
+          .hide();
       }
 
       if (response.internalPhoto) {
         const internalImg = $("<img>")
           .attr("src", `/${response.internalPhoto}`)
           .attr("alt", "내부세차 사진")
-          .addClass("img-thumbnail")
+          // .addClass("img-thumbnail")
           .css({ maxWidth: "100%", height: "auto", marginTop: "10px" });
-        $("#internal-photo-preview").empty().append(internalImg);
+        $("#internal-photo-preview")
+          .empty()
+          .append(internalImg)
+          .append(createDeleteButton())
+          .show();
+        $("#camera-click-btn1")
+          .parent(".camera-click-btn")
+          .addClass("hidden")
+          .hide();
       }
     },
     error: function (err) {
@@ -162,9 +195,21 @@ function previewPhoto(input, previewSelector) {
       const img = $("<img>")
         .attr("src", e.target.result)
         .attr("alt", "세차 사진")
-        .addClass("img-thumbnail")
-        .css({ width: "100%", height: "auto", marginTop: "10px" });
-      preview.append(img);
+        // .addClass("img-thumbnail")
+        .css({
+          width: "100%",
+          height: "auto",
+          objectFit: "contain",
+        });
+
+      const deleteBtn = $("<button>")
+        .attr("type", "button")
+        .addClass("btn btn-danger btn-sm delete-photo-btn")
+        .text("삭제");
+      preview.append(img).append(deleteBtn);
+      preview.show();
+
+      $(input).parent(".camera-click-btn").hide();
     };
 
     reader.onerror = function (e) {

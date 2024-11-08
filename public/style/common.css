@@ -307,10 +307,13 @@ button:focus:not(:focus-visible) {
 }
 
 .camera-click-btn {
+  position: relative;
+  display: inline-block;
   border: 1px solid #2c89e9;
   border-radius: 4px;
   width: 138px;
-  height: 90px;
+  height: 70px;
+  overflow: hidden;
   background-color: #fff;
   color: #2c89e9;
 }
@@ -326,13 +329,27 @@ button:focus:not(:focus-visible) {
   display: flex;
   align-items: center;
   justify-content: center; */
-  display: inline-block;
+  /* display: inline-block;
   padding: 10px 20px;
   background-color: #0d6efd;
   color: white;
   border-radius: 5px;
   cursor: pointer;
   font-size: 16px;
+  transition: background-color 0.3s; */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 123, 255, 0.7);
+  color: white;
+  font-size: 1.2rem;
+  border: none;
+  cursor: pointer;
   transition: background-color 0.3s;
 }
 
@@ -355,23 +372,45 @@ button:focus:not(:focus-visible) {
   gap: 10px;
 }
 
+.photo-preview {
+  position: relative; /* 삭제 버튼 위치를 위한 설정 */
+  margin-top: 10px;
+  max-width: 300px; /* 버튼과 동일한 최대 너비 설정 */
+  display: none;
+}
+
 .photo-preview img {
-  max-width: 100%;
-  height: auto;
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: contain !important;
   border-radius: 5px;
+  display: block;
+}
+
+.delete-photo-btn {
+  position: absolute;
+  top: -58px;
+  right: 5px;
+  z-index: 10;
 }
 @media (max-width: 600px) {
   .camera-section {
     align-items: center;
   }
 
-  .camera-click-btn label {
-    width: 100%;
-    text-align: center;
-  }
+  /* .camera-click-btn label {
+     width: 100%;
+    text-align: center; 
+  } */
 
   .photo-preview img {
     width: 100%;
     height: auto;
+    object-fit: cover;
+    border-radius: 10px;
+    /* 이미지가 부모 div를 채우도록 설정 */
+    position: absolute;
+    top: 0;
+    left: 0;
   }
 }
