@@ -208,7 +208,7 @@ function getStatusText(status) {
     case "complete":
       return "세차완료";
     default:
-      return "대기중";
+      return "세차전";
   }
 }
 
