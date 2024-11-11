@@ -444,15 +444,28 @@ button:focus:not(:focus-visible) {
      width: 100%;
     text-align: center; 
   } */
+  .photo-preview {
+    max-width: 100%;
+    position: relative; /* 절대 위치 제거 */
+    overflow: hidden; /* 이미지가 넘치지 않도록 설정 */
+    margin-top: 10px; /* 여백 추가 */
+  }
 
   .photo-preview img {
     width: 100%;
     height: auto;
-    object-fit: cover;
+    object-fit: contain; /*cover*/
     border-radius: 10px;
     /* 이미지가 부모 div를 채우도록 설정 */
-    position: absolute;
+    position: relative;
     top: 0;
     left: 0;
+    display: block;
+  }
+  .delete-photo-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
   }
 }
