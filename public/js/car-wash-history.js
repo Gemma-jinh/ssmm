@@ -83,6 +83,8 @@ function getStatusFilter() {
     return "emergency";
   } else if ($("#car-wash-status-complete").prop("checked")) {
     return "complete";
+  } else if ($("#car-wash-status-pending").prop("checked")) {
+    return "pending";
   } else if ($("#car-wash-status-all").prop("checked")) {
     return "all";
   }
@@ -196,6 +198,8 @@ function getStatusStyle(status) {
       return "background-color: #ffebee;"; //  연한 빨강
     case "complete":
       return "background-color: #e8f5e9;"; // 연한 초록
+    case "pending":
+      return "background-color: #e3f2fd;";
     default:
       return "";
   }
@@ -207,8 +211,10 @@ function getStatusText(status) {
       return "긴급세차요청";
     case "complete":
       return "세차완료";
-    default:
+    case "pending":
       return "세차전";
+    default:
+      return "N/A";
   }
 }
 
