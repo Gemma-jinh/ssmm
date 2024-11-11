@@ -323,7 +323,7 @@ button:focus:not(:focus-visible) {
 }
 @media (max-width: 768px) {
   .option-container .option-list {
-    gap: 4px;
+    gap: 20px;
   }
 }
 
