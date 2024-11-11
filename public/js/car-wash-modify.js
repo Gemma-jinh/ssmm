@@ -53,6 +53,13 @@ $(document).ready(function () {
   });
 });
 
+function createDeleteButton() {
+  return $("<button>")
+    .attr("type", "button")
+    .addClass("btn btn-danger btn-sm delete-photo-btn")
+    .text("삭제");
+}
+
 $(document).on("click", ".delete-photo-btn", function () {
   const previewContainer = $(this).parent();
   previewContainer.empty();
@@ -202,10 +209,11 @@ function previewPhoto(input, previewSelector) {
           objectFit: "contain",
         });
 
-      const deleteBtn = $("<button>")
-        .attr("type", "button")
-        .addClass("btn btn-danger btn-sm delete-photo-btn")
-        .text("삭제");
+      // const deleteBtn = $("<button>")
+      //   .attr("type", "button")
+      //   .addClass("btn btn-danger btn-sm delete-photo-btn")
+      //   .text("삭제");
+      const deleteBtn = createDeleteButton();
       preview.append(img).append(deleteBtn);
       preview.show();
 

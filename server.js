@@ -287,7 +287,7 @@ const storage = multer.diskStorage({
 });
 
 // 파일 필터링 (엑셀 파일만 허용)
-const fileFilter = (req, file, cb) => {
+const excelFileFilter = (req, file, cb) => {
   console.log(
     "Filtering file:",
     file.originalname,
@@ -313,19 +313,41 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({
+const uploadExcel = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024,
+    fileSize: 10 * 1024 * 1024, // 파일 크기 제한 (10MB)
+  },
+  fileFilter: excelFileFilter,
+});
+
+const uploadImages = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 파일 크기 제한 (10MB)
   },
   fileFilter: function (req, file, cb) {
-    if (!file.mimetype.startsWith("image/")) {
-      cb(null, true);
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true); // 이미지 파일 허용
     } else {
-      cb(new Error("이미지 파일만 업로드 가능"));
+      cb(new Error("이미지 파일만 업로드 가능")); // 이미지 파일이 아닌 경우 에러 발생
     }
   },
 });
+
+// const upload = multer({
+//   storage: storage,
+//   limits: {
+//     fileSize: 10 * 1024 * 1024,
+//   },
+//   fileFilter: function (req, file, cb) {
+//     if (file.mimetype.startsWith("image/")) {
+//       cb(null, true);
+//     } else {
+//       cb(new Error("이미지 파일만 업로드 가능"));
+//     }
+//   },
+// });
 
 // 데이터 스키마 정의
 const CarTypeSchema = new mongoose.Schema({
@@ -2232,7 +2254,7 @@ apiRouter.put("/car-registrations/:id", async (req, res) => {
   }
 });
 
-const uploadFields = upload.fields([
+const uploadFields = uploadImages.fields([
   { name: "externalPhoto", maxCount: 1 },
   { name: "internalPhoto", maxCount: 1 },
 ]);
@@ -2635,7 +2657,7 @@ apiRouter.post(
   "/bulk-upload",
   (req, res, next) => {
     console.log("Received upload request");
-    upload.single("file")(req, res, (err) => {
+    uploadExcel.single("file")(req, res, (err) => {
       if (err instanceof multer.MulterError) {
         console.error("Multer error:", err);
         return res.status(400).json({ error: err.message });
