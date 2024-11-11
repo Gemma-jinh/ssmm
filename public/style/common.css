@@ -213,6 +213,48 @@ button:focus:not(:focus-visible) {
   padding-left: 2em;
 }
 
+@media (max-width: 768px) {
+  /* 라디오 버튼 크기 키우기 */
+  .form-check-input {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 0.75rem; /* 라벨과의 간격 조정 */
+    flex-shrink: 0;
+  }
+
+  /* 라벨 텍스트 크기 키우기 */
+  .form-check-label {
+    font-size: 1.25rem;
+    word-wrap: break-word;
+    flex: 1;
+  }
+
+  /* 폼 체크 간 간격 조정 */
+  .form-check {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-left: 0; /* 모바일에서는 좌측 패딩 제거 */
+  }
+  .form-check .form-check-input {
+    float: left;
+    margin-left: 0.5em;
+  }
+
+  /* 옵션 타이틀 크기 조정 */
+  .option-container .option-title {
+    font-size: 1.25rem;
+  }
+
+  /* 검색 버튼 크기 및 폰트 사이즈 조정 */
+  #search-button {
+    width: 100%;
+    font-size: 1.25rem;
+    padding: 0.75rem;
+    margin-top: 1rem; /* 버튼과 필터 사이 간격 조정 */
+  }
+}
+
 .sub-section .btn {
   width: -moz-fit-content;
   width: fit-content;
