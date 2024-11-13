@@ -134,11 +134,11 @@ function populateCarTypes() {
     url: "/api/car-types", // 서버의 차량 타입 API 엔드포인트
     method: "GET",
     success: function (response) {
-      if (response.carTypes && Array.isArray(response.carTypes)) {
+      if (Array.isArray(response)) {
         const carTypeSelect = $("#car-type");
         carTypeSelect.append(
-          response.carTypes.map(
-            (type) => `<option value="${type.id}">${type.name}</option>`
+          response.map(
+            (type) => `<option value="${type._id}">${type.name}</option>`
           )
         );
       } else {
@@ -159,12 +159,12 @@ function populateCarModels(carTypeId) {
     url: `/api/car-types/${carTypeId}/models`, // 서버의 차량 모델 API 엔드포인트
     method: "GET",
     success: function (response) {
-      if (response.models && Array.isArray(response.models)) {
+      if (Array.isArray(response)) {
         const carModelSelect = $("#car-model");
         carModelSelect.html("<option selected>차량 모델 선택</option>");
         carModelSelect.append(
-          response.models.map(
-            (model) => `<option value="${model.id}">${model.name}</option>`
+          response.map(
+            (model) => `<option value="${model._id}">${model.name}</option>`
           )
         );
       } else {
@@ -185,11 +185,11 @@ function populateRegions() {
     url: "/api/regions", // 서버의 지역 API 엔드포인트
     method: "GET",
     success: function (response) {
-      if (response.regions && Array.isArray(response.regions)) {
+      if (Array.isArray(response)) {
         const regionSelect = $("#region-select");
         regionSelect.append(
-          response.regions.map(
-            (region) => `<option value="${region.id}">${region.name}</option>`
+          response.map(
+            (region) => `<option value="${region._id}">${region.name}</option>`
           )
         );
       } else {
@@ -210,12 +210,12 @@ function populatePlaces(regionId) {
     url: `/api/regions/${regionId}/places`, // 서버의 장소 API 엔드포인트
     method: "GET",
     success: function (response) {
-      if (response.places && Array.isArray(response.places)) {
+      if (Array.isArray(response)) {
         const placeSelect = $("#place-select");
         placeSelect.html("<option selected>장소 선택</option>");
         placeSelect.append(
-          response.places.map(
-            (place) => `<option value="${place.id}">${place.name}</option>`
+          response.map(
+            (place) => `<option value="${place._id}">${place.name}</option>`
           )
         );
       } else {
@@ -236,13 +236,11 @@ function populateParkingSpots(placeId) {
     url: `/api/places/${placeId}/parking-spots`, // 서버의 주차 위치 API 엔드포인트
     method: "GET",
     success: function (response) {
-      if (response.parkingSpots && Array.isArray(response.parkingSpots)) {
+      if (Array.isArray(response)) {
         const parkingSpotSelect = $("#parking-spot-select");
         parkingSpotSelect.html("<option selected>주차 위치 선택</option>");
         parkingSpotSelect.append(
-          response.parkingSpots.map(
-            (spot) => `<option value="${spot.id}">${spot.name}</option>`
-          )
+          response.map((spot) => `<option value="${spot}">${spot}</option>`)
         );
       } else {
         console.error(
@@ -311,6 +309,8 @@ function getStatusFilter() {
     return "emergency";
   } else if ($("#car-wash-status-complete").prop("checked")) {
     return "complete";
+  } else if ($("#car-wash-status-pending").prop("checked")) {
+    return "pending";
   } else if ($("#car-wash-status-all").prop("checked")) {
     return "all";
   }

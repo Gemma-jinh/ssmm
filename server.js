@@ -411,7 +411,7 @@ const CarRegistrationSchema = new mongoose.Schema({
   },
   serviceAmount: { type: Number, default: 0 },
   notes: { type: String, default: "" },
-  assignDate: { type: Date },
+  assignDate: { type: Date, default: Date.now },
   workDate: { type: Date },
   status: {
     type: String,
@@ -423,7 +423,8 @@ const CarRegistrationSchema = new mongoose.Schema({
   externalPhoto: { type: String, default: "" },
   internalPhoto: { type: String, default: "" },
 
-  createdAt: { type: Date, default: Date.now },
+  // createdAt: { type: Date, default: Date.now },
+  timestamps: true,
 });
 
 // Account 모델 정의
@@ -789,16 +790,14 @@ apiRouter.get(
     try {
       console.log("Request query:", req.query);
       const {
-        // type,
-        // model,
-        // licensePlate,
-        // "location.region": region,
-        // "location.place": place,
-        // "location.parkingSpot": locationParkingSpot,
-        // customer,
-        // manager,
-        // page = 1,
-        // limit = 10,
+        type,
+        model,
+        licensePlate,
+        locationRegion,
+        locationPlace,
+        locationParkingSpot,
+        customer,
+        manager,
         status,
         assignDate,
         page = 1,
@@ -807,6 +806,45 @@ apiRouter.get(
 
       // 필터 객체 초기화
       let filter = {};
+
+      if (type) {
+        filter.type = type; // type은 ObjectId로 전달된다고 가정
+      }
+
+      // 차량 모델 필터 적용
+      if (model) {
+        filter.model = model; // model도 ObjectId로 전달
+      }
+
+      // 차량 번호 필터 적용 (부분 일치)
+      if (licensePlate) {
+        filter.licensePlate = { $regex: licensePlate, $options: "i" };
+      }
+
+      // 지역 필터 적용
+      if (locationRegion) {
+        filter["location.region"] = locationRegion;
+      }
+
+      // 장소 필터 적용
+      if (locationPlace) {
+        filter["location.place"] = locationPlace;
+      }
+
+      // 주차 위치 필터 적용
+      if (locationParkingSpot) {
+        filter["location.parkingSpot"] = locationParkingSpot;
+      }
+
+      // 고객사 필터 적용
+      if (customer) {
+        filter.customer = customer;
+      }
+
+      // 작업자 필터 적용
+      if (manager) {
+        filter.manager = manager;
+      }
 
       // if (type) filter.type = new mongoose.Types.ObjectId(type);
       // if (model) filter.model = new mongoose.Types.ObjectId(model);
@@ -1759,6 +1797,20 @@ apiRouter.post(
       // 비밀번호 해싱 (보안 강화)
       const hashedPassword = await bcryptjs.hash(password, 10);
 
+      let managerId = null;
+      const existingManager = await Manager.findOne({ name: adminName });
+      if (!existingManager) {
+        const newManager = new Manager({
+          name: adminName,
+          // 추가 필드가 필요하다면 여기서 설정
+        });
+        await newManager.save();
+        console.log(`Manager ${adminName} 생성 완료`);
+        managerId = newManager._id;
+      } else {
+        console.warn(`Manager with name ${adminName} already exists`);
+        managerId = existingManager._id;
+      }
       // 계정 생성
       const newAccount = new Account({
         adminId,
@@ -1768,20 +1820,31 @@ apiRouter.post(
         authorityGroup,
       });
 
+      if (authorityGroup === "작업자") {
+        newAccount.manager = managerId;
+      }
+
       await newAccount.save();
 
       // Manager 생성
-      const existingManager = await Manager.findOne({ name: adminName });
-      if (!existingManager) {
-        const newManager = new Manager({
-          name: adminName,
-          // 추가 필드가 필요하다면 여기서 설정
-        });
-        await newManager.save();
-        console.log(`Manager ${adminName} 생성 완료`);
-      } else {
-        console.warn(`Manager with name ${adminName} already exists`);
-      }
+      // let managerId;
+      // const existingManager = await Manager.findOne({ name: adminName });
+      // if (!existingManager) {
+      //   const newManager = new Manager({
+      //     name: adminName,
+      //   });
+      //   await newManager.save();
+      //   console.log(`Manager ${adminName} 생성 완료`);
+      //   managerId = newManager._id;
+      // } else {
+      //   console.warn(`Manager with name ${adminName} already exists`);
+      //   managerId = existingManager._id;
+      // }
+
+      // if (authorityGroup === "작업자") {
+      //   newAccount.manager = managerId;
+      //   await newAccount.save();
+      // }
 
       res.status(201).json(newAccount);
     } catch (err) {
@@ -2028,6 +2091,7 @@ apiRouter.post(
         notes,
         workDate,
         status = "pending",
+        assignDate,
       } = req.body;
 
       // 필수 필드 검증
@@ -2088,6 +2152,7 @@ apiRouter.post(
         notes: notes || "",
         workDate: workDate ? new Date(workDate) : undefined,
         status: status,
+        assignDate: assignDate ? new Date(assignDate) : undefined,
       });
 
       await newCarRegistration.save();
@@ -2425,15 +2490,15 @@ apiRouter.get("/managers", async (req, res) => {
 });
 
 // 팀 목록 조회
-apiRouter.get("/teams", async (req, res) => {
-  try {
-    const teams = await Team.find();
-    res.json(teams);
-  } catch (err) {
-    console.error("팀 목록 조회 오류:", err);
-    res.status(500).json({ error: "팀 목록 조회에 실패했습니다." });
-  }
-});
+// apiRouter.get("/teams", async (req, res) => {
+//   try {
+//     const teams = await Team.find();
+//     res.json(teams);
+//   } catch (err) {
+//     console.error("팀 목록 조회 오류:", err);
+//     res.status(500).json({ error: "팀 목록 조회에 실패했습니다." });
+//   }
+// });
 // 차량 배정 엔드포인트
 apiRouter.put("/car-registrations/assign", async (req, res) => {
   try {
@@ -2595,7 +2660,7 @@ apiRouter.get("/managers", async (req, res) => {
 // GET /teams 팀 목록
 apiRouter.get("/teams", async (req, res) => {
   try {
-    const teams = await Team.find(); // Team 모델을 정의해야 함
+    const teams = await Team.find();
     res.json(teams);
   } catch (err) {
     console.error("팀 목록 조회 오류:", err);

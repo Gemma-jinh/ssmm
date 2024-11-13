@@ -1,3 +1,5 @@
+const API_BASE_URL = "/api";
+
 $.ajaxSetup({
   beforeSend: function (xhr) {
     const token = localStorage.getItem("token");
@@ -7,202 +9,143 @@ $.ajaxSetup({
   },
 });
 
-$(document).ready(function () {
-  // 로그인 사용자 정보 확인
+let currentSearchParams = {};
+
+function getUserInfo() {
   const token = localStorage.getItem("token");
-  if (!token) {
-    window.location.href = "/login.html";
-    return;
-  }
+  if (!token) return null;
 
   try {
-    const decoded = jwt_decode(token);
-    if (
-      decoded.authorityGroup !== "작업자" &&
-      decoded.authorityGroup !== "관리자"
-    ) {
-      alert("작업자 권한이 필요합니다.");
-      window.location.href = "/login.html";
-      return;
-    }
+    return jwt_decode(token);
   } catch (err) {
-    console.error("토큰 검증 실패:", err);
+    console.error("토큰 디코딩 실패:", err);
+    return null;
+  }
+}
+
+function checkAuthentication() {
+  const userInfo = getUserInfo();
+  if (!userInfo) {
     window.location.href = "/login.html";
-    return;
+    return false;
   }
 
-  // 초기 세팅
+  if (
+    userInfo.authorityGroup !== "작업자" &&
+    userInfo.authorityGroup !== "관리자"
+  ) {
+    alert("작업자 권한이 필요합니다.");
+    window.location.href = "/login.html";
+    return false;
+  }
+  return true;
+}
+
+function initializeSearchFields() {
+  // 검색 필드 초기화 예시
   $("#car-wash-status-all").prop("checked", true);
-  // $("#work-date").val(new Date().toISOString().substring(0, 10));
   const today = new Date().toISOString().split("T")[0];
   $("#assign-date").val(today);
-
-  performSearch();
-
-  scheduleNextDayUpdate();
-
-  // 라디오 버튼 변경 이벤트
-  $('input[name="flexRadioDefault"]').on("change", function () {
-    performSearch();
-  });
-
-  // 검색 버튼 클릭 이벤트
-  // $(".btn-primary").on("click", function () {
-  //   loadCarWashHistory();
-  // });
-
-  // $("#work-date").on("change", function () {
-  //   performSearch();
-  // });
-
-  $("#search-button").on("click", function () {
-    performSearch();
-  });
-});
-
-// let currentSearchParams = {};
-
-// 다음 날 자정에 업데이트 스케줄링
-function scheduleNextDayUpdate() {
-  const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
-
-  const timeUntilMidnight = tomorrow - now;
-
-  setTimeout(() => {
-    $("#assign-date").val(tomorrow.toISOString().split("T")[0]);
-    performSearch();
-    scheduleNextDayUpdate(); // 다음 날을 위해 재귀적으로 호출
-  }, timeUntilMidnight);
+  console.log("검색 필드가 초기화되었습니다.");
 }
 
-function getStatusFilter() {
-  if ($("#car-wash-status-emergency").prop("checked")) {
-    return "emergency";
-  } else if ($("#car-wash-status-complete").prop("checked")) {
-    return "complete";
-  } else if ($("#car-wash-status-pending").prop("checked")) {
-    return "pending";
-  } else if ($("#car-wash-status-all").prop("checked")) {
-    return "all";
-  }
-  return "all";
-}
-
-function performSearch() {
-  const status = getStatusFilter();
-  const assignDate = $("#assign-date").val();
-  const searchParams = {
-    status: status,
-    assignDate: assignDate,
-    page: 1, // 검색 시 페이지를 1로 초기화
-    limit: 10,
-  };
-
-  Object.keys(searchParams).forEach((key) => {
-    if (
-      key !== "status" &&
-      key !== "assignDate" &&
-      (searchParams[key] === undefined || searchParams[key] === "")
-    ) {
-      delete searchParams[key];
-    }
-  });
-
-  console.log("Search params:", searchParams);
-  currentSearchParams = searchParams;
-  // loadCarWashHistory(searchParams.page, searchParams.limit, searchParams);
-  loadCarList(1, 10, searchParams);
-}
-
-function loadCarList(page = 1, limit = 10, searchParams = {}) {
-  // const status = getStatusFilter();
-  //   const token = localStorage.getItem("token");
-  const params = {
-    page: page,
-    limit: limit,
-    ...searchParams,
-  };
-
+function loadManagers() {
+  // 관리자 목록을 로드하는 AJAX 호출 예시
   $.ajax({
-    url: "/api/car-registrations",
+    url: `${API_BASE_URL}/managers`,
     method: "GET",
-    data:
-      // page: page,
-      // limit: 10,
-      // status: status,
-      params,
-    success: function (response) {
-      console.log("Received response:", response);
-      const tbody = $("#car-wash-list");
-      tbody.empty();
-
-      if (!response.cars || response.cars.length === 0) {
-        tbody.append(`
-            <tr>
-              <td colspan="7" class="text-center">등록된 세차 내역이 없습니다.</td>
-            </tr>
-          `);
-        $(".pagination").empty();
+    success: function (data) {
+      console.log("Managers data:", data); // 데이터 확인
+      let managersArray = [];
+      // if (!data.managers || !Array.isArray(data.managers)) {
+      //   managersArray = data.managers;
+      // } else if (Array.isArray(data)) {
+      //   managersArray = data;
+      // } else {
+      //   console.error("Managers 데이터 형식이 올바르지 않습니다.");
+      //   alert("관리자 목록을 불러오는데 실패했습니다.");
+      //   return;
+      // }
+      if (data.managers && Array.isArray(data.managers)) {
+        managersArray = data.managers;
+      } else if (Array.isArray(data)) {
+        managersArray = data;
+      } else {
+        console.error("Managers 데이터 형식이 올바르지 않습니다.");
+        alert("관리자 목록을 불러오는데 실패했습니다.");
         return;
       }
 
-      response.cars.forEach((car) => {
-        // const status = car.status || "pending";
-        // const licensePlate = car.licensePlate || "N/A";
-        // const modelName = car.model?.name || "N/A";
-        // const placeName = car.location?.place?.name || "N/A";
-        // const customerName = car.customer?.name || "N/A";
-        // const workDate = car.workDate
-        //   ? new Date(car.workDate).toLocaleDateString()
-        //   : "N/A";
-        // const status = car.status || "N/A";
-
-        const row = `
-            <tr style="${getStatusStyle(car.status)}">
-              <td>
-                <a href="./car-wash-modify.html?id=${car._id}">
-                  <button type="button" class="btn btn-light btn-sm">보고</button>
-                </a>
-              </td>
-              <td>${car.licensePlate}</td>
-              <td>${car.model}</td>
-              <td>${car.location.place.name}</td>
-              <td>${car.customer}</td>
-              <td>${
-                car.assignDate
-                  ? new Date(car.assignDate).toLocaleDateString()
-                  : "N/A"
-              }</td>
-               <td>${getStatusText(car.status)}</td>
-            </tr>
-          `;
-        tbody.append(row);
+      const managerSelect = $("#manager-select");
+      managerSelect.empty();
+      managersArray.forEach(function (manager) {
+        managerSelect.append(
+          `<option value="${manager._id}">${manager.name}</option>`
+        );
       });
-
-      // 페이지네이션 업데이트
-      updatePagination(response.page, response.totalPages);
+      console.log("관리자 목록이 로드되었습니다.");
     },
     error: function (err) {
-      console.error("세차 내역 로드 실패:", err);
-      alert("세차 내역을 불러오는데 실패했습니다.");
+      console.error("관리자 목록 로드 실패:", err);
+      alert("관리자 목록을 불러오는데 실패했습니다.");
     },
   });
 }
 
-function getStatusStyle(status) {
-  switch (status) {
-    case "emergency":
-      return "background-color: #ffebee;"; //  연한 빨강
-    case "complete":
-      return "background-color: #e8f5e9;"; // 연한 초록
-    case "pending":
-      return "background-color: #e3f2fd;";
-    default:
-      return "";
-  }
+function loadTeams() {
+  // 팀 목록을 로드하는 AJAX 호출 예시
+  $.ajax({
+    url: `${API_BASE_URL}/teams`,
+    method: "GET",
+    success: function (data) {
+      console.log("Teams data:", data); // 데이터 확인
+      // if (!data.teams || !Array.isArray(data.teams)) {
+      //   console.error("Teams 데이터 형식이 올바르지 않습니다.");
+      //   alert("팀 목록을 불러오는데 실패했습니다.");
+      //   return;
+      // }
+
+      let teamsArray = [];
+
+      // 응답 형식에 따라 처리
+      if (Array.isArray(data)) {
+        teamsArray = data;
+      } else if (data.teams && Array.isArray(data.teams)) {
+        teamsArray = data.teams;
+      } else {
+        console.error("Teams 데이터 형식이 올바르지 않습니다.");
+        alert("팀 목록을 불러오는데 실패했습니다.");
+        return;
+      }
+
+      const teamSelect = $("#team-select");
+      teamSelect.empty();
+      teamsArray.forEach((team) => {
+        teamSelect.append(`<option value="${team.id}">${team.name}</option>`);
+      });
+      console.log("팀 목록이 로드되었습니다.");
+    },
+    error: function (err) {
+      console.error("팀 목록 로드 실패:", err);
+      alert("팀 목록을 불러오는데 실패했습니다.");
+    },
+  });
+}
+
+function clickAllCheck(masterCheckboxSelector, itemCheckboxSelector) {
+  $(masterCheckboxSelector).on("click", function () {
+    const isChecked = $(this).is(":checked");
+    $(itemCheckboxSelector).prop("checked", isChecked);
+  });
+}
+
+function clickSingleCheck(masterCheckboxSelector, itemCheckboxSelector) {
+  $(document).on("click", itemCheckboxSelector, function () {
+    const allChecked =
+      $(itemCheckboxSelector).length ===
+      $(itemCheckboxSelector + ":checked").length;
+    $(masterCheckboxSelector).prop("checked", allChecked);
+  });
 }
 
 function getStatusText(status) {
@@ -218,7 +161,105 @@ function getStatusText(status) {
   }
 }
 
-function updatePagination(currentPage, totalPages) {
+function getStatusStyle(status) {
+  switch (status) {
+    case "emergency":
+      return "background-color: #ffcccc;";
+    case "complete":
+      return "background-color: #ccffcc;";
+    case "pending":
+      return "background-color: #ffffcc;";
+    default:
+      return "";
+  }
+}
+
+// $(document).ready(function () {
+//   if (!checkAuthentication()) {
+//     return;
+//   }
+//   initializeSearchFields();
+//   loadManagers();
+//   loadTeams();
+//   loadCarList(1, 10, {});
+
+//   $("#search-button").on("click", function () {
+//     performSearch();
+//   });
+
+//   clickAllCheck("#flexCheckDefault", ".select-check-1");
+//   clickSingleCheck("#flexCheckDefault", ".select-check-1");
+
+//   $(document).on("click", ".pagination a.page-link", function (e) {
+//     e.preventDefault();
+//     const page = $(this).data("page");
+//     if (page) {
+//       loadCarList(page, 10, currentSearchParams);
+//     }
+//   });
+// });
+
+function loadCarList(page = 1, limit = 10, searchParams = {}) {
+  searchParams.page = page;
+  searchParams.limit = limit;
+
+  $.ajax({
+    url: "/api/car-registrations",
+    method: "GET",
+    data: searchParams,
+    success: function (data) {
+      console.log("Car Registrations data:", data);
+      const carList = $("#car-allocation-list");
+      carList.empty();
+
+      if (!data.cars || !Array.isArray(data.cars) || data.cars.length === 0) {
+        carList.append(`
+            <tr>
+              <td colspan="7" class="text-center">등록된 세차 내역이 없습니다.</td>
+            </tr>
+          `);
+        $(".pagination").empty();
+        return;
+      }
+
+      data.cars.forEach((car) => {
+        const row = ` 
+            <tr style="${getStatusStyle(car.status)}">
+              <td>
+                <a href="./car-wash-modify.html?id=${car._id}">
+                  <button type="button" class="btn btn-light btn-sm">보고</button>
+                </a>
+              </td>
+              <td>${car.licensePlate}</td>
+              <td>${car.model}</td>
+              <td>${
+                car.location && car.location.place
+                  ? car.location.place.name
+                  : "N/A"
+              }</td>
+              <td>${car.customer || "N/A"}</td>
+              <td>${
+                car.assignDate
+                  ? new Date(car.assignDate).toLocaleDateString()
+                  : "N/A"
+              }</td>
+               <td>${getStatusText(car.status)}</td>
+            </tr>
+          `;
+        carList.append(row);
+      });
+
+      // 페이지네이션 업데이트
+      renderPagination(data.page, data.totalPages);
+    },
+    error: function (err) {
+      console.error("세차 내역 로드 실패:", err);
+      alert("세차 내역을 불러오는데 실패했습니다.");
+    },
+  });
+}
+
+function renderPagination(currentPage, totalPages) {
   const pagination = $(".pagination");
   pagination.empty();
 
@@ -252,71 +293,97 @@ function updatePagination(currentPage, totalPages) {
         </a>
       </li>
     `);
+}
 
-  // 페이지 클릭 이벤트
-  $(".page-link").on("click", function (e) {
+function performSearch() {
+  const status = getStatusFilter();
+  const assignDate = $("#assign-date").val();
+  const searchParams = {
+    status: status,
+    assignDate: assignDate,
+    page: 1,
+    limit: 10,
+  };
+
+  Object.keys(searchParams).forEach((key) => {
+    if (
+      key !== "status" &&
+      key !== "assignDate" &&
+      (searchParams[key] === undefined || searchParams[key] === "")
+    ) {
+      delete searchParams[key];
+    }
+  });
+
+  console.log("Search params:", searchParams);
+  currentSearchParams = searchParams;
+  loadCarList(searchParams.page, searchParams.limit, searchParams);
+}
+
+// 다음 날 자정에 업데이트 스케줄링
+function scheduleNextDayUpdate() {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+
+  const timeUntilMidnight = tomorrow - now;
+
+  setTimeout(() => {
+    $("#assign-date").val(tomorrow.toISOString().split("T")[0]);
+    performSearch();
+    scheduleNextDayUpdate(); // 다음 날을 위해 재귀적으로 호출
+  }, timeUntilMidnight);
+}
+
+function getStatusFilter() {
+  if ($("#car-wash-status-emergency").prop("checked")) {
+    return "emergency";
+  } else if ($("#car-wash-status-complete").prop("checked")) {
+    return "complete";
+  } else if ($("#car-wash-status-pending").prop("checked")) {
+    return "pending";
+  } else if ($("#car-wash-status-all").prop("checked")) {
+    return "all";
+  }
+  return "all";
+}
+
+$(document).ready(function () {
+  if (!checkAuthentication()) {
+    return;
+  }
+
+  initializeSearchFields();
+  loadManagers();
+  loadTeams();
+  loadCarList(1, 10, {});
+
+  $("#search-button").on("click", function () {
+    performSearch();
+  });
+
+  clickAllCheck("#flexCheckDefault", ".select-check-1");
+  clickSingleCheck("#flexCheckDefault", ".select-check-1");
+
+  $(document).on("click", ".pagination a.page-link", function (e) {
     e.preventDefault();
     const page = $(this).data("page");
     if (page) {
       loadCarList(page, 10, currentSearchParams);
     }
   });
-}
+});
 
-// function performSearch() {
-//   const workDate = $("#work-date").val();
-//   const assignDate = $("#assign-date").val();
-//   const searchParams = {
-//     status: getStatusFilter(),
-//     workDate: workDate,
-//     assignDate: assignDate,
-//     page: 1,
-//     limit: 10,
-//   };
+// 초기 세팅
+initializeSearchFields();
+const today = new Date().toISOString().split("T")[0];
+$("#assign-date").val(today);
 
-// 빈 값 제거
-//   Object.keys(searchParams).forEach((key) => {
-//     if (!searchParams[key]) {
-//       delete searchParams[key];
-//     }
-//   });
+performSearch();
+scheduleNextDayUpdate();
 
-//   console.log("Search params:", searchParams);
-//   currentSearchParams = searchParams;
-//   loadCarWashHistory(searchParams.page, searchParams.limit, searchParams);
-// }
-
-function getUserInfo() {
-  const token = localStorage.getItem("token");
-  if (!token) return null;
-
-  try {
-    return jwt_decode(token);
-  } catch (err) {
-    console.error("토큰 디코딩 실패:", err);
-    return null;
-  }
-}
-
-// 인증 상태 확인 및 권한 체크
-function checkAuthentication() {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    window.location.href = "/login.html";
-    return false;
-  }
-
-  try {
-    const decoded = jwt_decode(token);
-    if (decoded.authorityGroup !== "작업자") {
-      alert("작업자 권한이 필요합니다.");
-      window.location.href = "/login.html";
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error("토큰 검증 실패:", err);
-    window.location.href = "/login.html";
-    return false;
-  }
-}
+// 라디오 버튼 변경 이벤트
+$('input[name="flexRadioDefault"]').on("change", function () {
+  performSearch();
+});
