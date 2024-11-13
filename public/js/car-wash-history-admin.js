@@ -125,7 +125,13 @@ function setupEventListeners() {
     downloadExcel(currentSearchParams);
   });
 
-  // 페이지네이션 클릭 이벤트는 loadCarList 함수 내에서 처리
+  $(document).on("click", ".page-link", function (e) {
+    e.preventDefault();
+    const page = $(this).data("page");
+    if (page && page >= 1) {
+      loadCarList(page, 10, currentSearchParams);
+    }
+  });
 }
 
 // 차량 타입을 서버에서 불러오는 함수
@@ -280,8 +286,8 @@ function performSearch() {
     place: place !== "" ? place : undefined,
     parkingSpot: parkingSpot !== "" ? parkingSpot : undefined,
     manager: manager !== "" ? manager : undefined,
-    page: 1, // 검색 시 페이지를 1로 초기화
-    limit: 10,
+    // page: 1,
+    // limit: 10,
   };
 
   // 빈 값 제거
@@ -442,13 +448,13 @@ function updatePagination(currentPage, totalPages) {
         </a>
       </li>
     `);
-  $(".page-link").on("click", function (e) {
-    e.preventDefault();
-    const page = $(this).data("page");
-    if (page && page >= 1 && page <= totalPages) {
-      loadCarList(page, 10, currentSearchParams);
-    }
-  });
+  // $(".page-link").on("click", function (e) {
+  //   e.preventDefault();
+  //   const page = $(this).data("page");
+  //   if (page && page >= 1 && page <= totalPages) {
+  //     loadCarList(page, 10, currentSearchParams);
+  //   }
+  // });
 }
 
 // 선택 삭제 함수

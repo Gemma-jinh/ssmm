@@ -1,5 +1,7 @@
 const API_BASE_URL = "/api"; // 백엔드 서버 URL
 
+let currentSearchParams = {};
+
 $.ajaxSetup({
   beforeSend: function (xhr) {
     const token = localStorage.getItem("token");
@@ -14,7 +16,7 @@ $(document).ready(function () {
   initializeSearchFields();
   loadManagers();
   loadTeams();
-  loadCarList(1, 10, {});
+  loadCarList(1, 10, currentSearchParams);
 
   // 검색 버튼 클릭 이벤트 핸들러
   $("#search-button").on("click", function () {
@@ -604,6 +606,8 @@ function performSearch() {
   // if (workDate) searchParams.workDate = workDate;
   // loadCarList(searchParams, 1, 10);
   console.log("Search params:", searchParams); // 디버깅을 위한 로그
+
+  currentSearchParams = searchParams;
 
   loadCarList(1, 10, searchParams);
 }
