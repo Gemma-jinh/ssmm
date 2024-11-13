@@ -365,67 +365,70 @@ const CarModelSchema = new mongoose.Schema({
 
 CarModelSchema.index({ type: 1, name: 1 }, { unique: true });
 
-const CarRegistrationSchema = new mongoose.Schema({
-  type: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "CarType",
-    required: true,
-  },
-  model: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "CarModel",
-    required: true,
-  },
-  licensePlate: { type: String, required: true, unique: true },
-  location: {
-    region: {
+const CarRegistrationSchema = new mongoose.Schema(
+  {
+    type: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Region",
+      ref: "CarType",
       required: true,
     },
-    place: {
+    model: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Place",
+      ref: "CarModel",
       required: true,
     },
-    parkingSpot: { type: String, default: "" },
-  },
-  customer: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Customer",
-    required: true,
-  },
-  manager: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Manager",
-    default: null,
-  },
-  team: { type: mongoose.Schema.Types.ObjectId, ref: "Team", default: null },
-  serviceType: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "ServiceType",
-  },
-  serviceAmountType: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "ServiceAmountType",
-  },
-  serviceAmount: { type: Number, default: 0 },
-  notes: { type: String, default: "" },
-  assignDate: { type: Date, default: Date.now },
-  workDate: { type: Date },
-  status: {
-    type: String,
-    enum: ["emergency", "complete", "pending"],
-    default: "pending",
-  },
+    licensePlate: { type: String, required: true, unique: true },
+    location: {
+      region: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Region",
+        required: true,
+      },
+      place: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Place",
+        required: true,
+      },
+      parkingSpot: { type: String, default: "" },
+    },
+    customer: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Customer",
+      required: true,
+    },
+    manager: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Manager",
+      default: null,
+    },
+    team: { type: mongoose.Schema.Types.ObjectId, ref: "Team", default: null },
+    serviceType: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ServiceType",
+    },
+    serviceAmountType: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ServiceAmountType",
+    },
+    serviceAmount: { type: Number, default: 0 },
+    notes: { type: String, default: "" },
+    assignDate: { type: Date, default: Date.now },
+    workDate: { type: Date },
+    status: {
+      type: String,
+      enum: ["emergency", "complete", "pending"],
+      default: "pending",
+    },
 
-  // 사진 필드 추가
-  externalPhoto: { type: String, default: "" },
-  internalPhoto: { type: String, default: "" },
-
-  // createdAt: { type: Date, default: Date.now },
-  timestamps: true,
-});
+    // 사진 필드 추가
+    externalPhoto: { type: String, default: "" },
+    internalPhoto: { type: String, default: "" },
+  },
+  {
+    timestamps: true,
+    // createdAt: { type: Date, default: Date.now },
+  }
+);
 
 // Account 모델 정의
 const accountSchema = new mongoose.Schema({
@@ -2976,6 +2979,10 @@ app.get("/account-manage.html", (req, res) => {
 
 app.get("/account-create.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "pages", "account-create.html"));
+});
+
+app.get("/account-detail.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "pages", "account-detail.html"));
 });
 
 app.get("/account-withdrawal.html", (req, res) => {
