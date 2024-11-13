@@ -1,6 +1,22 @@
 $(document).ready(function () {
   const API_BASE_URL = "/api"; // 백엔드 서버 URL
 
+  // const token = localStorage.getItem("token");
+  // if (token) {
+  //   $.ajaxSetup({
+  //     headers: {
+  //       Authorization: "Bearer " + token,
+  //     },
+  //   });
+  // }
+  $.ajaxSetup({
+    beforeSend: function (xhr) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      }
+    },
+  });
   // URL에서 차량 ID 추출
   function getQueryParam(param) {
     const urlParams = new URLSearchParams(window.location.search);
@@ -12,6 +28,138 @@ $(document).ready(function () {
     alert("차량 정보가 없습니다.");
     window.location.href = "./car-list.html"; // 차량 목록 페이지로 이동
     return;
+  }
+
+  //지역 로드
+  function loadRegions(selectedRegionId) {
+    return $.ajax({
+      url: `${API_BASE_URL}/regions`,
+      method: "GET",
+      success: function (data) {
+        const regionSelect = $("#region");
+        regionSelect.empty();
+        regionSelect.append('<option value="" selected>지역 선택</option>');
+        data.forEach((region) => {
+          const selected = region._id === selectedRegionId ? "selected" : "";
+          regionSelect.append(
+            `<option value="${region._id}" ${selected}>${region.name}</option>`
+          );
+        });
+      },
+      error: function (err) {
+        console.error("지역 로드 실패:", err);
+        alert("지역을 로드하는 데 실패했습니다.");
+      },
+    });
+  }
+
+  //특정지역 장소 로드
+  function loadPlaces(regionId, selectedPlaceId) {
+    if (!regionId) {
+      $("#place")
+        .empty()
+        .append('<option value="" selected>장소 선택</option>');
+      return;
+    }
+
+    return $.ajax({
+      url: `${API_BASE_URL}/regions/${regionId}/places`,
+      method: "GET",
+      success: function (data) {
+        const placeSelect = $("#place");
+        placeSelect.empty();
+        placeSelect.append('<option value="" selected>장소 선택</option>');
+        data.forEach((place) => {
+          const selected = place._id === selectedPlaceId ? "selected" : "";
+          placeSelect.append(
+            `<option value="${place._id}" ${selected}>${place.name}</option>`
+          );
+        });
+      },
+      error: function (err) {
+        console.error("장소 로드 실패:", err);
+        alert("장소를 로드하는 데 실패했습니다.");
+      },
+    });
+  }
+
+  function loadParkingSpots(placeId, selectedParkingSpot) {
+    if (!placeId) {
+      $("#parking-spot")
+        .empty()
+        .append('<option value="" selected>주차 위치 선택</option>');
+      return;
+    }
+
+    return $.ajax({
+      url: `${API_BASE_URL}/places/${placeId}/parking-spots`,
+      method: "GET",
+      success: function (data) {
+        const parkingSpotSelect = $("#parking-spot");
+        parkingSpotSelect.empty();
+        parkingSpotSelect.append(
+          '<option value="" selected>주차 위치 선택</option>'
+        );
+        data.forEach((spot) => {
+          const selected = spot === selectedParkingSpot ? "selected" : "";
+          parkingSpotSelect.append(
+            `<option value="${spot}" ${selected}>${spot}</option>`
+          );
+        });
+        parkingSpotSelect.prop("disabled", false);
+      },
+      error: function (err) {
+        console.error("주차 위치 로드 실패:", err);
+        alert("주차 위치를 로드하는 데 실패했습니다.");
+      },
+    });
+  }
+
+  // 고객사 목록 로드
+  function loadCustomers(selectedCustomerId) {
+    return $.ajax({
+      url: `${API_BASE_URL}/customers`,
+      method: "GET",
+      success: function (data) {
+        const customerSelect = $("#customer");
+        customerSelect.empty();
+        customerSelect.append('<option value="" selected>고객사 선택</option>');
+        data.forEach((customer) => {
+          const selected =
+            customer._id === selectedCustomerId ? "selected" : "";
+          customerSelect.append(
+            `<option value="${customer._id}" ${selected}>${customer.name}</option>`
+          );
+        });
+      },
+      error: function (err) {
+        console.error("고객사 로드 실패:", err);
+        alert("고객사를 로드하는 데 실패했습니다.");
+      },
+    });
+  }
+
+  // 담당자 목록 로드
+  function loadManagers(selectedManagerId) {
+    return $.ajax({
+      url: `${API_BASE_URL}/managers`,
+      method: "GET",
+      success: function (data) {
+        const managerSelect = $("#manager");
+        managerSelect.empty();
+        managerSelect.append('<option value="" selected>담당자 선택</option>');
+        data.forEach((manager) => {
+          const selected = manager._id === selectedManagerId ? "selected" : "";
+          managerSelect.append(
+            `<option value="${manager._id}" ${selected}>${manager.name}</option>`
+          );
+        });
+      },
+      error: function (err) {
+        console.error("담당자 로드 실패:", err);
+        alert("담당자를 로드하는 데 실패했습니다.");
+      },
+    });
   }
 
   // 차종 목록 로드
@@ -68,20 +216,47 @@ $(document).ready(function () {
       url: `${API_BASE_URL}/car-registrations/${carId}`,
       method: "GET",
       success: function (car) {
+        console.log("차량 정보:", car);
         // 차종 선택
         loadCarTypes(car.type._id).then(() => {
           // 차량 모델 선택
           loadCarModels(car.type._id, car.model._id);
         });
 
-        // 나머지 필드 채우기
-        $("#license-plate").val(car.licensePlate);
-        $("#region").val(car.location.region);
-        $("#place").val(car.location.place);
-        $("#parking-spot").val(car.location.parkingSpot);
-        $("#customer").val(car.customer);
-        $("#manager").val(car.customer); // 담당자가 customer와 동일하다면, 아니면 수정 필요
-        $("#car-wash-note").val(car.notes);
+        // 지역 로드 후 선택
+        const regionId =
+          typeof car.location.region === "object"
+            ? car.location.region._id
+            : car.location.region;
+        loadRegions(regionId).then(() => {
+          const placeId =
+            typeof car.location.place === "object"
+              ? car.location.place._id
+              : car.location.place;
+          loadPlaces(regionId, placeId).then(() => {
+            const parkingSpot = car.location.parkingSpot;
+            loadParkingSpots(placeId, parkingSpot);
+          });
+        });
+
+        // 고객사 로드 및 선택
+        const customerId =
+          typeof car.customer === "object" ? car.customer._id : car.customer;
+        loadCustomers(customerId).then(() => {
+          // 담당자 로드 및 선택
+          const managerId =
+            typeof car.manager === "object" ? car.manager._id : car.manager;
+          loadManagers(managerId).then(() => {
+            // 나머지 필드 채우기
+            $("#license-plate").val(car.licensePlate);
+            // $("#region").val(car.location.region);
+            // $("#place").val(car.location.place);
+            $("#parking-spot").val(car.location.parkingSpot);
+            // $("#customer").val(car.customer);
+            $("#car-wash-note").val(car.notes);
+            $("#manager").val(managerId);
+          });
+        });
       },
       error: function (err) {
         console.error("차량 정보 로드 실패:", err);
@@ -106,6 +281,19 @@ $(document).ready(function () {
         .append('<option value="" selected>차량 모델 선택</option>');
       $("#car-model").prop("disabled", true);
       $("#custom-car-model").prop("disabled", true).val("");
+    }
+  });
+
+  $("#region").on("change", function () {
+    const selectedRegionId = $(this).val();
+    if (selectedRegionId) {
+      loadPlaces(selectedRegionId, null);
+      $("#place").prop("disabled", false);
+    } else {
+      $("#place")
+        .empty()
+        .append('<option value="" selected>장소 선택</option>');
+      $("#place").prop("disabled", true);
     }
   });
 
@@ -171,10 +359,13 @@ $(document).ready(function () {
             parkingSpot,
           },
           customer,
-          serviceType: "", // 서비스 타입이 없는 경우 빈 문자열 또는 기존 값을 유지하도록 수정 필요
+          manager,
+          serviceType: null, // 서비스 타입이 없는 경우 빈 문자열 또는 기존 값을 유지하도록 수정 필요
           serviceAmount: 0, // 서비스 금액이 없는 경우 기본값 설정 또는 기존 값을 유지하도록 수정 필요
           notes,
         };
+
+        console.log("업데이트 데이터:", updatedData);
 
         return $.ajax({
           url: `${API_BASE_URL}/car-registrations/${carId}`,

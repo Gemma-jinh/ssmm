@@ -1948,6 +1948,48 @@ apiRouter.delete(
   }
 );
 
+//계정 상세 정보 조회
+apiRouter.get(
+  "/accounts/:id",
+  authenticateToken, // 인증 미들웨어
+  authorizeRoles("관리자"), // 권한 부여 미들웨어 (관리자만 접근 가능)
+  async (req, res) => {
+    const { id } = req.params;
+
+    // 유효한 ObjectId인지 확인
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "유효하지 않은 계정 ID입니다." });
+    }
+
+    try {
+      const account = await Account.findById(id)
+        .populate("customer")
+        .populate("manager")
+        .exec();
+
+      if (!account) {
+        return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
+      }
+
+      // 필요한 필드만 반환 (보안을 위해 비밀번호 등 민감한 정보는 제외)
+      const accountData = {
+        _id: account._id,
+        adminId: account.adminId,
+        adminName: account.adminName,
+        authorityGroup: account.authorityGroup,
+        customer: account.customer ? account.customer.name : null,
+        manager: account.manager ? account.manager.name : null,
+        // 추가적으로 필요한 필드가 있다면 여기에 포함
+      };
+
+      res.json(accountData);
+    } catch (err) {
+      console.error("계정 상세 조회 오류:", err);
+      res.status(500).json({ error: "서버 오류" });
+    }
+  }
+);
+
 // 계정 수정 엔드포인트
 apiRouter.put(
   "/accounts/:id",
@@ -2177,6 +2219,7 @@ apiRouter.get("/car-registrations/:id", async (req, res) => {
       .populate("customer") // Customer 정보 포함
       .populate("location.region") // Region 정보 포함
       .populate("location.place") // Place 정보 포함
+      .populate("manager")
       .exec();
 
     if (!carRegistration) {
@@ -2309,6 +2352,7 @@ apiRouter.put("/car-registrations/:id", async (req, res) => {
       .populate("customer")
       .populate("location.region")
       .populate("location.place")
+      .populate("manager")
       .exec();
 
     if (!updatedCar) {
