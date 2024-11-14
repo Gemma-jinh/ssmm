@@ -91,6 +91,10 @@ function parseJwt(token) {
   }
 }
 
+const pagePermissions = {
+  "/car-list.html": ["관리자"],
+};
+
 // function getUserRole() {
 //   const token = localStorage.getItem("token");
 //   if (token) {
@@ -203,16 +207,22 @@ function checkAuth() {
   }
 
   // 페이지별 권한 체크
-  if (currentPath === "/car-list.html" && payload.authorityGroup !== "관리자") {
-    window.location.href = "/car-wash-history.html";
-    return false;
-  }
+  // if (currentPath === "/car-list.html" && payload.authorityGroup !== "관리자") {
+  //   window.location.href = "/car-wash-history.html";
+  //   return false;
+  // }
 
-  if (
-    currentPath === "/car-wash-history.html" &&
-    payload.authorityGroup !== "작업자"
-  ) {
-    window.location.href = "/car-list.html";
+  // if (
+  //   currentPath === "/car-wash-history.html" &&
+  //   payload.authorityGroup !== "작업자"
+  // ) {
+  //   window.location.href = "/car-list.html";
+  //   return false;
+  // }
+  const allowedRoles = pagePermissions[currentPath];
+  if (allowedRoles && !allowedRoles.includes(payload.authorityGroup)) {
+    alert("접근 권한이 없습니다.");
+    window.history.back();
     return false;
   }
 
@@ -244,8 +254,19 @@ $.ajaxSetup({
   },
   error: function (xhr) {
     if (xhr.status === 401) {
+      alert("로그인이 필요합니다.");
       localStorage.removeItem("token");
       window.location.href = "/login.html";
+    } else if (xhr.status === 403) {
+      alert("접근 권한이 없습니다.");
+    } else {
+      console.error("AJAX 요청 오류:", xhr);
+      alert("요청 처리 중 오류가 발생했습니다.");
     }
   },
 });
+
+function logout() {
+  localStorage.removeItem("token");
+  window.location.href = "/login.html";
+}
