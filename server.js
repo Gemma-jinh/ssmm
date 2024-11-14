@@ -192,7 +192,7 @@ apiRouter.post("/login", async (req, res) => {
         managerId: account.manager ? account.manager.toString() : null,
       },
       JWT_SECRET,
-      { expiresIn: "30m" }
+      { expiresIn: "24h" }
     );
     console.log("로그인 성공:", {
       adminId,
