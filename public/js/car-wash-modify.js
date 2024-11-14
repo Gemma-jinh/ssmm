@@ -98,7 +98,7 @@ function loadCarDetails(carId) {
 
       if (response.externalPhoto) {
         const externalImg = $("<img>")
-          .attr("src", `/${response.externalPhoto}`)
+          .attr("src", response.externalPhoto)
           .attr("alt", "외부세차 사진")
           // .addClass("img-thumbnail")
           .css({ maxWidth: "100%", height: "auto", marginTop: "10px" });
@@ -115,7 +115,7 @@ function loadCarDetails(carId) {
 
       if (response.internalPhoto) {
         const internalImg = $("<img>")
-          .attr("src", `/${response.internalPhoto}`)
+          .attr("src", response.internalPhoto)
           .attr("alt", "내부세차 사진")
           // .addClass("img-thumbnail")
           .css({ maxWidth: "100%", height: "auto", marginTop: "10px" });

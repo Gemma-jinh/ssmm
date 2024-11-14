@@ -2419,10 +2419,14 @@ apiRouter.put(
       //파일 업로드
       if (req.files) {
         if (req.files.externalPhoto) {
-          updateData.externalPhoto = req.files.externalPhoto[0].path;
+          // updateData.externalPhoto = req.files.externalPhoto[0].path;
+          const externalPhotoFilename = req.files.externalPhoto[0].filename;
+          updateData.externalPhoto = `/uploads/${externalPhotoFilename}`;
         }
         if (req.files.internalPhoto) {
-          updateData.internalPhoto = req.files.internalPhoto[0].path;
+          // updateData.internalPhoto = req.files.internalPhoto[0].path;
+          const internalPhotoFilename = req.files.internalPhoto[0].filename;
+          updateData.internalPhoto = `/uploads/${internalPhotoFilename}`;
         }
       }
       // 내부세차 사진 업로드
