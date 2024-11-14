@@ -22,7 +22,7 @@ const pagePermissions = {
 };
 
 function checkAuth() {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   const currentPath = window.location.pathname;
 
   console.log("Current Path:", currentPath);
@@ -50,7 +50,7 @@ function checkAuth() {
   // 토큰 만료 체크
   const currentTime = Date.now() / 1000;
   if (payload.exp < currentTime) {
-    localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
     window.location.href = "/login.html";
     return false;
   }
@@ -79,7 +79,7 @@ function checkAuth() {
     // } else {
     //   window.location.href = "/login.html";
     // }
-    localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
     window.location.href = "/login.html";
     return false;
   }
@@ -105,7 +105,7 @@ $(document).ready(function () {
 // API 요청 시 사용할 공통 설정
 $.ajaxSetup({
   beforeSend: function (xhr) {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (token) {
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     }
@@ -113,7 +113,7 @@ $.ajaxSetup({
   error: function (xhr) {
     if (xhr.status === 401) {
       alert("로그인이 필요합니다.");
-      localStorage.removeItem("token");
+      sessionStorage.removeItem("token");
       window.location.href = "/login.html";
     } else if (xhr.status === 403) {
       alert("접근 권한이 없습니다.");
@@ -125,6 +125,6 @@ $.ajaxSetup({
 });
 
 function logout() {
-  localStorage.removeItem("token");
+  sessionStorage.removeItem("token");
   window.location.href = "/login.html";
 }

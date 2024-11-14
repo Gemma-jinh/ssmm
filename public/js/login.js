@@ -3,7 +3,7 @@ $(document).ready(function () {
   const API_BASE_URL = "/api";
 
   // 기존 토큰 확인
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   if (token && window.location.pathname === "/login.html") {
     // verifyAndRedirect(token);
     $.ajax({
@@ -21,14 +21,14 @@ $(document).ready(function () {
               : "/car-wash-history.html";
           window.location.href = redirect;
         } else {
-          localStorage.removeItem("token");
+          sessionStorage.removeItem("token");
           $("#login-feedback").text(
             "토큰이 유효하지 않습니다. 다시 로그인해주세요."
           );
         }
       })
       .catch(() => {
-        localStorage.removeItem("token");
+        sessionStorage.removeItem("token");
         window.location.href = "/login.html";
       });
   }
@@ -68,7 +68,7 @@ $(document).ready(function () {
     })
       .then(function (response) {
         if (response.success && response.token) {
-          localStorage.setItem("token", response.token);
+          sessionStorage.setItem("token", response.token);
           // $.ajaxSetup({
           //   headers: {
           //     Authorization: `Bearer ${response.token}`,

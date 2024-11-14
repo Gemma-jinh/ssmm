@@ -74,7 +74,7 @@ const MENU_LIST = [
 
 const layoutLogout = () => {
   // 로그아웃 시 필요한 작업 수행
-  localStorage.removeItem("token"); // 토큰 제거
+  sessionStorage.removeItem("token"); // 토큰 제거
 
   // 기타 로그인 관련 데이터가 있다면 제거
   // localStorage.removeItem("userData"); 등
@@ -87,7 +87,7 @@ const renderSideNav = () => {
   const $sideNav = $("#sideNav");
 
   // JWT 토큰에서 사용자 역할 추출
-  const token = localStorage.getItem("token"); // 로그인 시 저장한 토큰 키 확인
+  const token = sessionStorage.getItem("token"); // 로그인 시 저장한 토큰 키 확인
   const payload = parseJwt(token);
   const userRole = payload ? payload.authorityGroup : null;
 
@@ -149,7 +149,7 @@ const renderSideNav = () => {
 
 const renderHeader = () => {
   const $header = $("#header");
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   const payload = parseJwt(token);
   const userRole = payload ? payload.authorityGroup : null;
 

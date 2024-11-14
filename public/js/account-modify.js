@@ -3,7 +3,7 @@ $(document).ready(function () {
 
   $.ajaxSetup({
     beforeSend: function (xhr) {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       if (token) {
         xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       }
@@ -55,7 +55,7 @@ $(document).ready(function () {
       url: `${API_BASE_URL}/accounts/${id}`,
       method: "GET",
       headers: {
-        Authorization: "Bearer " + localStorage.getItem("token"), // 토큰 포함
+        Authorization: "Bearer " + sessionStorage.getItem("token"), // 토큰 포함
       },
       success: function (data) {
         $("#admin-id").val(data.adminId);

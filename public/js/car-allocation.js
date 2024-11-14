@@ -4,7 +4,7 @@ let currentSearchParams = {};
 
 $.ajaxSetup({
   beforeSend: function (xhr) {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (token) {
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     }

@@ -1,6 +1,6 @@
 $(document).ready(function () {
   // 로그인 사용자 정보 확인
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   if (!token) {
     window.location.href = "/login.html";
     return;

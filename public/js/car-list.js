@@ -1,7 +1,7 @@
 const API_BASE_URL = "/api"; // 백엔드 서버 URL
 
 function checkAuthentication(requiredRole) {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   if (!token) {
     window.location.href = "/login.html";
     return false;
@@ -25,7 +25,7 @@ function checkAuthentication(requiredRole) {
 // API 호출 시 토큰 포함
 $.ajaxSetup({
   beforeSend: function (xhr) {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (token) {
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     }

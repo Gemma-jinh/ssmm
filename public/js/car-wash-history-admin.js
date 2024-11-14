@@ -15,7 +15,7 @@ $(document).ready(function () {
 // AJAX 요청 시 Authorization 헤더 설정
 $.ajaxSetup({
   beforeSend: function (xhr) {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (token) {
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     }
@@ -484,7 +484,7 @@ function downloadExcel(searchParams) {
 
 // 인증 상태 확인 및 권한 체크 함수
 function checkAuthentication(requiredRole) {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   if (!token) {
     window.location.href = "/login.html";
     return false;
