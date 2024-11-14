@@ -72,8 +72,10 @@ $(document).on("click", ".delete-photo-btn", function () {
   // $(inputId).siblings("label").show();
   if (previewContainer.attr("id") === "external-photo-preview") {
     $("#camera-click-btn2").parent(".camera-click-btn").show();
+    resizedExternalPhoto = null;
   } else if (previewContainer.attr("id") === "internal-photo-preview") {
     $("#camera-click-btn1").parent(".camera-click-btn").show();
+    resizedInternalPhoto = null;
   }
 });
 
@@ -147,6 +149,9 @@ function getStatusText(status) {
   }
 }
 
+let resizedExternalPhoto = null;
+let resizedInternalPhoto = null;
+
 // "보고하기" 버튼 클릭 시 세차 내역 보고 함수
 function reportCarWash(carId) {
   const notes = $("#car-wash-note").val();
@@ -157,15 +162,31 @@ function reportCarWash(carId) {
   formData.append("status", "complete");
   formData.append("assignDate", new Date().toISOString());
 
-  const externalPhoto = $("#camera-click-btn2")[0].files[0];
-  const internalPhoto = $("#camera-click-btn1")[0].files[0];
+  // const externalPhoto = $("#camera-click-btn2")[0].files[0];
+  // const internalPhoto = $("#camera-click-btn1")[0].files[0];
 
-  if (externalPhoto) {
-    formData.append("externalPhoto", externalPhoto);
+  // if (!externalPhoto && !internalPhoto) {
+  //   alert("세차 사진을 추가해 주세요.");
+  //   return;
+  // }
+  // if (externalPhoto) {
+  //   formData.append("externalPhoto", externalPhoto);
+  // }
+
+  // if (internalPhoto) {
+  //   formData.append("internalPhoto", internalPhoto);
+  // }
+
+  if (resizedExternalPhoto) {
+    formData.append("externalPhoto", resizedExternalPhoto, "externalPhoto.jpg");
+  } else {
+    console.log("외부 사진이 없습니다.");
   }
 
-  if (internalPhoto) {
-    formData.append("internalPhoto", internalPhoto);
+  if (resizedInternalPhoto) {
+    formData.append("internalPhoto", resizedInternalPhoto, "internalPhoto.jpg");
+  } else {
+    console.log("내부 사진이 없습니다.");
   }
 
   $.ajax({
@@ -199,31 +220,77 @@ function previewPhoto(input, previewSelector) {
     const reader = new FileReader();
 
     reader.onload = function (e) {
-      const img = $("<img>")
-        .attr("src", e.target.result)
-        .attr("alt", "세차 사진")
-        // .addClass("img-thumbnail")
-        .css({
-          width: "100%",
-          height: "auto",
-          objectFit: "contain",
-        });
+      // const img = $("<img>")
+      //   .attr("src", e.target.result)
+      //   .attr("alt", "세차 사진")
+      //   .css({
+      //     width: "100%",
+      //     height: "auto",
+      //     objectFit: "contain",
+      //   });
+      const img = new Image();
+      img.src = e.target.result;
 
-      // const deleteBtn = $("<button>")
-      //   .attr("type", "button")
-      //   .addClass("btn btn-danger btn-sm delete-photo-btn")
-      //   .text("삭제");
-      const deleteBtn = createDeleteButton();
-      preview.append(img).append(deleteBtn);
-      preview.show();
+      img.onload = function () {
+        // 최대 크기 설정
+        const MAX_WIDTH = 1024;
+        const MAX_HEIGHT = 1024;
+        let width = img.width;
+        let height = img.height;
 
-      $(input).parent(".camera-click-btn").hide();
+        // 이미지 크기 조절
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Canvas를 Blob으로 변환
+        canvas.toBlob(
+          function (blob) {
+            // 리사이즈된 이미지 저장
+            if (previewSelector === "#external-photo-preview") {
+              resizedExternalPhoto = blob;
+            } else if (previewSelector === "#internal-photo-preview") {
+              resizedInternalPhoto = blob;
+            }
+
+            // 미리보기 이미지 생성
+            const resizedImg = $("<img>")
+              .attr("src", URL.createObjectURL(blob))
+              .attr("alt", "세차 사진")
+              .css({
+                width: "100%",
+                height: "auto",
+                objectFit: "contain",
+              });
+
+            const deleteBtn = createDeleteButton();
+            preview.append(resizedImg).append(deleteBtn);
+            preview.show();
+
+            $(input).parent(".camera-click-btn").hide();
+          },
+          "image/jpeg",
+          0.8
+        );
+      };
     };
-
     reader.onerror = function (e) {
       console.error("FileReader 오류:", e);
     };
-
     reader.readAsDataURL(file);
     console.log("FileReader readAsDataURL 호출");
   } else {
