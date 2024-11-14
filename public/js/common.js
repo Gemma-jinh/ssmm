@@ -182,8 +182,14 @@ function checkAuth() {
   const token = localStorage.getItem("token");
   const currentPath = window.location.pathname;
 
+  console.log("Current Path:", currentPath);
+
   // 로그인 페이지는 체크 제외
-  if (currentPath === "/login.html") {
+  // if (currentPath === "/login.html") {
+  //   return true;
+  // }
+  const loginPagePattern = /^\/(login|index)(\.html)?$/;
+  if (loginPagePattern.test(currentPath)) {
     return true;
   }
 
