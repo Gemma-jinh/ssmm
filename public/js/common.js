@@ -1,77 +1,3 @@
-// 예시: 페이징 처리 함수
-
-// function setupPagination(totalPages) {
-//   let paginationHtml = "";
-
-//   for (let i = 1; i <= totalPages; i++) {
-//     paginationHtml += `
-//       <li class="page-item"><a class="page-link" href="#">${i}</a></li>
-//     `;
-//   }
-
-// 이전, 다음 버튼 추가
-
-//   paginationHtml = `
-//     <li class="page-item">
-//       <a class="page-link" href="#" aria-label="Previous">
-//         <span aria-hidden="true">&laquo;</span>
-//       </a>
-//     </li>
-//     ${paginationHtml}
-//     <li class="page-item">
-//       <a class="page-link" href="#" aria-label="Next">
-//         <span aria-hidden="true">&raquo;</span>
-//       </a>
-//     </li>
-//   `;
-
-//   $(".pagination").html(paginationHtml);
-// }
-
-// $(document).ready(function () {
-//   // JWT 토큰 가져오기
-//   const token = localStorage.getItem("token");
-
-//   if (!token) {
-//     window.location.href = "/login.html";
-//     return;
-//   }
-
-//   try {
-//     const decoded = jwt_decode(token);
-//     const currentTime = Date.now() / 1000;
-
-//     if (decoded.exp < currentTime) {
-//       alert("세션이 만료되었습니다. 다시 로그인해주세요.");
-//       localStorage.removeItem("token");
-//       window.location.href = "/login.html";
-//       return;
-//     }
-//   } catch (e) {
-//     console.error("토큰 디코딩 오류:", e);
-//     localStorage.removeItem("token");
-//     window.location.href = "/login.html";
-//     return;
-//   }
-
-//   $.ajax({
-//     url: "/api/verify-token",
-//     method: "POST",
-//     headers: {
-//       Authorization: `Bearer ${token}`,
-//     },
-//     success: function (response) {
-
-//     },
-//     error: function (xhr, status, error) {
-
-//       alert("세션이 만료되었습니다. 다시 로그인해주세요.");
-//       localStorage.removeItem("token");
-//       window.location.href = "/login.html";
-//     },
-//   });
-// });
-
 // JWT 디코딩 함수
 function parseJwt(token) {
   try {
@@ -94,89 +20,6 @@ function parseJwt(token) {
 const pagePermissions = {
   "/car-list.html": ["관리자"],
 };
-
-// function getUserRole() {
-//   const token = localStorage.getItem("token");
-//   if (token) {
-//     const payload = parseJwt(token);
-//     return payload ? payload.authorityGroup : null;
-//   }
-//   return null;
-// }
-
-// function getUserId() {
-//   const token = localStorage.getItem("token");
-//   if (token) {
-//     const payload = parseJwt(token);
-//     return payload ? payload.id : null;
-//   }
-//   return null;
-// }
-
-// function logout() {
-//   localStorage.clear();
-//   window.location.href = "/login.html";
-// }
-
-// async function checkAuthentication(requiredRole = null) {
-//   if (window.location.pathname === "/login.html") {
-//     return true;
-//   }
-
-//   const token = localStorage.getItem("token");
-//   if (!token) {
-//     redirectToLogin();
-//     return false;
-//   }
-
-//   const payload = parseJwt(token);
-//   if (!payload) {
-//     alert("유효하지 않은 토큰입니다.");
-//     return false;
-//   }
-
-//   const currentTime = Date.now() / 1000;
-//   if (payload.exp < currentTime) {
-//     redirectToLogin("세션이 만료되었습니다.");
-//     return false;
-//   }
-
-//   try {
-//     const response = await $.ajax({
-//       url: "/api/verify-token",
-//       method: "POST",
-//       headers: {
-//         Authorization: `Bearer ${token}`,
-//       },
-//       contentType: "application/json",
-//     });
-
-//     if (!response.success) {
-//       redirectToLogin("토큰이 유효하지 않습니다.");
-//       return false;
-//     }
-
-//     if (requiredRole && payload.authorityGroup !== requiredRole) {
-//       alert(" 접근 권한이 없습니다.");
-//       window.history.back();
-//       return false;
-//     }
-
-//     return true;
-//   } catch (error) {
-//     console.error("Token verification error:", error);
-//     redirectToLogin("인증에 실패했습니다.");
-//     return false;
-//   }
-// }
-
-// function redirectToLogin(message = null) {
-//   if (message) {
-//     alert(message);
-//   }
-//   localStorage.clear();
-//   window.location.href = "/login.html";
-// }
 
 function checkAuth() {
   const token = localStorage.getItem("token");
@@ -228,7 +71,16 @@ function checkAuth() {
   const allowedRoles = pagePermissions[currentPath];
   if (allowedRoles && !allowedRoles.includes(payload.authorityGroup)) {
     alert("접근 권한이 없습니다.");
-    window.history.back();
+    // window.history.back();
+    // if (payload.authorityGroup === "관리자") {
+    //   window.location.href = "/car-list.html";
+    // } else if (payload.authorityGroup === "작업자") {
+    //   window.location.href = "/car-wash-history.html";
+    // } else {
+    //   window.location.href = "/login.html";
+    // }
+    localStorage.removeItem("token");
+    window.location.href = "/login.html";
     return false;
   }
 
