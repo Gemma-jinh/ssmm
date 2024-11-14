@@ -72,7 +72,7 @@ const MENU_LIST = [
   },
 ];
 
-const logout = () => {
+const layoutLogout = () => {
   // 로그아웃 시 필요한 작업 수행
   localStorage.removeItem("token"); // 토큰 제거
 
@@ -174,7 +174,7 @@ const renderHeader = () => {
   // 로그아웃 버튼 이벤트 핸들러 추가
   if (token) {
     $("#logoutButton").click(function () {
-      logout();
+      layoutLogout();
     });
   }
 };
