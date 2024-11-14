@@ -4,6 +4,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bodyParser = require("body-parser");
+const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const path = require("path"); //경로 관련 모듈 추가
 const multer = require("multer");
 const XLSX = require("xlsx");
@@ -268,23 +269,28 @@ async function ensureUploadDirectory() {
 ensureUploadDirectory();
 
 // 파일 저장 경로 설정
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    console.log(
-      "Multer destination function called. Upload directory:",
-      uploadDir
-    );
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    // 파일 이름에서 특수 문자 제거
-    const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "");
-    const fileName = uniqueSuffix + "-" + safeName;
-    console.log("Generated filename:", fileName);
-    cb(null, fileName);
-  },
-});
+const storage = multer
+  .memoryStorage
+  // {
+  //diskStorage -> memoryStorage
+  // destination: function (req, file, cb) {
+  // console.log(
+  //   "Multer destination function called. Upload directory:",
+  //   uploadDir
+  // );
+  // cb(null, "uploads/");
+  //     const uploadDir = path.join(__dirname, "uploads");
+  //     cb(null, uploadDir);
+  //   },
+  //   filename: function (req, file, cb) {
+  //     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+  //     const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "");
+  //     const fileName = uniqueSuffix + "-" + safeName;
+  //     console.log("Generated filename:", fileName);
+  //     cb(null, fileName);
+  //   },
+  // }
+  ();
 
 // 파일 필터링 (엑셀 파일만 허용)
 const excelFileFilter = (req, file, cb) => {
@@ -324,15 +330,15 @@ const uploadExcel = multer({
 const uploadImages = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 파일 크기 제한 (10MB)
+    fileSize: 10 * 1024 * 1024,
   },
-  fileFilter: function (req, file, cb) {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true); // 이미지 파일 허용
-    } else {
-      cb(new Error("이미지 파일만 업로드 가능")); // 이미지 파일이 아닌 경우 에러 발생
-    }
-  },
+  // fileFilter: function (req, file, cb) {
+  //   if (file.mimetype.startsWith("image/")) {
+  //     cb(null, true);
+  //   } else {
+  //     cb(new Error("이미지 파일만 업로드 가능"));
+  //   }
+  // },
 });
 
 // const upload = multer({
@@ -2371,6 +2377,8 @@ const uploadFields = uploadImages.fields([
   { name: "internalPhoto", maxCount: 1 },
 ]);
 
+const region = "us-east-1";
+const s3Client = new S3Client({ region });
 apiRouter.put(
   "/car-registrations/:id/report",
   authenticateToken,
@@ -2418,15 +2426,50 @@ apiRouter.put(
 
       //파일 업로드
       if (req.files) {
-        if (req.files.externalPhoto) {
-          // updateData.externalPhoto = req.files.externalPhoto[0].path;
-          const externalPhotoFilename = req.files.externalPhoto[0].filename;
-          updateData.externalPhoto = `/uploads/${externalPhotoFilename}`;
+        async function uploadToS3(file, folderName) {
+          const fileExtension = path.extname(file.originalname);
+          const fileName = `${folderName}/${Date.now()}-${Math.round(
+            Math.random() * 1e9
+          )}${fileExtension}`;
+
+          const params = {
+            Bucket: "gemma-sj-bucket", // 생성한 S3 버킷 이름으로 변경
+            Key: fileName,
+            Body: file.buffer,
+            ContentType: file.mimetype,
+          };
+
+          // const data = await s3.upload(params).promise();
+          // return data.Location;
+          try {
+            const command = new PutObjectCommand(params);
+            await s3Client.send(command);
+            // S3 객체의 URL 생성
+            const url = `https://${params.Bucket}.s3.${region}.amazonaws.com/${fileName}`;
+            return url;
+          } catch (err) {
+            console.error("S3 업로드 오류:", err);
+            throw err;
+          }
         }
-        if (req.files.internalPhoto) {
-          // updateData.internalPhoto = req.files.internalPhoto[0].path;
-          const internalPhotoFilename = req.files.internalPhoto[0].filename;
-          updateData.internalPhoto = `/uploads/${internalPhotoFilename}`;
+        // if (req.files.externalPhoto) {
+        //   const externalPhotoFilename = req.files.externalPhoto[0].filename;
+        //   updateData.externalPhoto = `/uploads/${externalPhotoFilename}`;
+        // }
+        // if (req.files.internalPhoto) {
+        //   const internalPhotoFilename = req.files.internalPhoto[0].filename;
+        //   updateData.internalPhoto = `/uploads/${internalPhotoFilename}`;
+        // }
+        if (req.files.externalPhoto && req.files.externalPhoto[0]) {
+          const file = req.files.externalPhoto[0];
+          const externalPhotoUrl = await uploadToS3(file, "externalPhotos");
+          updateData.externalPhoto = externalPhotoUrl;
+        }
+
+        if (req.files.internalPhoto && req.files.internalPhoto[0]) {
+          const file = req.files.internalPhoto[0];
+          const internalPhotoUrl = await uploadToS3(file, "internalPhotos");
+          updateData.internalPhoto = internalPhotoUrl;
         }
       }
       // 내부세차 사진 업로드
