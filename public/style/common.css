@@ -298,7 +298,6 @@ button:focus:not(:focus-visible) {
 .table-box .table .btn {
   white-space: nowrap;
 }
-
 .option-container {
   display: grid;
   grid-template-columns: 120px 1fr;

@@ -203,7 +203,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Update wash rate
       totalWashRateCell.textContent = data.totalWashRate || "0";
-      totalWashCountCell.textContent = data.totalWashCount || "0";
+      totalWashCountCell.textContent = `세차대수: ${
+        data.totalWashCount || "0"
+      }대`;
     } catch (error) {
       console.error("Error fetching report data:", error);
     }
