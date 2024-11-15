@@ -226,6 +226,9 @@ document.addEventListener("DOMContentLoaded", () => {
       carType: carTypeSelect.value,
     });
 
+    const token = sessionStorage.getItem("token");
+    params.append("token", token);
+
     window.location.href = `/api/reports/weekly/excel?${params.toString()}`;
   }
 

@@ -101,22 +101,27 @@ const authenticateToken = (req, res, next) => {
   }
   // POST 요청의 body에서 토큰 확인
   // const bodyToken = req.body?.token;
+  let token = null;
   const authHeader = req.headers.authorization;
-  // const headerToken = authHeader && authHeader.split(" ")[1];
-
-  if (!authHeader) {
-    console.log("Authorization 헤더 없음");
-    if (req.xhr || req.headers.accept.includes("application/json")) {
-      return res.status(401).json({ error: "토큰이 필요합니다." });
-    }
-    return res.redirect("/login.html"); // 인증 실패시 로그인 페이지로 리다이렉션
+  if (authHeader) {
+    // console.log("Authorization 헤더 없음");
+    // if (req.xhr || req.headers.accept.includes("application/json")) {
+    //   return res.status(401).json({ error: "토큰이 필요합니다." });
+    // }
+    // return res.redirect("/login.html");
+    token = authHeader.split(" ")[1];
   }
   // 토큰 우선순위: Authorization 헤더 > body
   // const token = headerToken || bodyToken;
+  if (!token && req.query.token) {
+    token = req.query.token;
+  }
 
-  const token = authHeader.split(" ")[1];
   if (!token) {
     console.log("토큰 형식 잘못됨");
+    if (req.path === "/api/reports/weekly/excel") {
+      return res.status(401).json({ error: "토큰이 필요합니다." });
+    }
     if (req.xhr || req.headers.accept.includes("application/json")) {
       return res.status(401).json({ error: "올바른 토큰 형식이 아닙니다." });
     }
@@ -130,6 +135,9 @@ const authenticateToken = (req, res, next) => {
     next();
   } catch (err) {
     console.error("토큰 검증 실패:", err);
+    if (req.path === "/api/reports/weekly/excel") {
+      return res.status(401).json({ error: "유효하지 않은 토큰입니다." });
+    }
     if (req.xhr || req.headers.accept.includes("application/json")) {
       return res.status(401).json({ error: "유효하지 않은 토큰입니다." });
     }
@@ -1851,12 +1859,45 @@ apiRouter.get(
   authorizeRoles("관리자", "작업자"),
   async (req, res) => {
     try {
-      // 위의 엔드포인트와 유사하게 데이터를 가져오고 엑셀 파일을 생성합니다.
-      // ExcelJS나 XLSX 같은 라이브러리를 사용하여 파일을 생성합니다.
-      // 적절한 헤더와 함께 파일을 응답으로 전송합니다.
+      const {
+        year,
+        month,
+        week,
+        customer,
+        manager,
+        team,
+        region,
+        place,
+        parkingSpot,
+        carType,
+      } = req.query;
 
-      // 데이터 가져오기 (위의 엔드포인트와 동일)
-      // ...
+      const filter = {};
+
+      if (year && month && week) {
+        const startDate = getStartDateOfWeek(year, month, week);
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+
+        filter.workDate = { $gte: startDate, $lte: endDate };
+      }
+
+      if (customer) filter.customer = customer;
+      if (manager) filter.manager = manager;
+      if (team) filter.team = team;
+      if (region) filter["location.region"] = region;
+      if (place) filter["location.place"] = place;
+      if (parkingSpot) filter["location.parkingSpot"] = parkingSpot;
+      if (carType) filter.type = carType;
+
+      // 데이터 가져오기
+      const records = await CarRegistration.find(filter)
+        .populate("type")
+        .populate("customer")
+        .populate("manager")
+        .populate("location.region")
+        .populate("location.place")
+        .lean();
 
       const workbook = XLSX.utils.book_new();
       const worksheetData = [
@@ -1871,14 +1912,22 @@ apiRouter.get(
           "세차 상태",
         ],
         ...records.map((record) => [
-          record.date,
+          // record.date,
+          // record.licensePlate,
+          // record.carType,
+          // record.customer,
+          // record.region,
+          // record.place,
+          // record.manager,
+          // record.washStatus,
+          record.workDate ? record.workDate.toISOString().split("T")[0] : "",
           record.licensePlate,
-          record.carType,
-          record.customer,
-          record.region,
-          record.place,
-          record.manager,
-          record.washStatus,
+          record.type ? record.type.name : "",
+          record.customer ? record.customer.name : "",
+          record.location.region ? record.location.region.name : "",
+          record.location.place ? record.location.place.name : "",
+          record.manager ? record.manager.name : "",
+          record.status === "complete" ? "완료" : "미완료",
         ]),
       ];
       const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
