@@ -1811,6 +1811,7 @@ apiRouter.get(
       // 응답 데이터 준비
       const responseData = {
         totalWashRate: washRate,
+        totalWashCount: washedCars,
         records: records.map((record) => ({
           date: record.workDate
             ? record.workDate.toISOString().split("T")[0]
