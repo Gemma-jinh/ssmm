@@ -28,94 +28,70 @@
           <li class="option-container">
             <p class="option-title">고객사</p>
             <div class="option-list">
-              <select class="form-select">
-                <option selected>선택</option>
-                <option value="1">One</option>
-                <option value="2">Two</option>
-                <option value="3">Three</option>
+              <select id="customer-select" class="form-select">
+                <option value="" selected>선택</option>
               </select>
             </div>
           </li>
           <li class="option-container">
             <p class="option-title">기간</p>
             <div class="option-list" style="flex-wrap: nowrap">
-              <select class="form-select">
-                <option selected>년</option>
-                <option value="1">One</option>
+              <select id="year-select" class="form-select">
+                <option value="" selected>년</option>
               </select>
-              <select class="form-select">
-                <option selected>월</option>
-                <option value="1">One</option>
+              <select id="month-select" class="form-select">
+                <option value="" selected>월</option>
               </select>
-              <select class="form-select">
-                <option selected>주</option>
-                <option value="1">One</option>
+              <select id="week-select" class="form-select">
+                <option value="" selected>주</option>
               </select>
             </div>
           </li>
           <li class="option-container">
-            <p class="option-title">개인별</p>
+            <p class="option-title">작업자</p>
             <div class="option-list">
-              <select class="form-select">
-                <option selected>선택</option>
-                <option value="1">One</option>
-                <option value="2">Two</option>
-                <option value="3">Three</option>
+              <select id="manager-select" class="form-select">
+                <option value="" selected>작업자 선택</option>
               </select>
             </div>
           </li>
           <li class="option-container">
-            <p class="option-title">팀별</p>
+            <p class="option-title">팀</p>
             <div class="option-list">
-              <select class="form-select">
-                <option selected>선택</option>
-                <option value="1">One</option>
-                <option value="2">Two</option>
-                <option value="3">Three</option>
+              <select id="assign-team" class="form-select">
+                <option value="" selected>팀 선택</option>
               </select>
             </div>
           </li>
           <li class="option-container">
-            <p class="option-title">지역별</p>
+            <p class="option-title">지역</p>
             <div class="option-list">
-              <select class="form-select">
-                <option selected>선택</option>
-                <option value="1">One</option>
-                <option value="2">Two</option>
-                <option value="3">Three</option>
+              <select id="region-select" class="form-select">
+                <option value="" selected>지역 선택</option>
               </select>
             </div>
           </li>
           <li class="option-container">
-            <p class="option-title">장소별</p>
+            <p class="option-title">장소</p>
             <div class="option-list">
-              <select class="form-select">
-                <option selected>선택</option>
-                <option value="1">One</option>
-                <option value="2">Two</option>
-                <option value="3">Three</option>
+              <select id="place-select" class="form-select">
+                <option value="" selected>장소 선택</option>
               </select>
             </div>
           </li>
           <li class="option-container">
-            <p class="option-title">주차 위치별</p>
+            <p class="option-title">주차 위치</p>
             <div class="option-list">
-              <select class="form-select">
-                <option selected>선택</option>
-                <option value="1">One</option>
-                <option value="2">Two</option>
-                <option value="3">Three</option>
+              <select id="parking-spot-select" class="form-select">
+                <option value="" selected>주차 위치 선택</option>
               </select>
             </div>
           </li>
           <li class="option-container">
-            <p class="option-title">차량별</p>
+            <p class="option-title">차종</p>
             <div class="option-list">
-              <select class="form-select">
-                <option selected>선택</option>
-                <option value="1">One</option>
-                <option value="2">Two</option>
-                <option value="3">Three</option>
+              <select id="car-type" class="form-select">
+                <option value="" selected>차종 선택</option>
               </select>
             </div>
           </li>
@@ -127,77 +103,36 @@
               <thead>
                 <tr>
                   <th scope="col">일자</th>
+                  <th scope="col">차량번호</th>
                   <th scope="col"></th>
                   <th scope="col"></th>
                   <th scope="col"></th>
                   <th scope="col"></th>
                   <th scope="col"></th>
-                  <th scope="col"></th>
-                  <th scope="col" rowspan="2" style="width: 100px">
+                  <!-- <th scope="col" rowspan="2" style="width: 100px">
                     세차율 (%)
-                  </th>
-                </tr>
-                <tr>
-                  <th scope="col">차량 번호</th>
-                  <th></th>
-                  <th></th>
-                  <th></th>
-                  <th></th>
-                  <th></th>
-                  <th></th>
+                  </th> -->
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                </tr>
-                <tr>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                </tr>
-                <tr>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                </tr>
-              </tbody>
+              <tbody id="report-table-body"></tbody>
               <tfoot>
                 <tr>
-                  <td>
-                    세차대수 <br />
-                    (000대)
-                  </td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
+                  <td colspan="7" style="text-align: right">세차율 (%)</td>
+                  <td id="total-wash-rate">0</td>
+                </tr>
+                <tr>
+                  <td colspan="7" style="text-align: right">세차대수 (대)</td>
+                  <td id="total-wash-count">0</td>
                 </tr>
               </tfoot>
             </table>
           </div>
           <div class="d-flex justify-content-end align-items-end mb-3 mt-3">
-            <button type="button" class="btn btn-outline-primary">
+            <button
+              type="button"
+              id="excel-download-button"
+              class="btn btn-outline-primary"
+            >
               엑셀 다운로드
             </button>
           </div>
@@ -211,11 +146,6 @@
     <script src="../js/common.js"></script>
     <script src="../js/layout.js"></script>
     <script src="../js/check.js"></script>
-    <script>
-      $(document).ready(function () {
-        clickAllCheck("#flexCheckDefault", ".select-check-1");
-        clickSingleCheck("#flexCheckDefault", ".select-check-1");
-      });
-    </script>
+    <script src="../js/car-wash-report-weekly.js"></script>
   </body>
 </html>

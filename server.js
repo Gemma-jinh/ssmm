@@ -1755,6 +1755,159 @@ apiRouter.put("/places/:placeId/parking-spots", async (req, res) => {
 //   res.json({ valid: true });
 // });
 
+apiRouter.get(
+  "/reports/weekly",
+  authenticateToken,
+  authorizeRoles("관리자", "작업자"),
+  async (req, res) => {
+    try {
+      const {
+        year,
+        month,
+        week,
+        customer,
+        manager,
+        team,
+        region,
+        place,
+        parkingSpot,
+        carType,
+      } = req.query;
+
+      const filter = {};
+
+      if (year && month && week) {
+        const startDate = getStartDateOfWeek(year, month, week);
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+
+        filter.workDate = { $gte: startDate, $lte: endDate };
+      }
+
+      if (customer) filter.customer = customer;
+      if (manager) filter.manager = manager;
+      if (team) filter.team = team;
+      if (region) filter["location.region"] = region;
+      if (place) filter["location.place"] = place;
+      if (parkingSpot) filter["location.parkingSpot"] = parkingSpot;
+      if (carType) filter.type = carType;
+
+      // 데이터 가져오기
+      const records = await CarRegistration.find(filter)
+        .populate("type")
+        .populate("customer")
+        .populate("manager")
+        .populate("location.region")
+        .populate("location.place")
+        .lean();
+
+      const totalCars = records.length;
+      const washedCars = records.filter(
+        (record) => record.status === "complete"
+      ).length;
+      const washRate =
+        totalCars > 0 ? ((washedCars / totalCars) * 100).toFixed(2) : "0";
+
+      // 응답 데이터 준비
+      const responseData = {
+        totalWashRate: washRate,
+        records: records.map((record) => ({
+          date: record.workDate
+            ? record.workDate.toISOString().split("T")[0]
+            : "",
+          licensePlate: record.licensePlate,
+          carType: record.type ? record.type.name : "",
+          customer: record.customer ? record.customer.name : "",
+          region: record.location.region ? record.location.region.name : "",
+          place: record.location.place ? record.location.place.name : "",
+          manager: record.manager ? record.manager.name : "",
+          washStatus: record.status === "complete" ? "완료" : "미완료",
+        })),
+      };
+
+      res.json(responseData);
+    } catch (error) {
+      console.error("주간 보고서 오류:", error);
+      res
+        .status(500)
+        .json({ error: "주간 보고서 생성 중 오류가 발생했습니다." });
+    }
+  }
+);
+
+// 주차별 시작 날짜를 가져오는 헬퍼 함수
+function getStartDateOfWeek(year, month, week) {
+  const firstDayOfMonth = new Date(year, month - 1, 1);
+  const dayOfWeek = firstDayOfMonth.getDay(); // 0 (일요일)부터 6 (토요일)까지
+  const offset = (week - 1) * 7 - dayOfWeek + 1;
+  return new Date(year, month - 1, 1 + offset);
+}
+
+// 엑셀 다운로드 엔드포인트
+apiRouter.get(
+  "/reports/weekly/excel",
+  authenticateToken,
+  authorizeRoles("관리자", "작업자"),
+  async (req, res) => {
+    try {
+      // 위의 엔드포인트와 유사하게 데이터를 가져오고 엑셀 파일을 생성합니다.
+      // ExcelJS나 XLSX 같은 라이브러리를 사용하여 파일을 생성합니다.
+      // 적절한 헤더와 함께 파일을 응답으로 전송합니다.
+
+      // 데이터 가져오기 (위의 엔드포인트와 동일)
+      // ...
+
+      const workbook = XLSX.utils.book_new();
+      const worksheetData = [
+        [
+          "일자",
+          "차량 번호",
+          "차종",
+          "고객사",
+          "지역",
+          "장소",
+          "작업자",
+          "세차 상태",
+        ],
+        ...records.map((record) => [
+          record.date,
+          record.licensePlate,
+          record.carType,
+          record.customer,
+          record.region,
+          record.place,
+          record.manager,
+          record.washStatus,
+        ]),
+      ];
+      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+      XLSX.utils.book_append_sheet(workbook, worksheet, "주간 보고서");
+
+      // 엑셀 파일 버퍼 생성
+      const excelBuffer = XLSX.write(workbook, {
+        type: "buffer",
+        bookType: "xlsx",
+      });
+
+      // 응답 헤더 설정
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="weekly_report.xlsx"'
+      );
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+
+      // 파일 전송
+      res.send(excelBuffer);
+    } catch (error) {
+      console.error("엑셀 다운로드 오류:", error);
+      res.status(500).json({ error: "엑셀 다운로드 중 오류가 발생했습니다." });
+    }
+  }
+);
+
 // 1. 관리자 ID 중복 확인 엔드포인트
 apiRouter.get("/accounts/check-duplicate", async (req, res) => {
   const { adminId } = req.query;
