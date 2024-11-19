@@ -2188,6 +2188,136 @@ apiRouter.get(
   }
 );
 
+apiRouter.get(
+  "/reports/monthly/excel",
+  authenticateToken,
+  authorizeRoles("관리자", "작업자"),
+  async (req, res) => {
+    try {
+      const {
+        year,
+        month,
+        customer,
+        manager,
+        team,
+        region,
+        place,
+        parkingSpot,
+        carType,
+      } = req.query;
+
+      const currentDate = new Date();
+      const selectedYear = year || currentDate.getFullYear();
+      const selectedMonth = month || currentDate.getMonth() + 1;
+
+      const filter = {};
+
+      const startDate = new Date(selectedYear, selectedMonth - 1, 1);
+      const endDate = new Date(selectedYear, selectedMonth, 0);
+      filter.assignDate = { $gte: startDate, $lte: endDate };
+
+      if (customer) filter.customer = customer;
+      if (manager) filter.manager = manager;
+      if (team) filter.team = team;
+      if (region) filter["location.region"] = region;
+      if (place) filter["location.place"] = place;
+      if (parkingSpot) filter["location.parkingSpot"] = parkingSpot;
+      if (carType) filter.type = carType;
+
+      // 데이터 가져오기
+      const allCars = await CarRegistration.find(filter)
+        .populate("type")
+        .populate("customer")
+        .populate("manager")
+        .populate("location.region")
+        .populate("location.place")
+        .lean();
+
+      // 엑셀 워크북 생성
+      const workbook = XLSX.utils.book_new();
+
+      // 헤더 행 정의
+      const headers = [
+        "일자",
+        "차량 번호",
+        "차종",
+        "고객사",
+        "지역",
+        "장소",
+        "작업자",
+        "세차 상태",
+      ];
+
+      // 데이터 행 생성
+      const excelData = [
+        headers,
+        ...allCars
+          .map((car) => ({
+            date:
+              car.status === "complete"
+                ? car.workDate
+                  ? new Date(car.workDate).toISOString().split("T")[0]
+                  : "-"
+                : car.assignDate
+                ? new Date(car.assignDate).toISOString().split("T")[0]
+                : "-",
+            licensePlate: car.licensePlate || "-",
+            carType: car.type?.name || "N/A",
+            customer: car.customer?.name || "N/A",
+            region: car.location?.region?.name || "N/A",
+            place: car.location?.place?.name || "N/A",
+            manager: car.manager?.name || "N/A",
+            washStatus: car.status === "complete" ? "세차완료" : "세차전",
+          }))
+          .sort((a, b) => {
+            if (a.washStatus !== b.washStatus) {
+              return a.washStatus === "세차전" ? -1 : 1;
+            }
+            return new Date(b.date) - new Date(a.date);
+          })
+          .map((record) => [
+            record.date,
+            record.licensePlate,
+            record.carType,
+            record.customer,
+            record.region,
+            record.place,
+            record.manager,
+            record.washStatus,
+          ]),
+      ];
+
+      // 워크시트 생성
+      const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+
+      // 워크북에 워크시트 추가
+      XLSX.utils.book_append_sheet(workbook, worksheet, "월간 보고서");
+
+      // 엑셀 파일 버퍼 생성
+      const excelBuffer = XLSX.write(workbook, {
+        type: "buffer",
+        bookType: "xlsx",
+      });
+
+      // 응답 헤더 설정
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="monthly_report_${year}_${month}.xlsx"`
+      );
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+
+      // 파일 전송
+      res.send(excelBuffer);
+    } catch (error) {
+      console.error("엑셀 다운로드 오류:", error);
+      res.status(500).json({ error: "엑셀 다운로드 중 오류가 발생했습니다." });
+    }
+  }
+);
+
 // 1. 관리자 ID 중복 확인 엔드포인트
 apiRouter.get("/accounts/check-duplicate", async (req, res) => {
   const { adminId } = req.query;
