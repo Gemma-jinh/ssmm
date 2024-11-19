@@ -1789,7 +1789,18 @@ apiRouter.get(
         const endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + 6);
 
-        filter.workDate = { $gte: startDate, $lte: endDate };
+        // filter.workDate = { $gte: startDate, $lte: endDate };
+
+        filter.$or = [
+          {
+            workDate: { $gte: startDate, $lte: endDate },
+            status: "complete",
+          },
+          {
+            assignDate: { $gte: startDate, $lte: endDate },
+            status: { $ne: "complete" },
+          },
+        ];
       }
 
       if (customer) filter.customer = customer;
@@ -1820,18 +1831,35 @@ apiRouter.get(
       const responseData = {
         totalWashRate: washRate,
         totalWashCount: washedCars,
-        records: records.map((record) => ({
-          date: record.workDate
-            ? record.workDate.toISOString().split("T")[0]
-            : "",
-          licensePlate: record.licensePlate,
-          carType: record.type ? record.type.name : "",
-          customer: record.customer ? record.customer.name : "",
-          region: record.location.region ? record.location.region.name : "",
-          place: record.location.place ? record.location.place.name : "",
-          manager: record.manager ? record.manager.name : "",
-          washStatus: record.status === "complete" ? "완료" : "미완료",
-        })),
+        records: records
+          .map((record) => ({
+            date:
+              record.status === "complete"
+                ? record.workDate
+                  ? record.workDate.toISOString().split("T")[0]
+                  : ""
+                : record.assignDate
+                ? record.assignDate.toISOString().split("T")[0]
+                : "",
+            licensePlate: record.licensePlate,
+            carType: record.type ? record.type.name : "",
+            customer: record.customer ? record.customer.name : "",
+            region: record.location.region ? record.location.region.name : "",
+            place: record.location.place ? record.location.place.name : "",
+            manager: record.manager ? record.manager.name : "",
+            washStatus: record.status === "complete" ? "세차완료" : "세차전",
+          }))
+          .sort((a, b) => {
+            // 세차상태로 먼저 정렬 (세차전이 앞으로)
+            if (a.washStatus !== b.washStatus) {
+              return a.washStatus === "세차전" ? -1 : 1;
+            }
+            // 같은 상태 내에서는 날짜 기준 정렬 (최신순)
+            if (a.date && b.date) {
+              return new Date(b.date) - new Date(a.date);
+            }
+            return 0;
+          }),
       };
 
       res.json(responseData);
@@ -1850,6 +1878,202 @@ function getStartDateOfWeek(year, month, week) {
   const dayOfWeek = firstDayOfMonth.getDay(); // 0 (일요일)부터 6 (토요일)까지
   const offset = (week - 1) * 7 - dayOfWeek + 1;
   return new Date(year, month - 1, 1 + offset);
+}
+
+//월간 보고서
+apiRouter.get(
+  "/reports/monthly",
+  authenticateToken,
+  authorizeRoles("관리자", "작업자"),
+  async (req, res) => {
+    try {
+      const {
+        year,
+        month,
+        customer,
+        manager,
+        team,
+        region,
+        place,
+        parkingSpot,
+        carType,
+      } = req.query;
+
+      const currentDate = new Date();
+      const selectedYear = year || currentDate.getFullYear();
+      const selectedMonth = month || currentDate.getMonth() + 1;
+
+      const filter = {};
+
+      // if (year && month) {
+      //   const startDate = new Date(year, month - 1, 1);
+      //   const endDate = new Date(year, month, 0);
+      //   filter.assignDate = { $gte: startDate, $lte: endDate };
+      // }
+      const startDate = new Date(selectedYear, selectedMonth - 1, 1);
+      const endDate = new Date(selectedYear, selectedMonth, 0);
+      filter.assignDate = { $gte: startDate, $lte: endDate };
+
+      if (customer) filter.customer = customer;
+      if (manager) filter.manager = manager;
+      if (team) filter.team = team;
+      if (region) filter["location.region"] = region;
+      if (place) filter["location.place"] = place;
+      if (parkingSpot) filter["location.parkingSpot"] = parkingSpot;
+      if (carType) filter.type = carType;
+
+      // 데이터 가져오기
+      const allCars = await CarRegistration.find(filter)
+        .populate("type")
+        .populate("customer")
+        .populate("manager")
+        .populate("location.region")
+        .populate("location.place")
+        .lean();
+
+      // const records = allCars.map((car) => ({
+      //   date: car.assignDate
+      //     ? new Date(car.assignDate).toISOString().split("T")[0]
+      //     : "-",
+      //   licensePlate: car.licensePlate || "-",
+      //   carType: car.type?.name || "N/A",
+      //   customer: car.customer?.name || "N/A",
+      //   region: car.location?.region?.name || "N/A",
+      //   place: car.location?.place?.name || "N/A",
+      //   manager: car.manager?.name || "N/A",
+      //   washStatus: car.status === "complete" ? "세차완료" : "세차전",
+      // }));
+      // const monthlyWashFilter = {
+      //   ...filter,
+      //   workDate: { $gte: startDate, $lte: endDate },
+      // };
+
+      // const monthlyWashRecords = await CarRegistration.find(monthlyWashFilter)
+      //   .populate("type")
+      //   .populate("customer")
+      //   .populate("manager")
+      //   .populate("location.region")
+      //   .populate("location.place")
+      //   .lean();
+
+      // 각 주차별로 세차 상태를 확인하고 데이터 가공
+      const carDataMap = {};
+
+      allCars.forEach((car) => {
+        carDataMap[car.licensePlate] = {
+          // date: car.assignDate
+          //   ? new Date(car.assignDate).toISOString().split("T")[0]
+          //   : "-",
+          date:
+            car.status === "complete"
+              ? car.workDate
+                ? new Date(car.workDate).toISOString().split("T")[0]
+                : "-"
+              : car.assignDate
+              ? new Date(car.assignDate).toISOString().split("T")[0]
+              : "-",
+          licensePlate: car.licensePlate,
+          carType: car.type?.name || "N/A",
+          customer: car.customer?.name || "N/A",
+          region: car.location?.region?.name || "N/A",
+          place: car.location?.place?.name || "N/A",
+          manager: car.manager?.name || "N/A",
+          washStatus: car.status === "complete" ? "세차완료" : "세차전",
+          washCount: car.status === "complete" ? 1 : 0,
+          assignDate: car.assignDate,
+          workDate: car.workDate,
+        };
+      });
+
+      // monthlyWashRecords.forEach((record) => {
+      //   if (carDataMap[record.licensePlate]) {
+      //     if (record.status === "complete") {
+      //       carDataMap[record.licensePlate].washStatus = "세차완료";
+      //       carDataMap[record.licensePlate].washCount = 1;
+      //       carDataMap[record.licensePlate].date = record.workDate
+      //         ? new Date(record.workDate).toISOString().split("T")[0]
+      //         : "-";
+      //     }
+      //   }
+      // });
+
+      // totalWashRateCell.textContent = data.totalWashRate || "0";
+
+      const totalCars = Object.keys(carDataMap).length;
+      // const totalWashCount = records.filter(
+      //   (record) => record.status === "complete"
+      // ).length;
+      const totalWashCount = Object.values(carDataMap).reduce(
+        (sum, car) => sum + car.washCount,
+        0
+      );
+      const totalWashRate =
+        totalCars > 0 ? ((totalWashCount / totalCars) * 100).toFixed(2) : "0";
+
+      const responseData = {
+        totalWashCount,
+        totalWashRate,
+        records: Object.values(carDataMap)
+          // .map((car) => ({
+          // const washRate = ((car.washCount / 4) * 100).toFixed(2); // 4주 기준 세차율 계산
+          // return {
+          //   ...car,
+          //   washRate,
+          // };
+          //     ...car,
+          //     washRate: ((car.washCount / 4) * 100).toFixed(2),
+          //   })),
+          // };
+          .filter((car) => car.licensePlate)
+          .sort((a, b) => {
+            // if (a.assignDate && b.assignDate) {
+            //   return new Date(b.assignDate) - new Date(a.assignDate);
+            // }
+            // if (a.assignDate) return -1;
+            // if (b.assignDate) return 1;
+            if (a.washStatus !== b.washStatus) {
+              return a.washStatus === "세차전" ? -1 : 1;
+            }
+
+            // 세차전 차량은 배정날짜 기준 정렬
+            if (a.washStatus === "세차전") {
+              if (a.assignDate && b.assignDate) {
+                return new Date(b.assignDate) - new Date(a.assignDate);
+              }
+            }
+            // 세차완료 차량은 작업날짜 기준 정렬
+            else {
+              if (a.workDate && b.workDate) {
+                return new Date(b.workDate) - new Date(a.workDate);
+              }
+            }
+
+            // 배정날짜가 없는 경우 차량번호로 정렬
+            return a.licensePlate.localeCompare(b.licensePlate);
+          })
+          .map((record) => {
+            // assignDate 필드 제거 (클라이언트에게 불필요)
+            const { assignDate, workDate, ...rest } = record;
+            return rest;
+          }),
+      };
+
+      res.json(responseData);
+    } catch (error) {
+      console.error("월간 보고서 오류:", error);
+      res
+        .status(500)
+        .json({ error: "월간 보고서 생성 중 오류가 발생했습니다." });
+    }
+  }
+);
+
+// 해당 날짜의 월 내 주차 계산 함수
+function getWeekOfMonth(date) {
+  const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+  const dayOfWeek = firstDayOfMonth.getDay();
+  const adjustedDate = date.getDate() + dayOfWeek;
+  return Math.ceil(adjustedDate / 7);
 }
 
 // 엑셀 다운로드 엔드포인트
@@ -1874,10 +2098,16 @@ apiRouter.get(
 
       const filter = {};
 
-      if (year && month && week) {
-        const startDate = getStartDateOfWeek(year, month, week);
-        const endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + 6);
+      // if (year && month && week) {
+      //   const startDate = getStartDateOfWeek(year, month, week);
+      //   const endDate = new Date(startDate);
+      //   endDate.setDate(startDate.getDate() + 6);
+
+      //   filter.workDate = { $gte: startDate, $lte: endDate };
+      // }
+      if (year && month) {
+        const startDate = new Date(year, month - 1, 1); // 해당 월의 첫째 날
+        const endDate = new Date(year, month, 0); // 해당 월의 마지막 날
 
         filter.workDate = { $gte: startDate, $lte: endDate };
       }
