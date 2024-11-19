@@ -477,9 +477,72 @@ function deleteCarWash(ids) {
 }
 
 // 엑셀 다운로드 함수
-function downloadExcel(searchParams) {
-  const params = new URLSearchParams(searchParams).toString();
-  window.location.href = `/api/car-registrations/download-excel?${params}`;
+// function downloadExcel(searchParams) {
+//   const params = new URLSearchParams(searchParams).toString();
+//   window.location.href = `/api/car-registrations/excel?${params}`;
+// }
+
+function downloadExcel() {
+  const params = new URLSearchParams();
+  //   {
+  //   type: $("#car-type").val() || "",
+  //   model: $("#car-model").val() || "",
+  //   licensePlate: $("#license-plate").val() || "",
+  //   locationRegion: $("#region-select").val() || "",
+  //   locationPlace: $("#place-select").val() || "",
+  //   locationParkingSpot: $("#parking-spot-select").val() || "",
+  //   customer: $("#customer").val() || "",
+  //   manager: $("#manager").val() || "",
+  //   status: getStatusFilter(),
+  //   assignDate: $("#assign-date").val() || "",
+  // }
+
+  const type = $("#car-type").val();
+  if (type && type !== "차종 선택") {
+    params.append("type", type);
+  }
+
+  const model = $("#car-model").val();
+  if (model && model !== "차량 모델 선택") {
+    params.append("model", model);
+  }
+
+  const licensePlate = $("#license-plate").val().trim();
+  if (licensePlate) {
+    params.append("licensePlate", licensePlate);
+  }
+
+  const region = $("#region-select").val();
+  if (region && region !== "지역 선택") {
+    params.append("locationRegion", region);
+  }
+
+  const place = $("#place-select").val();
+  if (place && place !== "장소 선택") {
+    params.append("locationPlace", place);
+  }
+
+  const parkingSpot = $("#parking-spot-select").val();
+  if (parkingSpot && parkingSpot !== "주차 위치 선택") {
+    params.append("locationParkingSpot", parkingSpot);
+  }
+
+  const manager = $("#manager").val().trim();
+  if (manager) {
+    params.append("manager", manager);
+  }
+
+  params.append("status", getStatusFilter());
+
+  const assignDate = $("#assign-date").val();
+  if (assignDate) {
+    params.append("assignDate", assignDate);
+  }
+
+  const token = sessionStorage.getItem("token");
+  params.append("token", token);
+
+  window.location.href = `/api/car-registrations/excel?${params.toString()}`;
 }
 
 // 인증 상태 확인 및 권한 체크 함수

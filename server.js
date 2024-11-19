@@ -1097,6 +1097,204 @@ apiRouter.get(
   }
 );
 
+apiRouter.get(
+  "/car-registrations/excel",
+  authenticateToken,
+  authorizeRoles("관리자"),
+  async (req, res) => {
+    try {
+      // const {
+      //   type,
+      //   model,
+      //   licensePlate,
+      //   locationRegion,
+      //   locationPlace,
+      //   locationParkingSpot,
+      //   customer,
+      //   manager,
+      //   status,
+      //   assignDate,
+      // } = req.query;
+
+      // 필터 객체 초기화
+      let filter = {};
+
+      // 필터 조건 적용
+      // if (type) filter.type = type;
+      // if (model) filter.model = model;
+      // if (licensePlate)
+      //   filter.licensePlate = { $regex: licensePlate, $options: "i" };
+      // if (locationRegion) filter["location.region"] = locationRegion;
+      // if (locationPlace) filter["location.place"] = locationPlace;
+      // if (locationParkingSpot)
+      //   filter["location.parkingSpot"] = locationParkingSpot;
+      // if (customer) filter.customer = customer;
+      // if (manager) filter.manager = manager;
+
+      // if (status && status !== "all") {
+      //   filter.status = status;
+      // } else {
+      //   filter.$or = [
+      //     { status: { $in: ["pending", "complete", "emergency"] } },
+      //     { status: { $exists: false } },
+      //     { status: null },
+      //   ];
+      // }
+
+      if (req.query.type && mongoose.Types.ObjectId.isValid(req.query.type)) {
+        filter.type = new mongoose.Types.ObjectId(req.query.type);
+      }
+
+      if (req.query.model && mongoose.Types.ObjectId.isValid(req.query.model)) {
+        filter.model = new mongoose.Types.ObjectId(req.query.model);
+      }
+
+      if (req.query.licensePlate) {
+        filter.licensePlate = { $regex: req.query.licensePlate, $options: "i" };
+      }
+
+      if (
+        req.query.locationRegion &&
+        mongoose.Types.ObjectId.isValid(req.query.locationRegion)
+      ) {
+        filter["location.region"] = new mongoose.Types.ObjectId(
+          req.query.locationRegion
+        );
+      }
+
+      if (
+        req.query.locationPlace &&
+        mongoose.Types.ObjectId.isValid(req.query.locationPlace)
+      ) {
+        filter["location.place"] = new mongoose.Types.ObjectId(
+          req.query.locationPlace
+        );
+      }
+
+      if (req.query.locationParkingSpot) {
+        filter["location.parkingSpot"] = req.query.locationParkingSpot;
+      }
+
+      if (req.query.manager) {
+        filter.manager = { $regex: req.query.manager, $options: "i" };
+      }
+
+      // 상태 필터 적용
+      if (req.query.status && req.query.status !== "all") {
+        filter.status = req.query.status;
+      } else {
+        filter.$or = [
+          { status: { $in: ["pending", "complete", "emergency"] } },
+          { status: { $exists: false } },
+          { status: null },
+        ];
+      }
+
+      // 작업일자 필터 적용
+      if (req.query.assignDate) {
+        const startDate = new Date(req.query.assignDate);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(req.query.assignDate);
+        endDate.setHours(23, 59, 59, 999);
+
+        filter.assignDate = {
+          $gte: startDate,
+          $lte: endDate,
+        };
+      }
+
+      // 데이터 조회
+      const cars = await CarRegistration.find(filter)
+        .populate("model")
+        .populate("type")
+        .populate("customer")
+        .populate("location.region")
+        .populate("location.place")
+        .populate("manager")
+        .lean()
+        .exec();
+
+      // 엑셀 워크북 생성
+      const workbook = XLSX.utils.book_new();
+
+      // 헤더 정의
+      const headers = [
+        "차량 번호",
+        "차종",
+        "차량 모델",
+        "장소",
+        "주차 위치",
+        "고객사",
+        "담당자",
+        "상태",
+        "작업일자",
+        "배정일자",
+      ];
+
+      // 상태 텍스트 변환 함수
+      const getStatusText = (status) => {
+        switch (status) {
+          case "emergency":
+            return "긴급세차요청";
+          case "complete":
+            return "세차완료";
+          case "pending":
+            return "세차전";
+          default:
+            return "N/A";
+        }
+      };
+
+      // 데이터 행 생성
+      const excelData = [
+        headers,
+        ...cars.map((car) => [
+          car.licensePlate || "N/A",
+          car.type?.name || "N/A",
+          car.model?.name || "N/A",
+          car.location?.place?.name || "N/A",
+          car.location?.parkingSpot || "N/A",
+          car.customer?.name || "N/A",
+          car.manager?.name || "N/A",
+          getStatusText(car.status),
+          car.workDate ? new Date(car.workDate).toLocaleDateString() : "N/A",
+          car.assignDate
+            ? new Date(car.assignDate).toLocaleDateString()
+            : "N/A",
+        ]),
+      ];
+
+      // 워크시트 생성
+      const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+
+      // 워크북에 워크시트 추가
+      XLSX.utils.book_append_sheet(workbook, worksheet, "차량 목록");
+
+      // 엑셀 파일 버퍼 생성
+      const excelBuffer = XLSX.write(workbook, {
+        type: "buffer",
+        bookType: "xlsx",
+      });
+
+      // 응답 헤더 설정
+      res.setHeader(
+        "Content-Disposition",
+        "attachment; filename=car_list.xlsx"
+      );
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+
+      // 파일 전송
+      res.send(excelBuffer);
+    } catch (error) {
+      console.error("엑셀 다운로드 오류:", error);
+      res.status(500).json({ error: "엑셀 다운로드 중 오류가 발생했습니다." });
+    }
+  }
+);
+
 // 예시: 관리자 전용 엔드포인트 보호
 apiRouter.get(
   "/admin-only", //admin-dashboard
