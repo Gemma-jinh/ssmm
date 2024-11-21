@@ -41,12 +41,47 @@ function checkAuthentication() {
   return true;
 }
 
+//필터상태 저장
+function saveFilterState() {
+  const filterState = {
+    assignDate: $("#assign-date").val(),
+    status: $('input[name="flexRadioDefault"]:checked').attr("id"),
+  };
+  sessionStorage.setItem("workerCarWashFilters", JSON.stringify(filterState));
+}
+
+// 필터상태 복원
+function restoreFilterState() {
+  const savedFilters = sessionStorage.getItem("workerCarWashFilters");
+  if (savedFilters) {
+    const filters = JSON.parse(savedFilters);
+
+    // 날짜 복원
+    if (filters.assignDate) {
+      $("#assign-date").val(filters.assignDate);
+    } else {
+      const today = new Date().toISOString().split("T")[0];
+      $("#assign-date").val(today);
+    }
+
+    if (filters.status) {
+      $(`#${filters.status}`).prop("checked", true);
+    }
+  } else {
+    const today = new Date().toISOString().split("T")[0];
+    $("#assign-date").val(today);
+    $("#car-wash-status-all").prop("checked", true);
+  }
+}
+
 function initializeSearchFields() {
   // 검색 필드 초기화 예시
-  $("#car-wash-status-all").prop("checked", true);
-  const today = new Date().toISOString().split("T")[0];
-  $("#assign-date").val(today);
-  console.log("검색 필드가 초기화되었습니다.");
+  // $("#car-wash-status-all").prop("checked", true);
+  // const today = new Date().toISOString().split("T")[0];
+  // $("#assign-date").val(today);
+  // console.log("검색 필드가 초기화되었습니다.");
+  restoreFilterState();
+  console.log("검색필드 초기화");
 }
 
 function loadManagers() {
@@ -173,31 +208,6 @@ function getStatusStyle(status) {
       return "";
   }
 }
-
-// $(document).ready(function () {
-//   if (!checkAuthentication()) {
-//     return;
-//   }
-//   initializeSearchFields();
-//   loadManagers();
-//   loadTeams();
-//   loadCarList(1, 10, {});
-
-//   $("#search-button").on("click", function () {
-//     performSearch();
-//   });
-
-//   clickAllCheck("#flexCheckDefault", ".select-check-1");
-//   clickSingleCheck("#flexCheckDefault", ".select-check-1");
-
-//   $(document).on("click", ".pagination a.page-link", function (e) {
-//     e.preventDefault();
-//     const page = $(this).data("page");
-//     if (page) {
-//       loadCarList(page, 10, currentSearchParams);
-//     }
-//   });
-// });
 
 function loadCarList(page = 1, limit = 10, searchParams = {}) {
   searchParams.page = page;
@@ -357,10 +367,27 @@ $(document).ready(function () {
   initializeSearchFields();
   loadManagers();
   loadTeams();
-  loadCarList(1, 10, {});
+  loadCarList(1, 10, currentSearchParams);
+
+  // 날짜변경하면 저장
+  $("#assign-date").on("change", function () {
+    saveFilterState();
+  });
+
+  // 상태변경하면 저장
+  $('input[name="flexRadioDefault"]').on("change", function () {
+    saveFilterState();
+    performSearch();
+  });
 
   $("#search-button").on("click", function () {
+    saveFilterState();
     performSearch();
+  });
+
+  // 상세보기로 이동 전 상태 저장
+  $(document).on("click", 'a[href*="car-wash-modify.html"]', function () {
+    saveFilterState();
   });
 
   clickAllCheck("#flexCheckDefault", ".select-check-1");
@@ -375,15 +402,69 @@ $(document).ready(function () {
   });
 });
 
-// 초기 세팅
-initializeSearchFields();
-const today = new Date().toISOString().split("T")[0];
-$("#assign-date").val(today);
-
-performSearch();
-scheduleNextDayUpdate();
-
-// 라디오 버튼 변경 이벤트
-$('input[name="flexRadioDefault"]').on("change", function () {
+window.addEventListener("popstate", function () {
+  restoreFilterState();
   performSearch();
+});
+
+function performSearch() {
+  const status = getStatusFilter();
+  const assignDate = $("#assign-date").val();
+  const searchParams = {
+    status: status,
+    assignDate: assignDate,
+    page: 1,
+    limit: 10,
+  };
+
+  Object.keys(searchParams).forEach((key) => {
+    if (
+      key !== "status" &&
+      key !== "assignDate" &&
+      (searchParams[key] === undefined || searchParams[key] === "")
+    ) {
+      delete searchParams[key];
+    }
+  });
+
+  console.log("Search params:", searchParams);
+  currentSearchParams = searchParams;
+  loadCarList(searchParams.page, searchParams.limit, searchParams);
+}
+
+function scheduleNextDayUpdate() {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+
+  const timeUntilMidnight = tomorrow - now;
+
+  setTimeout(() => {
+    const newDate = tomorrow.toISOString().split("T")[0];
+    $("#assign-date").val(newDate);
+    saveFilterState();
+    performSearch();
+    scheduleNextDayUpdate();
+  }, timeUntilMidnight);
+}
+
+// 초기 세팅
+// initializeSearchFields();
+// const today = new Date().toISOString().split("T")[0];
+// $("#assign-date").val(today);
+
+$(document).ready(function () {
+  if (!checkAuthentication()) {
+    return;
+  }
+
+  restoreFilterState();
+  performSearch();
+  scheduleNextDayUpdate();
+
+  // 라디오 버튼 변경 이벤트
+  $('input[name="flexRadioDefault"]').on("change", function () {
+    performSearch();
+  });
 });
