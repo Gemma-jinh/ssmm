@@ -3867,6 +3867,12 @@ app.get("/car-wash-report-monthly.html", (req, res) => {
   );
 });
 
+app.get("/car-wash-progress-detail.html", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "pages", "car-wash-progress-detail.html")
+  );
+});
+
 app.get("/car-info-create.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "pages", "car-info-create.html"));
 });

@@ -27,112 +27,202 @@ let currentSearchParams = {};
 
 // 필터 초기화 함수
 function initializeFilters() {
+  const savedFilters = sessionStorage.getItem("carWashFilters");
   // 차량 타입 불러오기
   populateCarTypes();
 
   // 지역 불러오기
   populateRegions();
 
-  // 작업 날짜 기본값 설정
-  const today = new Date().toISOString().split("T")[0];
-  $("#assign-date").val(today);
+  if (savedFilters) {
+    // 저장된 필터가 있으면 복원
+    const filters = JSON.parse(savedFilters);
+    restoreFilters(filters);
+  } else {
+    // 작업 날짜 기본값 설정
+    const today = new Date().toISOString().split("T")[0];
+    $("#assign-date").val(today);
+  }
+}
+
+function saveFilters() {
+  const filters = {
+    carType: $("#car-type").val(),
+    carModel: $("#car-model").val(),
+    licensePlate: $("#license-plate").val(),
+    region: $("#region-select").val(),
+    place: $("#place-select").val(),
+    parkingSpot: $("#parking-spot-select").val(),
+    status: $('input[name="flexRadioDefault"]:checked').attr("id"),
+    manager: $("#manager").val(),
+    assignDate: $("#assign-date").val(),
+  };
+  sessionStorage.setItem("carWashFilters", JSON.stringify(filters));
+}
+
+// 필터 복원 함수 추가
+async function restoreFilters(filters) {
+  // 날짜 복원
+  if (filters.assignDate) {
+    $("#assign-date").val(filters.assignDate);
+  }
+
+  // 차종 복원
+  if (filters.carType) {
+    $("#car-type").val(filters.carType);
+    await populateCarModels(filters.carType);
+    if (filters.carModel) {
+      $("#car-model").val(filters.carModel);
+      $("#car-model").prop("disabled", false);
+    }
+  }
+
+  // 지역 복원
+  if (filters.region) {
+    $("#region-select").val(filters.region);
+    await populatePlaces(filters.region);
+    if (filters.place) {
+      $("#place-select").val(filters.place);
+      $("#place-select").prop("disabled", false);
+      await populateParkingSpots(filters.place);
+      if (filters.parkingSpot) {
+        $("#parking-spot-select").val(filters.parkingSpot);
+        $("#parking-spot-select").prop("disabled", false);
+      }
+    }
+  }
+
+  // 차량번호 복원
+  if (filters.licensePlate) {
+    $("#license-plate").val(filters.licensePlate);
+  }
+
+  // 담당자 복원
+  if (filters.manager) {
+    $("#manager").val(filters.manager);
+  }
+
+  // 상태 복원
+  if (filters.status) {
+    $(`#${filters.status}`).prop("checked", true);
+  }
 }
 
 // 이벤트 리스너 설정 함수
 function setupEventListeners() {
   // 차량 타입 변경 시 차량 모델 불러오기
-  $("#car-type").on("change", function () {
-    const selectedType = $(this).val();
-    if (selectedType) {
-      populateCarModels(selectedType);
-      $("#car-model").prop("disabled", false);
-    } else {
-      $("#car-model").html("<option selected>차량 모델 선택</option>");
-      $("#car-model").prop("disabled", true);
-    }
+  $(
+    "#car-type, #car-model, #license-plate, #region-select, #place-select, #parking-spot-select, #manager, #assign-date"
+  ).on("change", function () {
+    //   const selectedType = $(this).val();
+    //   if (selectedType) {
+    //     populateCarModels(selectedType);
+    //     $("#car-model").prop("disabled", false);
+    //   } else {
+    //     $("#car-model").html("<option selected>차량 모델 선택</option>");
+    //     $("#car-model").prop("disabled", true);
+    //   }
+    // });
+    // $("#region-select").on("change", function () {
+    //   const selectedRegion = $(this).val();
+    //   if (selectedRegion) {
+    //     populatePlaces(selectedRegion);
+    //     $("#place-select").prop("disabled", false);
+    //   } else {
+    //     $("#place-select").html("<option selected>장소 선택</option>");
+    //     $("#place-select").prop("disabled", true);
+    //     $("#parking-spot-select").html(
+    //       "<option selected>주차 위치 선택</option>"
+    //     );
+    //     $("#parking-spot-select").prop("disabled", true);
+    //   }
+    // });
+    // $("#place-select").on("change", function () {
+    //   const selectedPlace = $(this).val();
+    //   if (selectedPlace) {
+    //     populateParkingSpots(selectedPlace);
+    //     $("#parking-spot-select").prop("disabled", false);
+    //   } else {
+    //     $("#parking-spot-select").html(
+    //       "<option selected>주차 위치 선택</option>"
+    //     );
+    //     $("#parking-spot-select").prop("disabled", true);
+    //   }
+    saveFilters();
   });
 
-  // 지역 변경 시 장소 불러오기
-  $("#region-select").on("change", function () {
-    const selectedRegion = $(this).val();
-    if (selectedRegion) {
-      populatePlaces(selectedRegion);
-      $("#place-select").prop("disabled", false);
-    } else {
-      $("#place-select").html("<option selected>장소 선택</option>");
-      $("#place-select").prop("disabled", true);
-      $("#parking-spot-select").html(
-        "<option selected>주차 위치 선택</option>"
-      );
-      $("#parking-spot-select").prop("disabled", true);
-    }
+  $('input[name="flexRadioDefault"]').on("change", function () {
+    saveFilters();
   });
 
-  // 장소 변경 시 주차 위치 불러오기
-  $("#place-select").on("change", function () {
-    const selectedPlace = $(this).val();
-    if (selectedPlace) {
-      populateParkingSpots(selectedPlace);
-      $("#parking-spot-select").prop("disabled", false);
-    } else {
-      $("#parking-spot-select").html(
-        "<option selected>주차 위치 선택</option>"
-      );
-      $("#parking-spot-select").prop("disabled", true);
-    }
-  });
-
-  // 검색 버튼 클릭 이벤트
   $("#search-button").on("click", function () {
+    saveFilters();
     performSearch();
   });
 
-  // 전체 선택 체크박스 이벤트
-  $("#flexCheckDefault").on("change", function () {
-    $(".select-check").prop("checked", this.checked);
-  });
-
-  // 개별 체크박스 클릭 시 전체 선택 체크박스 상태 업데이트
-  $(document).on("change", ".select-check", function () {
-    if (!this.checked) {
-      $("#flexCheckDefault").prop("checked", false);
-    }
-    if ($(".select-check:checked").length === $(".select-check").length) {
-      $("#flexCheckDefault").prop("checked", true);
-    }
-  });
-
-  // 선택 삭제 버튼 클릭 이벤트
-  $("#delete-button").on("click", function () {
-    const selectedIds = $(".select-check:checked")
-      .map(function () {
-        return $(this).data("id");
-      })
-      .get();
-
-    if (selectedIds.length === 0) {
-      alert("삭제할 세차 내역을 선택해주세요.");
-      return;
-    }
-
-    if (confirm("선택한 세차 내역을 삭제하시겠습니까?")) {
-      deleteCarWash(selectedIds);
-    }
-  });
-
-  // 엑셀 다운로드 버튼 클릭 이벤트
-  $("#download-excel").on("click", function () {
-    downloadExcel(currentSearchParams);
-  });
-
-  $(document).on("click", ".page-link", function (e) {
-    e.preventDefault();
-    const page = $(this).data("page");
-    if (page && page >= 1) {
-      loadCarList(page, 10, currentSearchParams);
+  window.addEventListener("popstate", function () {
+    const savedFilters = sessionStorage.getItem("carWashFilters");
+    if (savedFilters) {
+      restoreFilters(JSON.parse(savedFilters));
+      performSearch();
     }
   });
 }
+
+// 상세보기 페이지로 이동하기 전에 상태 저장
+$(document).on(
+  "click",
+  'a[href*="car-wash-progress-detail.html"]',
+  function () {
+    saveFilters();
+  }
+);
+
+// 전체 선택 체크박스 이벤트
+$("#flexCheckDefault").on("change", function () {
+  $(".select-check").prop("checked", this.checked);
+});
+
+// 개별 체크박스 클릭 시 전체 선택 체크박스 상태 업데이트
+$(document).on("change", ".select-check", function () {
+  if (!this.checked) {
+    $("#flexCheckDefault").prop("checked", false);
+  }
+  if ($(".select-check:checked").length === $(".select-check").length) {
+    $("#flexCheckDefault").prop("checked", true);
+  }
+});
+
+// 선택 삭제 버튼 클릭 이벤트
+$("#delete-button").on("click", function () {
+  const selectedIds = $(".select-check:checked")
+    .map(function () {
+      return $(this).data("id");
+    })
+    .get();
+
+  if (selectedIds.length === 0) {
+    alert("삭제할 세차 내역을 선택해주세요.");
+    return;
+  }
+
+  if (confirm("선택한 세차 내역을 삭제하시겠습니까?")) {
+    deleteCarWash(selectedIds);
+  }
+});
+
+// 엑셀 다운로드 버튼 클릭 이벤트
+$("#download-excel").on("click", function () {
+  downloadExcel(currentSearchParams);
+});
+
+$(document).on("click", ".page-link", function (e) {
+  e.preventDefault();
+  const page = $(this).data("page");
+  if (page && page >= 1) {
+    loadCarList(page, 10, currentSearchParams);
+  }
+});
 
 // 차량 타입을 서버에서 불러오는 함수
 function populateCarTypes() {
@@ -161,27 +251,32 @@ function populateCarTypes() {
 
 // 선택된 차량 타입에 따른 차량 모델을 서버에서 불러오는 함수
 function populateCarModels(carTypeId) {
-  $.ajax({
-    url: `/api/car-types/${carTypeId}/models`, // 서버의 차량 모델 API 엔드포인트
-    method: "GET",
-    success: function (response) {
-      if (Array.isArray(response)) {
-        const carModelSelect = $("#car-model");
-        carModelSelect.html("<option selected>차량 모델 선택</option>");
-        carModelSelect.append(
-          response.map(
-            (model) => `<option value="${model._id}">${model.name}</option>`
-          )
-        );
-      } else {
-        console.error("Unexpected response structure for models:", response);
-        alert("차량 모델을 불러오는 데 실패했습니다.");
-      }
-    },
-    error: function (err) {
-      console.error("차량 모델 불러오기 실패:", err);
-      alert("차량 모델을 불러오는 데 실패했습니다.");
-    },
+  return new Promise((resolve, reject) => {
+    $.ajax({
+      url: `/api/car-types/${carTypeId}/models`, // 서버의 차량 모델 API 엔드포인트
+      method: "GET",
+      success: function (response) {
+        if (Array.isArray(response)) {
+          const carModelSelect = $("#car-model");
+          carModelSelect.html("<option selected>차량 모델 선택</option>");
+          carModelSelect.append(
+            response.map(
+              (model) => `<option value="${model._id}">${model.name}</option>`
+            )
+          );
+          resolve();
+        } else {
+          // console.error("Unexpected response structure for models:", response);
+          // alert("차량 모델을 불러오는 데 실패했습니다.");
+          reject("Unexpected response structure for models");
+        }
+      },
+      error: function (err) {
+        // console.error("차량 모델 불러오기 실패:", err);
+        // alert("차량 모델을 불러오는 데 실패했습니다.");
+        reject(err);
+      },
+    });
   });
 }
 
@@ -212,54 +307,53 @@ function populateRegions() {
 
 // 선택된 지역에 따른 장소를 서버에서 불러오는 함수
 function populatePlaces(regionId) {
-  $.ajax({
-    url: `/api/regions/${regionId}/places`, // 서버의 장소 API 엔드포인트
-    method: "GET",
-    success: function (response) {
-      if (Array.isArray(response)) {
-        const placeSelect = $("#place-select");
-        placeSelect.html("<option selected>장소 선택</option>");
-        placeSelect.append(
-          response.map(
-            (place) => `<option value="${place._id}">${place.name}</option>`
-          )
-        );
-      } else {
-        console.error("Unexpected response structure for places:", response);
-        alert("장소를 불러오는 데 실패했습니다.");
-      }
-    },
-    error: function (err) {
-      console.error("장소 불러오기 실패:", err);
-      alert("장소를 불러오는 데 실패했습니다.");
-    },
+  return new Promise((resolve, reject) => {
+    $.ajax({
+      url: `/api/regions/${regionId}/places`, // 서버의 장소 API 엔드포인트
+      method: "GET",
+      success: function (response) {
+        if (Array.isArray(response)) {
+          const placeSelect = $("#place-select");
+          placeSelect.html("<option selected>장소 선택</option>");
+          placeSelect.append(
+            response.map(
+              (place) => `<option value="${place._id}">${place.name}</option>`
+            )
+          );
+          resolve();
+        } else {
+          reject("Unexpected response structure for models");
+        }
+      },
+      error: function (err) {
+        reject(err);
+      },
+    });
   });
 }
 
 // 선택된 장소에 따른 주차 위치를 서버에서 불러오는 함수
 function populateParkingSpots(placeId) {
-  $.ajax({
-    url: `/api/places/${placeId}/parking-spots`, // 서버의 주차 위치 API 엔드포인트
-    method: "GET",
-    success: function (response) {
-      if (Array.isArray(response)) {
-        const parkingSpotSelect = $("#parking-spot-select");
-        parkingSpotSelect.html("<option selected>주차 위치 선택</option>");
-        parkingSpotSelect.append(
-          response.map((spot) => `<option value="${spot}">${spot}</option>`)
-        );
-      } else {
-        console.error(
-          "Unexpected response structure for parkingSpots:",
-          response
-        );
-        alert("주차 위치를 불러오는 데 실패했습니다.");
-      }
-    },
-    error: function (err) {
-      console.error("주차 위치 불러오기 실패:", err);
-      alert("주차 위치를 불러오는 데 실패했습니다.");
-    },
+  return new Promise((resolve, reject) => {
+    $.ajax({
+      url: `/api/places/${placeId}/parking-spots`, // 서버의 주차 위치 API 엔드포인트
+      method: "GET",
+      success: function (response) {
+        if (Array.isArray(response)) {
+          const parkingSpotSelect = $("#parking-spot-select");
+          parkingSpotSelect.html("<option selected>주차 위치 선택</option>");
+          parkingSpotSelect.append(
+            response.map((spot) => `<option value="${spot}">${spot}</option>`)
+          );
+          resolve();
+        } else {
+          reject("Unexpected response structure for models");
+        }
+      },
+      error: function (err) {
+        reject(err);
+      },
+    });
   });
 }
 
