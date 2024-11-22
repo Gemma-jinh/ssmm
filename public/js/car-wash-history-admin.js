@@ -27,13 +27,12 @@ let currentSearchParams = {};
 
 // 필터 초기화 함수
 function initializeFilters() {
-  const savedFilters = sessionStorage.getItem("carWashFilters");
-  // 차량 타입 불러오기
+  // 차종 로드
   populateCarTypes();
 
-  // 지역 불러오기
+  // 지역 로드
   populateRegions();
-
+  const savedFilters = sessionStorage.getItem("carWashFilters");
   if (savedFilters) {
     // 저장된 필터가 있으면 복원
     const filters = JSON.parse(savedFilters);
@@ -42,6 +41,7 @@ function initializeFilters() {
     // 작업 날짜 기본값 설정
     const today = new Date().toISOString().split("T")[0];
     $("#assign-date").val(today);
+    $("#car-wash-status-all").prop("checked", true);
   }
 }
 
