@@ -194,6 +194,8 @@ $(document).ready(function () {
   // init load
   const isMobile = detectMobileDevice();
   if (!isMobile) {
+    $("body").removeClass("nav-open");
+  } else {
     // animation stop
     $("body").addClass("nav-open no-transition");
 
