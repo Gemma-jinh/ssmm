@@ -207,11 +207,11 @@ $(document).ready(function () {
     $("body").toggleClass("nav-open");
   });
 
-  $("#closeNav").click(function () {
-    $("body").removeClass("nav-open");
-  });
+  // $("#closeNav").click(function () {
+  //   $("body").removeClass("nav-open");
+  // });
 
-  $("#closeSideNav").click(function () {
+  $("#closeNav, #closeSideNav").click(function () {
     $("body").removeClass("nav-open");
   });
 });
