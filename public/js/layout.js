@@ -185,7 +185,7 @@ function detectMobileDevice() {
 }
 
 $(document).ready(function () {
-  // $("body").removeClass("nav-open");
+  $("body").removeClass("nav-open");
 
   renderSideNav();
   renderHeader();
@@ -194,7 +194,7 @@ $(document).ready(function () {
   // init load
   const isMobile = detectMobileDevice();
 
-  $("body").addClass("nav-open no-transition");
+  $("body").addClass("no-transition");
   if (!isMobile) {
     // animation stop
     $("body").addClass("nav-open");
