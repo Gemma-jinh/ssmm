@@ -193,17 +193,16 @@ $(document).ready(function () {
 
   // init load
   const isMobile = detectMobileDevice();
-  if (!isMobile) {
-    $("body").removeClass("nav-open");
-  } else {
-    // animation stop
-    $("body").addClass("nav-open no-transition");
 
-    // 트랜지션을 다시 활성화하기 위해 약간의 지연 후 클래스 제거
-    setTimeout(() => {
-      $("body").removeClass("no-transition");
-    }, 50);
+  $("body").addClass("nav-open no-transition");
+  if (!isMobile) {
+    // animation stop
+    $("body").addClass("nav-open");
   }
+  // 트랜지션을 다시 활성화하기 위해 약간의 지연 후 클래스 제거
+  setTimeout(() => {
+    $("body").removeClass("no-transition");
+  }, 50);
 
   $("#toggleNav").click(function () {
     $("body").toggleClass("nav-open");
