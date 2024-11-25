@@ -21,30 +21,27 @@
           <div class="option-container">
             <p class="option-title">권한 그룹</p>
             <div class="option-list">
-              <select class="form-select">
-                <option selected>선택</option>
-                <option value="1">One</option>
-                <option value="2">Two</option>
-                <option value="3">Three</option>
+              <select id="permissionGroupSelect" class="form-select">
+                <option value="" selected>선택</option>
               </select>
             </div>
           </div>
           <div class="option-container">
             <p class="option-title">관리자 ID</p>
             <div>
-              <input type="text" class="form-control" />
+              <input type="text" id="adminIdInput" class="form-control" />
             </div>
           </div>
           <div class="option-container">
             <p class="option-title">관리자명</p>
             <div>
-              <input type="text" class="form-control" />
+              <input type="text" id="adminNameInput" class="form-control" />
             </div>
           </div>
           <div class="option-container">
             <p class="option-title">고객사명</p>
             <div>
-              <input type="text" class="form-control" />
+              <input type="text" id="customerNameInput" class="form-control" />
             </div>
           </div>
 
@@ -63,7 +60,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr>
+                <!-- <tr>
                   <td>-</td>
                   <td>--</td>
                   <td>-</td>
@@ -80,13 +77,13 @@
                   <td>--</td>
                   <td>-</td>
                   <td>--</td>
-                </tr>
+                </tr> -->
               </tbody>
             </table>
           </div>
 
-          <ul class="pagination">
-            <li class="page-item">
+          <ul class="pagination" id="pagination">
+            <!-- <li class="page-item">
               <a class="page-link" href="#" aria-label="Previous">
                 <span aria-hidden="true">&laquo;</span>
               </a>
@@ -98,7 +95,7 @@
               <a class="page-link" href="#" aria-label="Next">
                 <span aria-hidden="true">&raquo;</span>
               </a>
-            </li>
+            </li> -->
           </ul>
         </div>
       </div>
@@ -110,11 +107,12 @@
     <script src="../js/common.js"></script>
     <script src="../js/layout.js"></script>
     <script src="../js/check.js"></script>
+    <script src="../js/account-withdrawal.js"></script>
     <script>
-      $(document).ready(function () {
-        clickAllCheck("#flexCheckDefault", ".select-check-1");
-        clickSingleCheck("#flexCheckDefault", ".select-check-1");
-      });
+      // $(document).ready(function () {
+      //   clickAllCheck("#flexCheckDefault", ".select-check-1");
+      //   clickSingleCheck("#flexCheckDefault", ".select-check-1");
+      // });
     </script>
   </body>
 </html>

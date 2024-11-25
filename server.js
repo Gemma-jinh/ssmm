@@ -459,6 +459,15 @@ const accountSchema = new mongoose.Schema({
   },
   authorityGroup: { type: String, enum: ["관리자", "작업자"], required: true },
   manager: { type: mongoose.Schema.Types.ObjectId, ref: "Manager" },
+  status: {
+    type: String,
+    enum: ["active", "withdrawn"],
+    default: "active",
+  },
+  withdrawalDate: {
+    type: Date,
+    default: null,
+  },
 });
 
 const Account =
@@ -3568,6 +3577,133 @@ apiRouter.post(
     } catch (err) {
       console.error("차량 배정 오류:", err);
       res.status(500).json({ error: "차량 배정 실패", details: err.message });
+    }
+  }
+);
+
+// 권한 그룹 목록 조회
+apiRouter.get("/permission-groups", authenticateToken, async (req, res) => {
+  try {
+    // 예시 권한 그룹 데이터
+    const permissionGroups = [
+      { id: 1, name: "관리자" },
+      { id: 2, name: "작업자" },
+    ];
+    res.json(permissionGroups);
+  } catch (error) {
+    console.error("권한 그룹 조회 오류:", error);
+    res.status(500).json({ error: "권한 그룹 조회에 실패했습니다." });
+  }
+});
+
+// 탈퇴 계정 목록 조회
+apiRouter.get("/withdrawn-accounts", authenticateToken, async (req, res) => {
+  try {
+    const {
+      permissionGroup,
+      adminId,
+      adminName,
+      customerName,
+      page = 1,
+      pageSize = 10,
+    } = req.query;
+
+    let filter = { status: "withdrawn" }; // 탈퇴 상태인 계정만 조회
+
+    if (permissionGroup) filter.authorityGroup = permissionGroup;
+    if (adminId) filter.adminId = { $regex: adminId, $options: "i" };
+    if (adminName) filter.adminName = { $regex: adminName, $options: "i" };
+    if (customerName) {
+      const customer = await Customer.findOne({
+        name: { $regex: customerName, $options: "i" },
+      });
+      if (customer) {
+        filter.customer = customer._id;
+      }
+    }
+
+    // 전체 데이터 수 조회
+    const total = await Account.countDocuments(filter);
+
+    // 페이지네이션 적용하여 데이터 조회
+    const accounts = await Account.find(filter)
+      .populate("customer")
+      .skip((page - 1) * pageSize)
+      .limit(parseInt(pageSize))
+      .sort({ withdrawalDate: -1 }) // 탈퇴일시 기준 내림차순 정렬
+      .lean();
+
+    const formattedAccounts = accounts.map((account) => ({
+      id: account._id,
+      permissionGroup: account.authorityGroup,
+      adminId: account.adminId,
+      adminName: account.adminName,
+      customerName: account.customer ? account.customer.name : "-",
+      withdrawalDate: account.withdrawalDate,
+    }));
+
+    res.json({
+      data: formattedAccounts,
+      totalPages: Math.ceil(total / pageSize),
+      currentPage: parseInt(page),
+      total,
+    });
+  } catch (error) {
+    console.error("탈퇴 계정 목록 조회 오류:", error);
+    res.status(500).json({ error: "탈퇴 계정 목록 조회에 실패했습니다." });
+  }
+});
+
+// 계정 탈퇴 처리
+apiRouter.put(
+  "/accounts/:id/withdraw",
+  authenticateToken,
+  authorizeRoles("관리자"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const account = await Account.findById(id);
+      if (!account) {
+        return res.status(404).json({ error: "계정을 찾을 수 없습니다." });
+      }
+
+      // 탈퇴 처리
+      account.status = "withdrawn";
+      account.withdrawalDate = new Date();
+      await account.save();
+
+      res.json({ message: "계정이 성공적으로 탈퇴 처리되었습니다." });
+    } catch (error) {
+      console.error("계정 탈퇴 처리 오류:", error);
+      res.status(500).json({ error: "계정 탈퇴 처리에 실패했습니다." });
+    }
+  }
+);
+
+// 탈퇴 계정 복구
+apiRouter.put(
+  "/accounts/:id/restore",
+  authenticateToken,
+  authorizeRoles("관리자"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const account = await Account.findById(id);
+      if (!account) {
+        return res.status(404).json({ error: "계정을 찾을 수 없습니다." });
+      }
+
+      // 복구 처리
+      account.status = "active";
+      account.withdrawalDate = null;
+      await account.save();
+
+      res.json({ message: "계정이 성공적으로 복구되었습니다." });
+    } catch (error) {
+      console.error("계정 복구 처리 오류:", error);
+      res.status(500).json({ error: "계정 복구에 실패했습니다." });
     }
   }
 );
