@@ -2532,7 +2532,10 @@ apiRouter.get("/accounts/check-duplicate", async (req, res) => {
     return res.status(400).json({ error: "관리자 ID가 필요합니다." });
   }
   try {
-    const existingAccount = await Account.findOne({ adminId });
+    const existingAccount = await Account.findOne({
+      adminId,
+      status: "active",
+    });
     if (existingAccount) {
       return res.json({ isDuplicate: true });
     } else {
@@ -2597,6 +2600,7 @@ apiRouter.post(
         password: hashedPassword,
         customer: authorityGroup !== "관리자" ? customer : null,
         authorityGroup,
+        status: "active",
       });
 
       if (authorityGroup === "작업자") {
@@ -2664,13 +2668,13 @@ apiRouter.get(
   authorizeRoles("관리자"),
   async (req, res) => {
     const { authorityGroup, adminId, adminName, customerName } = req.query;
-    let filter = {};
+    let filter = { status: "active" }; //active만 보이게
 
     if (authorityGroup) filter.authorityGroup = authorityGroup;
     if (adminId) filter.adminId = adminId;
     if (adminName) filter.adminName = { $regex: adminName, $options: "i" };
     if (customerName) {
-      // 고객사명으로 필터링하려면 Customer 모델과 조인 필요
+      // 고객사명 필터링시 Customer 모델과 조인 필요
       const customers = await Customer.find({
         name: { $regex: customerName, $options: "i" },
       });
@@ -2682,10 +2686,10 @@ apiRouter.get(
       const accounts = await Account.find(filter).populate("customer").exec();
       const formattedAccounts = accounts.map((account) => ({
         _id: account._id,
-        affiliation: "소속", // 소속구분에 대한 추가 정보가 필요함
+        affiliation: "소속", // 소속구분 추가 정보 필요
         authorityGroup: account.authorityGroup,
         adminId: account.adminId,
-        adminName: account.adminName, // 관리자명에 대한 필드가 필요함
+        adminName: account.adminName, // 관리자명 필드 필요
         customerName: account.customer ? account.customer.name : "N/A",
       }));
       res.json(formattedAccounts);
@@ -2710,11 +2714,20 @@ apiRouter.delete(
     }
 
     try {
-      const deletedAccount = await Account.findByIdAndDelete(id);
+      // const deletedAccount = await Account.findByIdAndDelete(id);
 
-      if (!deletedAccount) {
+      // if (!deletedAccount) {
+      //   return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
+      // }
+      const account = await Account.findById(id);
+
+      if (!account) {
         return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
       }
+      //상태 변경
+      account.status = "withdrawn";
+      account.withdrawalDate = new Date();
+      await account.save();
 
       res.json({ message: "계정이 성공적으로 삭제되었습니다." });
     } catch (err) {
@@ -2727,8 +2740,8 @@ apiRouter.delete(
 //계정 상세 정보 조회
 apiRouter.get(
   "/accounts/:id",
-  authenticateToken, // 인증 미들웨어
-  authorizeRoles("관리자"), // 권한 부여 미들웨어 (관리자만 접근 가능)
+  authenticateToken, // 인증
+  authorizeRoles("관리자"), // 권한 부여(관리자만 접근 가능)
   async (req, res) => {
     const { id } = req.params;
 
@@ -2747,7 +2760,7 @@ apiRouter.get(
         return res.status(404).json({ error: "해당 계정을 찾을 수 없습니다." });
       }
 
-      // 필요한 필드만 반환 (보안을 위해 비밀번호 등 민감한 정보는 제외)
+      // 필요한 필드만 반환
       const accountData = {
         _id: account._id,
         adminId: account.adminId,
@@ -2755,7 +2768,7 @@ apiRouter.get(
         authorityGroup: account.authorityGroup,
         customer: account.customer ? account.customer.name : null,
         manager: account.manager ? account.manager.name : null,
-        // 추가적으로 필요한 필드가 있다면 여기에 포함
+        // 추가적으로 필요한 필드
       };
 
       res.json(accountData);
@@ -3628,6 +3641,7 @@ apiRouter.get("/withdrawn-accounts", authenticateToken, async (req, res) => {
     // 페이지네이션 적용하여 데이터 조회
     const accounts = await Account.find(filter)
       .populate("customer")
+      .select("authorityGroup adminId adminName customer withdrawalDate status")
       .skip((page - 1) * pageSize)
       .limit(parseInt(pageSize))
       .sort({ withdrawalDate: -1 }) // 탈퇴일시 기준 내림차순 정렬
@@ -3640,6 +3654,7 @@ apiRouter.get("/withdrawn-accounts", authenticateToken, async (req, res) => {
       adminName: account.adminName,
       customerName: account.customer ? account.customer.name : "-",
       withdrawalDate: account.withdrawalDate,
+      status: account.status,
     }));
 
     res.json({

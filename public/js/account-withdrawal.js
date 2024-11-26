@@ -117,12 +117,16 @@ $(document).ready(function () {
     //   tbody.append(row);
     // });
     accounts.forEach((account) => {
+      const withdrawalDate = account.withdrawalDate
+        ? new Date(account.withdrawalDate).toLocaleString("ko-KR")
+        : "-";
       const row = `
             <tr>
                 <td>${account.permissionGroup || "-"}</td>
                 <td>${account.adminId || "-"}</td>
                 <td>${account.adminName || "-"}</td>
                 <td>${account.customerName || "-"}</td>
+                <td>${withdrawalDate}</td>
             </tr>
         `;
       tbody.append(row);
