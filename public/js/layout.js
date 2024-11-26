@@ -194,25 +194,84 @@ $(document).ready(function () {
   // init load
   const isMobile = detectMobileDevice();
 
-  $("body").addClass("no-transition");
-  if (!isMobile) {
-    // animation stop
+  // $("body").addClass("no-transition");
+  // if (!isMobile) {
+  //   $("body").addClass("nav-open");
+  // }
+  // setTimeout(() => {
+  //   $("body").removeClass("no-transition");
+  // }, 50);
+
+  // $("#toggleNav").click(function () {
+  //   $("body").toggleClass("nav-open");
+  // });
+
+  // $("#closeNav, #closeSideNav").click(function () {
+  //   $("body").removeClass("nav-open");
+  // });
+  if (isMobile) {
+    $("#sideNav").css("display", "none");
+    $("#content").css({
+      "margin-left": "0",
+      width: "100%",
+    });
+  } else {
+    // 데스크톱인 경우 사이드바 보이기
+    $("body").addClass("no-transition");
     $("body").addClass("nav-open");
+    $("#sideNav").css("display", "block");
+    $("#content").css({
+      "margin-left": "270px",
+      width: "calc(100% - 250px)",
+    });
   }
-  // 트랜지션을 다시 활성화하기 위해 약간의 지연 후 클래스 제거
+
+  // 트랜지션 재활성화
   setTimeout(() => {
     $("body").removeClass("no-transition");
   }, 50);
 
+  // 토글 네비게이션 버튼 클릭 이벤트
   $("#toggleNav").click(function () {
+    if (isMobile) {
+      const isNavOpen = $("body").hasClass("nav-open");
+      $("#sideNav").css("display", isNavOpen ? "none" : "block");
+      $("#content").css({
+        "margin-left": "0",
+        width: "100%",
+      });
+    }
     $("body").toggleClass("nav-open");
   });
 
-  // $("#closeNav").click(function () {
-  //   $("body").removeClass("nav-open");
-  // });
-
+  // 사이드바 닫기 버튼 클릭 이벤트
   $("#closeNav, #closeSideNav").click(function () {
+    if (isMobile) {
+      $("#sideNav").css("display", "none");
+      $("#content").css({
+        "margin-left": "0",
+        width: "100%",
+      });
+    }
     $("body").removeClass("nav-open");
+  });
+  // 윈도우 리사이즈 이벤트 처리
+  $(window).resize(function () {
+    const isMobile = detectMobileDevice();
+    if (isMobile) {
+      $("#sideNav").css("display", "none");
+      $("#content").css({
+        "margin-left": "0",
+        width: "100%",
+      });
+      $("body").removeClass("nav-open");
+    } else {
+      $("#sideNav").css("display", "block");
+      $("#content").css({
+        "margin-left": "250px",
+        width: "calc(100% - 250px)",
+      });
+      $("body").addClass("nav-open");
+    }
   });
 });
