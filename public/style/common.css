@@ -59,6 +59,31 @@ button:focus:not(:focus-visible) {
   }
 }
 
+@media screen and (max-width: 768px) {
+  #sideNav {
+    display: none;
+  }
+
+  /* 사이드바가 없을 때 메인 콘텐츠 영역 조정 */
+  #content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  /* 모바일에서 메인 콘텐츠 패딩 조정 */
+  .main-content-box {
+    padding: 15px !important;
+  }
+}
+
+/* 태블릿 이상 화면에서 사이드바 표시 */
+@media screen and (min-width: 769px) {
+  #content {
+    margin-left: 250px;
+    width: calc(100% - 250px);
+  }
+}
+
 #content,
 .navbar {
   transition: margin-left 0.3s ease-in-out;
