@@ -110,6 +110,49 @@ async function restoreFilters(filters) {
 
 // 이벤트 리스너 설정 함수
 function setupEventListeners() {
+  $("#car-type").on("change", async function () {
+    const selectedType = $(this).val();
+    if (selectedType && selectedType !== "차종 선택") {
+      await populateCarModels(selectedType);
+      $("#car-model").prop("disabled", false);
+    } else {
+      $("#car-model").html("<option selected>차량 모델 선택</option>");
+      $("#car-model").prop("disabled", true);
+    }
+    saveFilters();
+  });
+
+  // 지역 선택 변경 이벤트
+  $("#region-select").on("change", async function () {
+    const selectedRegion = $(this).val();
+    if (selectedRegion && selectedRegion !== "지역 선택") {
+      await populatePlaces(selectedRegion);
+      $("#place-select").prop("disabled", false);
+    } else {
+      $("#place-select").html("<option selected>장소 선택</option>");
+      $("#place-select").prop("disabled", true);
+      $("#parking-spot-select").html(
+        "<option selected>주차 위치 선택</option>"
+      );
+      $("#parking-spot-select").prop("disabled", true);
+    }
+    saveFilters();
+  });
+
+  // 장소 선택 변경 이벤트
+  $("#place-select").on("change", async function () {
+    const selectedPlace = $(this).val();
+    if (selectedPlace && selectedPlace !== "장소 선택") {
+      await populateParkingSpots(selectedPlace);
+      $("#parking-spot-select").prop("disabled", false);
+    } else {
+      $("#parking-spot-select").html(
+        "<option selected>주차 위치 선택</option>"
+      );
+      $("#parking-spot-select").prop("disabled", true);
+    }
+    saveFilters();
+  });
   // 차량 타입 변경 시 차량 모델 불러오기
   $(
     "#car-type, #car-model, #license-plate, #region-select, #place-select, #parking-spot-select, #manager, #assign-date"
