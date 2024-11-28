@@ -52,26 +52,38 @@ function saveFilterState() {
 
 // 필터상태 복원
 function restoreFilterState() {
-  const savedFilters = sessionStorage.getItem("workerCarWashFilters");
-  if (savedFilters) {
-    const filters = JSON.parse(savedFilters);
+  sessionStorage.removeItem("workerCarWashFilters");
+  const today = new Date().toISOString().split("T")[0]; // 현재 날짜 기본값 설정
+  // const savedFilters = sessionStorage.getItem("workerCarWashFilters");
+  // if (savedFilters) {
+  //   const filters = JSON.parse(savedFilters);
 
-    // 날짜 복원
-    if (filters.assignDate) {
-      $("#assign-date").val(filters.assignDate);
-    } else {
-      const today = new Date().toISOString().split("T")[0];
-      $("#assign-date").val(today);
-    }
+  // 날짜 복원
+  // if (filters.assignDate) {
+  //   $("#assign-date").val(filters.assignDate);
+  // } else {
+  //   const today = new Date().toISOString().split("T")[0];
+  //   $("#assign-date").val(today);
+  // }
+  //   $("#assign-date").val(filters.assignDate || today);
 
-    if (filters.status) {
-      $(`#${filters.status}`).prop("checked", true);
-    }
-  } else {
-    const today = new Date().toISOString().split("T")[0];
-    $("#assign-date").val(today);
-    $("#car-wash-status-all").prop("checked", true);
-  }
+  //   if (filters.status) {
+  //     $(`#${filters.status}`).prop("checked", true);
+  //   } else {
+  //     $("#car-wash-status-all").prop("checked", true);
+  //   }
+  // } else {
+  // const today = new Date().toISOString().split("T")[0];
+  //   $("#assign-date").val(today);
+  //   $("#car-wash-status-all").prop("checked", true);
+  // }
+  $("#assign-date").val(today);
+
+  // 상태는 '전체'로 설정
+  $("#car-wash-status-all").prop("checked", true);
+
+  // 새로운 필터 상태 저장
+  saveFilterState();
 }
 
 function initializeSearchFields() {
@@ -81,6 +93,15 @@ function initializeSearchFields() {
   // $("#assign-date").val(today);
   // console.log("검색 필드가 초기화되었습니다.");
   restoreFilterState();
+
+  const status = getStatusFilter();
+  const assignDate = $("#assign-date").val();
+  currentSearchParams = {
+    status: status,
+    assignDate: assignDate,
+    page: 1,
+    limit: 10,
+  };
   console.log("검색필드 초기화");
 }
 
@@ -465,6 +486,12 @@ $(document).ready(function () {
 
   // 라디오 버튼 변경 이벤트
   $('input[name="flexRadioDefault"]').on("change", function () {
+    saveFilterState();
+    performSearch();
+  });
+
+  $("#search-button").on("click", function () {
+    saveFilterState();
     performSearch();
   });
 });

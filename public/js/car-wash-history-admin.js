@@ -39,8 +39,11 @@ function initializeFilters() {
     restoreFilters(filters);
   } else {
     // 작업 날짜 기본값 설정
-    const today = new Date().toISOString().split("T")[0];
-    $("#assign-date").val(today);
+    // const today = new Date().toISOString().split("T")[0];
+    // $("#assign-date").val(today);
+    const today = new Date();
+    const formattedDate = today.toISOString().split("T")[0];
+    $("#assign-date").val(formattedDate);
     $("#car-wash-status-all").prop("checked", true);
   }
 }
